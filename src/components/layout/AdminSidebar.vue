@@ -4,7 +4,6 @@ import { useRoute, RouterLink } from 'vue-router'
 import { 
     LayoutDashboard, 
     Users, 
-    ShoppingCart,
     Settings,
     ChevronLeft,
     ChevronRight,
@@ -38,7 +37,6 @@ const navigation = [
         ]
     },
     { name: 'Users', to: '#', icon: Users },
-    { name: 'Orders', to: '#', icon: ShoppingCart },
     { name: 'Settings', to: '#', icon: Settings },
 ]
 

@@ -47,9 +47,9 @@ const goToLogin = () => {
                 </div>
 
                 <div class="hidden lg:block relative">
-                    <div class="absolute inset-0 bg-gradient-to-tr from-indigo-200/50 to-purple-200/50 rounded-[3rem] transform rotate-3 scale-105 z-0 blur-sm"></div>
+                    <div class="absolute inset-0 bg-gradient-to-tr from-indigo-200/50 to-purple-200/50 rounded-[3rem] transform rotate-3 scale-105 z-0"></div>
                     
-                    <div class="relative z-10 bg-white/90 backdrop-blur-xl border border-gray-100 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 transform -rotate-1 hover:rotate-0 transition-transform duration-500">
+                    <div class="relative z-10 bg-white/90 border border-gray-100 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 transform -rotate-1 hover:rotate-0 transition-transform duration-500">
                         
                         <div class="flex items-center justify-between mb-8">
                             <div class="flex items-center gap-3">

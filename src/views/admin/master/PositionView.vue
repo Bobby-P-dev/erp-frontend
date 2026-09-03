@@ -303,9 +303,9 @@ const deletePos = async (id) => {
 
         <Teleport to="body">
             <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
-                <div class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" @click="closeModal"></div>
+                <div class="fixed inset-0 bg-gray-900/40 transition-opacity" @click="closeModal"></div>
 
-                <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+                <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
                     <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
                         <div class="flex items-center gap-3">
                             <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">

@@ -15,7 +15,6 @@ import { Bell, Search } from '@lucide/vue'
         <div class="flex-1 flex flex-col min-w-0">
             <AppHeader isSticky>
                 <template #left>
-                    <!-- Search -->
                     <div class="relative hidden sm:block">
                         <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input 
