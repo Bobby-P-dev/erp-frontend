@@ -40,13 +40,15 @@ const fetchCompanies = async(search = '', page = 1) => {
     try {
         const response = await getCompanies(search, page)
 
-        companies.value = response.data.data
+        companies.value = response.data || []
+        
+        const resPagination = response.meta || response
         pagination.value = {
-            current_page: response.data.current_page,
-            last_page: response.data.last_page,
-            from: response.data.from || 0,
-            to: response.data.to || 0,
-            total: response.data.total
+            current_page: resPagination.current_page || 1,
+            last_page: resPagination.last_page || 1,
+            from: resPagination.from || 0,
+            to: resPagination.to || 0,
+            total: resPagination.total || 0
         }
         
     } catch(error) {

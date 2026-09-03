@@ -37,7 +37,7 @@ const fetchInitialData = async () => {
         }
         
         const permRes = await getPermissions('', 1, 1000)
-        allPermissions.value = permRes.data?.data || []
+        allPermissions.value = permRes.data || []
         
         closeSwal()
     } catch (error) {
@@ -55,7 +55,7 @@ const groupedPermissions = computed(() => {
     const groups = {}
     
     allPermissions.value.forEach(permission => {
-        const categoryName = permission.permission_category?.name || 'Uncategorized'
+        const categoryName = permission.category?.name || 'Uncategorized'
         if (!groups[categoryName]) {
             groups[categoryName] = []
         }

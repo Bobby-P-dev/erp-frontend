@@ -40,15 +40,15 @@ const fetchRoles = async(search = '', page = 1) => {
     try {
         const response = await getRoles(search, page)
 
-        roles.value = response.data.data
+        roles.value = response.data || []
         
-        const resPagination = response.data
+        const resPagination = response.meta || response
         pagination.value = {
-            current_page: resPagination.current_page,
-            last_page: resPagination.last_page,
+            current_page: resPagination.current_page || 1,
+            last_page: resPagination.last_page || 1,
             from: resPagination.from || 0,
             to: resPagination.to || 0,
-            total: resPagination.total
+            total: resPagination.total || 0
         }
         
     } catch(error) {
