@@ -1,12 +1,10 @@
 import api from './api'
 
 export const getEmployees = async (search = '', page = 1, filter = {}) => {
-    // Build query params
     const params = new URLSearchParams()
     if (search) params.append('search', search)
     if (page) params.append('page', page)
     
-    // Append filters
     for (const key in filter) {
         if (filter[key] !== null && filter[key] !== '') {
             params.append(`filter[${key}]`, filter[key])

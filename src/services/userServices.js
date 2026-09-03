@@ -5,7 +5,6 @@ export const getUsers = async (search = '', page = 1, filters = {}) => {
     if (search) params.append('search', search)
     if (page) params.append('page', page)
     
-    // Append additional filters
     for (const [key, value] of Object.entries(filters)) {
         if (value) {
             params.append(`filter[${key}]`, value)

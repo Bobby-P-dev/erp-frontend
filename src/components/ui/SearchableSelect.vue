@@ -14,7 +14,6 @@ const props = defineProps({
     options: {
         type: Array,
         required: true,
-        // format: [{ value: 1, label: 'Option 1' }]
     },
     placeholder: {
         type: String,
@@ -54,7 +53,7 @@ const toggleDropdown = () => {
     isOpen.value = !isOpen.value
     if (isOpen.value) {
         searchQuery.value = ''
-        emit('search', '') // Reset search when opening
+        emit('search', '') 
     }
 }
 
@@ -80,12 +79,10 @@ onUnmounted(() => {
 
 <template>
     <div class="relative w-full" ref="containerRef">
-        <!-- Label -->
         <label v-if="label" class="block text-sm font-bold text-gray-700 mb-1.5">
             {{ label }} <span v-if="required" class="text-rose-500">*</span>
         </label>
 
-        <!-- Selected Box (Trigger) -->
         <div 
             @click="toggleDropdown"
             class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm flex items-center justify-between cursor-pointer transition-all hover:bg-white focus:bg-white"
@@ -100,12 +97,10 @@ onUnmounted(() => {
             />
         </div>
 
-        <!-- Dropdown Panel -->
         <div 
             v-if="isOpen"
             class="absolute z-[110] w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
         >
-            <!-- Search Input -->
             <div class="p-2 border-b border-gray-100 bg-gray-50/50 sticky top-0">
                 <div class="relative">
                     <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -120,7 +115,6 @@ onUnmounted(() => {
                 </div>
             </div>
 
-            <!-- Options List -->
             <div class="max-h-60 overflow-y-auto p-1">
                 <div v-if="loading" class="px-4 py-3 text-sm text-gray-500 text-center flex items-center justify-center gap-2">
                     <svg class="animate-spin h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

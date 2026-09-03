@@ -3,7 +3,6 @@ defineProps({
     columns: {
         type: Array,
         required: true,
-        // format: [{ key: 'name', label: 'Name' }, { key: 'action', label: 'Action', class: 'text-right' }]
     }
 })
 </script>

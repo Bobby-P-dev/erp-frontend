@@ -11,7 +11,6 @@ defineProps({
     options: {
         type: Array,
         required: true,
-        // format: [{ value: 1, label: 'Option 1' }]
     },
     placeholder: {
         type: String,
