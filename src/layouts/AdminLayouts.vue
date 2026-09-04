@@ -31,8 +31,8 @@ import { Bell } from '@lucide/vue'
             </template>
         </AppHeader>
 
-        <div class="flex-1 flex min-h-0 mt-4 px-4 gap-4 pb-4">
-            <AdminSidebar class="rounded-2xl shadow-sm border border-gray-100" />
+        <div class="flex-1 flex min-h-0 py-4 pr-4 gap-4">
+            <AdminSidebar class="rounded-r-2xl border-y border-r border-gray-100 shadow-[2px_0_8px_-3px_rgba(0,0,0,0.05)] z-20" />
 
             <div class="flex-1 flex flex-col min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <main class="flex-1 p-6 lg:p-8 overflow-y-auto">

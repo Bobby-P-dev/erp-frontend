@@ -110,7 +110,7 @@ navigation.forEach(item => {
             </div>
         </div>
 
-        <nav class="flex-1 py-6 space-y-1.5 transition-all duration-300" :class="isCollapsed ? 'px-3 overflow-visible' : 'px-4 overflow-y-auto overflow-x-hidden'">
+        <nav class="flex-1 py-4 space-y-1 transition-all duration-300" :class="isCollapsed ? 'px-2 overflow-visible' : 'px-0 pr-4 overflow-y-auto overflow-x-hidden'">
             <div v-for="item in navigation" :key="item.name" class="relative group border border-gray-100 rounded-xl p-1">
                 <component
                     :is="item.children ? 'button' : RouterLink"
@@ -119,7 +119,7 @@ navigation.forEach(item => {
                     :class="[
                         'w-full relative flex items-center justify-between py-3 rounded-xl text-sm font-medium transition-all duration-300',
                         (item.children ? isChildActive(item) : isActive(item.to))
-                            ? 'text-indigo-700 bg-indigo-50/80 shadow-sm' 
+                            ? 'text-indigo-700 bg-indigo-50/80' 
                             : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50',
                         isCollapsed ? 'px-0 justify-center' : 'px-4 gap-3'
                     ]"
