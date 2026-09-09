@@ -11,5 +11,6 @@ export default defineConfig({
   server: {
     host: 'app.erp-backend.test',
     port: 5173,
+    strictPort: true,
   },
 })

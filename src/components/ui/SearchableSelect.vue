@@ -26,6 +26,14 @@ const props = defineProps({
     loading: {
         type: Boolean,
         default: false
+    },
+    disabled: {
+        type: Boolean,
+        default: false
+    },
+    searchable: {
+        type: Boolean,
+        default: true
     }
 })
 
@@ -40,8 +48,19 @@ let searchTimeout = null
 watch(searchQuery, (newValue) => {
     if (searchTimeout) clearTimeout(searchTimeout)
     searchTimeout = setTimeout(() => {
-        emit('search', newValue)
+        if (props.searchable) {
+            emit('search', newValue)
+        }
     }, 300)
+})
+
+const filteredOptions = computed(() => {
+    if (!props.searchable || !searchQuery.value) {
+        return props.options
+    }
+    return props.options.filter(opt => 
+        String(opt.label || '').toLowerCase().includes(searchQuery.value.toLowerCase())
+    )
 })
 
 const selectedLabel = computed(() => {
@@ -50,10 +69,13 @@ const selectedLabel = computed(() => {
 })
 
 const toggleDropdown = () => {
+    if (props.disabled) return
     isOpen.value = !isOpen.value
     if (isOpen.value) {
         searchQuery.value = ''
-        emit('search', '') 
+        if (props.searchable) {
+            emit('search', '') 
+        }
     }
 }
 
@@ -85,8 +107,11 @@ onUnmounted(() => {
 
         <div 
             @click="toggleDropdown"
-            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm flex items-center justify-between cursor-pointer transition-all hover:bg-white focus:bg-white"
-            :class="[isOpen ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-white' : '']"
+            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm flex items-center justify-between transition-all"
+            :class="[
+                disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'cursor-pointer hover:bg-white focus:bg-white',
+                isOpen ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-white' : ''
+            ]"
         >
             <span :class="selectedLabel ? 'text-gray-900 font-medium' : 'text-gray-400'">
                 {{ selectedLabel || placeholder }}
@@ -101,7 +126,7 @@ onUnmounted(() => {
             v-if="isOpen"
             class="absolute z-[110] w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
         >
-            <div class="p-2 border-b border-gray-100 bg-gray-50/50 sticky top-0">
+            <div v-if="searchable" class="p-2 border-b border-gray-100 bg-gray-50/50 sticky top-0">
                 <div class="relative">
                     <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input 
@@ -124,12 +149,12 @@ onUnmounted(() => {
                     Searching...
                 </div>
                 
-                <div v-else-if="options.length === 0" class="px-4 py-3 text-sm text-gray-500 text-center">
+                <div v-else-if="filteredOptions.length === 0" class="px-4 py-3 text-sm text-gray-500 text-center">
                     No results found.
                 </div>
                 
                 <div 
-                    v-for="option in options" 
+                    v-for="option in filteredOptions" 
                     :key="option.value"
                     @click="selectOption(option)"
                     class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors"

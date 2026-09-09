@@ -4,6 +4,7 @@ import { Plus, Edit, Users, X, Check, Filter, Search } from '@lucide/vue'
 import { getUsers, updateUserPassword, syncUserRoles } from '../../../services/userServices'
 import { register } from '../../../services/authServices'
 import { searchEmployees } from '../../../services/employeeServices'
+import { searchSuppliers } from '../../../services/supplierService'
 import { searchCompanies } from '../../../services/companyServices'
 import { searchDivisions } from '../../../services/divisionServices'
 import { searchJobLevels } from '../../../services/jobLevelServices'
@@ -31,7 +32,7 @@ const pagination = ref({
 })
 
 const tableColumns = [
-    { key: 'employee', label: 'Employee' },
+    { key: 'employee', label: 'User / Identity' },
     { key: 'company_division', label: 'Company & Division' },
     { key: 'position_level', label: 'Pos. & Job Level' },
     { key: 'roles', label: 'Roles' },
@@ -121,15 +122,34 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const editId = ref(null)
 
+const accountTypeOptions = [
+    { value: 'employee', label: 'Employee' },
+    { value: 'supplier', label: 'Supplier' }
+]
+
 const form = ref({
+    account_type: 'employee',
     employee_id: '',
+    supplier_id: '',
     password: '',
     password_confirmation: '',
     roles: []
 })
 
 const employeeOptions = ref([])
+const supplierOptions = ref([])
 
+watch(() => form.value.account_type, (newType, oldType) => {
+    if (newType !== oldType && !isEditing.value) {
+        form.value.employee_id = ''
+        form.value.supplier_id = ''
+        if (newType === 'supplier') {
+            loadSuppliers('')
+        } else if (newType === 'employee') {
+            loadEmployees('')
+        }
+    }
+})
 
 const loadModalRoles = async (search = '') => {
     try {
@@ -152,18 +172,46 @@ const loadEmployees = async (search = '') => {
     }
 }
 
+const loadSuppliers = async (search = '') => {
+    try {
+        const res = await searchSuppliers(search)
+        const list = res.data || []
+        supplierOptions.value = list.map(item => ({
+            value: item.id,
+            label: item.supplier_code ? `${item.name} (${item.supplier_code})` : item.name
+        }))
+    } catch (e) {
+        console.error(e)
+    }
+}
+
 const openModal = async (user = null) => {
     if (user && user.id) {
         isEditing.value = true
         editId.value = user.id
         
-        employeeOptions.value = [{
-            value: user.employee.id,
-            label: `${user.employee.name} (${user.employee.nik})`
-        }]
+        const accType = user.account_type || (user.supplier ? 'supplier' : 'employee')
+
+        if (accType === 'supplier') {
+            supplierOptions.value = user.supplier ? [{
+                value: user.supplier.id,
+                label: user.supplier.supplier_code 
+                    ? `${user.supplier.name} (${user.supplier.supplier_code})` 
+                    : user.supplier.name
+            }] : []
+            employeeOptions.value = []
+        } else {
+            employeeOptions.value = user.employee ? [{
+                value: user.employee.id,
+                label: `${user.employee.name} (${user.employee.nik})`
+            }] : []
+            supplierOptions.value = []
+        }
 
         form.value = { 
-            employee_id: user.employee.id,
+            account_type: accType,
+            employee_id: user.employee?.id || user.employee_id || '',
+            supplier_id: user.supplier?.id || user.supplier_id || '',
             password: '',
             password_confirmation: '',
             roles: user.roles ? user.roles.map(r => r.id) : []
@@ -172,12 +220,15 @@ const openModal = async (user = null) => {
         isEditing.value = false
         editId.value = null
         form.value = { 
+            account_type: 'employee',
             employee_id: '',
+            supplier_id: '',
             password: '',
             password_confirmation: '',
             roles: []
         }
         employeeOptions.value = []
+        supplierOptions.value = []
     }
     showModal.value = true
 }
@@ -200,11 +251,19 @@ const saveUser = async () => {
             const rolesToSync = Array.isArray(form.value.roles) ? form.value.roles : (form.value.roles ? [form.value.roles] : [])
             await syncUserRoles(editId.value, rolesToSync)
         } else {
-            const newUser = await register({
-                employee_id: form.value.employee_id,
+            const payload = {
+                account_type: form.value.account_type,
                 password: form.value.password,
                 password_confirmation: form.value.password_confirmation
-            })
+            }
+
+            if (form.value.account_type === 'supplier') {
+                payload.supplier_id = form.value.supplier_id
+            } else {
+                payload.employee_id = form.value.employee_id
+            }
+
+            const newUser = await register(payload)
             if (newUser && newUser.data && newUser.data.id) {
                 const rolesToSync = Array.isArray(form.value.roles) ? form.value.roles : (form.value.roles ? [form.value.roles] : [])
                 await syncUserRoles(newUser.data.id, rolesToSync)
@@ -247,7 +306,7 @@ const toggleFilters = () => {
             <div class="p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50/30">
                 <div class="flex items-center gap-3 w-full sm:w-auto">
                     <div class="w-full sm:w-64">
-                        <SearchInput v-model="searchQuery" placeholder="Search by Employee Name..." />
+                        <SearchInput v-model="searchQuery" placeholder="Search by Name or Code..." />
                     </div>
                 </div>
                 
@@ -302,19 +361,20 @@ const toggleFilters = () => {
                 <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50/80 transition-colors group">
                     <td class="px-6 py-5 whitespace-nowrap">
                         <div class="flex flex-col">
-                            <span class="text-base font-bold text-gray-900">{{ user.employee?.name || '-' }}</span>
-                            <span class="text-xs text-gray-500 font-mono">{{ user.employee?.nik || '-' }}</span>
+                            <span class="text-base font-bold text-gray-900">{{ user.employee?.name || user.supplier?.name || user.name || '-' }}</span>
+                            <span class="text-xs text-gray-500 font-mono">{{ user.employee?.nik || user.supplier?.supplier_code || '-' }}</span>
                         </div>
                     </td>
                     <td class="px-6 py-5 whitespace-nowrap">
-                        <div class="text-sm text-gray-700 font-medium">{{ user.employee?.company?.name || '-' }}</div>
-                        <div class="text-xs text-gray-400">{{ user.employee?.division?.name || '-' }}</div>
+                        <div class="text-sm text-gray-700 font-medium">{{ user.employee?.company?.name || (user.account_type === 'supplier' || user.supplier ? 'Supplier Account' : '-') }}</div>
+                        <div class="text-xs text-gray-400">{{ user.employee?.division?.name || (user.account_type === 'supplier' || user.supplier ? (user.supplier?.email || '-') : '-') }}</div>
                     </td>
                     <td class="px-6 py-5 whitespace-nowrap">
                         <div class="flex flex-col gap-1">
                             <span class="text-sm text-gray-700" v-if="user.employee?.position">{{ user.employee.position.name }}</span>
                             <span class="text-xs text-indigo-600 font-medium" v-if="user.employee?.job_level">{{ user.employee.job_level.name }}</span>
-                            <span class="text-sm text-gray-400" v-if="!user.employee?.position && !user.employee?.job_level">-</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 w-fit" v-else-if="user.account_type === 'supplier' || user.supplier">Supplier</span>
+                            <span class="text-sm text-gray-400" v-else>-</span>
                         </div>
                     </td>
                     <td class="px-6 py-5 whitespace-nowrap">
@@ -367,6 +427,18 @@ const toggleFilters = () => {
                             
                             <div>
                                 <SearchableSelect 
+                                    v-model="form.account_type"
+                                    label="Account Type"
+                                    :options="accountTypeOptions"
+                                    placeholder="Select Account Type"
+                                    :searchable="false"
+                                    required
+                                    :disabled="isEditing"
+                                />
+                            </div>
+
+                            <div v-if="form.account_type === 'employee'">
+                                <SearchableSelect 
                                     v-model="form.employee_id"
                                     label="Employee"
                                     placeholder="Search by NIK or Name..."
@@ -377,6 +449,20 @@ const toggleFilters = () => {
                                 />
                                 <p v-if="isEditing" class="text-xs text-gray-400 mt-1">Employee details cannot be changed during password update.</p>
                                 <p v-else class="text-xs text-gray-400 mt-1">Start typing NIK or Name to search.</p>
+                            </div>
+
+                            <div v-else-if="form.account_type === 'supplier'">
+                                <SearchableSelect 
+                                    v-model="form.supplier_id"
+                                    label="Supplier"
+                                    placeholder="Search by Supplier Code or Name..."
+                                    :options="supplierOptions"
+                                    @search="loadSuppliers"
+                                    required
+                                    :disabled="isEditing"
+                                />
+                                <p v-if="isEditing" class="text-xs text-gray-400 mt-1">Supplier details cannot be changed during password update.</p>
+                                <p v-else class="text-xs text-gray-400 mt-1">Start typing Supplier Code or Name to search.</p>
                             </div>
 
                             <BaseInput 

@@ -19,6 +19,10 @@ defineProps({
     required: {
         type: Boolean,
         default: false
+    },
+    disabled: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -33,8 +37,9 @@ defineEmits(['update:modelValue'])
         <div class="relative">
             <select 
                 :value="modelValue"
+                :disabled="disabled"
                 @change="$emit('update:modelValue', $event.target.value)"
-                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-gray-900 appearance-none cursor-pointer"
+                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-gray-900 appearance-none cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
             >
                 <option value="" disabled>{{ placeholder }}</option>
                 <option v-for="option in options" :key="option.value" :value="option.value">
