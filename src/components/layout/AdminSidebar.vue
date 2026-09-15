@@ -37,7 +37,8 @@ const navigation = [
                     { name: 'Roles', to: 'admin.master.role' },
                     { name: 'Job Levels', to: 'admin.master.job-level' },
                     { name: 'Employees', to: 'admin.master.employee' },
-                    { name: 'Users', to: 'admin.master.user' }
+                    { name: 'Users', to: 'admin.master.user' },
+                    { name: 'Accounting Categories', to: 'admin.master.accounting-category' }
                 ]
             },
             {

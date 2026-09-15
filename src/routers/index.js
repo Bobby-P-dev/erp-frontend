@@ -105,6 +105,11 @@ const router = createRouter({
                     path: 'master/users',
                     name: 'admin.master.user',
                     component: () => import('../views/admin/master/UserView.vue'),
+                },
+                {
+                    path: 'master/accounting-categories',
+                    name: 'admin.master.accounting-category',
+                    component: () => import('../views/admin/master/AccountingCategoryView.vue'),
                 }
             ],
         },
