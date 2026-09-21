@@ -110,6 +110,67 @@ const router = createRouter({
                     path: 'master/accounting-categories',
                     name: 'admin.master.accounting-category',
                     component: () => import('../views/admin/master/AccountingCategoryView.vue'),
+                },
+                {
+                    path: 'master/accounting-subcategories',
+                    name: 'admin.master.accounting-subcategory',
+                    component: () => import('../views/admin/master/AccountingSubcategoryView.vue'),
+                },
+                {
+                    path: 'master/accounting-accounts',
+                    name: 'admin.master.accounting-account',
+                    component: () => import('../views/admin/master/AccountingAccountView.vue'),
+                },
+                {
+                    path: 'master/suppliers',
+                    name: 'admin.master.supplier',
+                    component: () => import('../views/admin/master/supplier/SupplierListView.vue'),
+                },
+                {
+                    path: 'master/items',
+                    name: 'admin.master.item',
+                    component: () => import('../views/admin/master/ItemView.vue'),
+                },
+                {
+                    path: 'master/suppliers/create',
+                    name: 'admin.master.supplier.create',
+                    component: () => import('../views/admin/master/supplier/SupplierCreateView.vue'),
+                },
+                {
+                    path: 'master/suppliers/:id',
+                    component: () => import('../views/admin/master/supplier/SupplierDetailLayout.vue'),
+                    children: [
+                        {
+                            path: '',
+                            name: 'admin.master.supplier.detail',
+                            redirect: to => ({ name: 'admin.master.supplier.general', params: to.params })
+                        },
+                        {
+                            path: 'general',
+                            name: 'admin.master.supplier.general',
+                            component: () => import('../views/admin/master/supplier/tabs/SupplierGeneralTab.vue')
+                        },
+                        {
+                            path: 'contacts',
+                            name: 'admin.master.supplier.contacts',
+                            component: () => import('../views/admin/master/supplier/tabs/SupplierContactsTab.vue')
+                        },
+                        {
+                            path: 'bank-accounts',
+                            name: 'admin.master.supplier.bank-accounts',
+                            component: () => import('../views/admin/master/supplier/tabs/SupplierBankAccountsTab.vue')
+                        },
+                        {
+                            path: 'documents',
+                            name: 'admin.master.supplier.documents',
+                            component: () => import('../views/admin/master/supplier/tabs/SupplierDocumentsTab.vue')
+                        },
+                        {
+                            path: 'items',
+                            name: 'admin.master.supplier.items',
+                            component: () => import('../views/admin/master/supplier/tabs/SupplierItemsTab.vue')
+                        }
+                    ]
                 }
             ],
         },

@@ -38,14 +38,16 @@ const navigation = [
                     { name: 'Job Levels', to: 'admin.master.job-level' },
                     { name: 'Employees', to: 'admin.master.employee' },
                     { name: 'Users', to: 'admin.master.user' },
-                    { name: 'Accounting Categories', to: 'admin.master.accounting-category' }
+                    { name: 'Accounting Categories', to: 'admin.master.accounting-category' },
+                    { name: 'Accounting Subcategories', to: 'admin.master.accounting-subcategory' },
+                    { name: 'Accounting Accounts', to: 'admin.master.accounting-account' }
                 ]
             },
             {
                 name: 'Purchasing',
                 children: [
-                    { name: 'Suppliers', to: '#' },
-                    { name: 'Items', to: '#' },
+                    { name: 'Suppliers', to: 'admin.master.supplier' },
+                    { name: 'Items', to: 'admin.master.item' },
                     { name: 'Units', to: '#' },
                 ]
             }
