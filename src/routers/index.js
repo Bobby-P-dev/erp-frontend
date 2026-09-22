@@ -40,6 +40,78 @@ const router = createRouter({
                     name: 'user.dashboard',
                     component: () => import('../views/user/DashboardView.vue'),
                 },
+                {
+                    path: 'approvals/inbox',
+                    name: 'user.approvals.inbox',
+                    component: () => import('../views/approval/ApprovalInboxView.vue'),
+                },
+            ],
+        },
+        {
+            path: '/purchasing',
+            component: () => import('../layouts/UserLayouts.vue'),
+            meta: {
+                requiresAuth: true
+            },
+            children: [
+                {
+                    path: '',
+                    name: 'user.purchasing',
+                    component: () => import('../views/purchasing/PurchasingHomeView.vue'),
+                },
+                {
+                    path: 'purchase-requisitions',
+                    name: 'user.purchasing.requisitions',
+                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
+                    props: {
+                        title: 'Purchase Requisitions',
+                        subtitle: 'Daftar dan Pengajuan Kebutuhan Barang / Jasa',
+                        stageName: 'Tahap 1: Pengajuan Kebutuhan',
+                        description: 'Kelola pengajuan kebutuhan barang dan jasa divisi Anda. Fitur mencakup pembuatan form PR, monitoring status verifikasi anggaran, dan tracking persetujuan atasan.'
+                    }
+                },
+                {
+                    path: 'procurement-queue',
+                    name: 'user.purchasing.queue',
+                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
+                    props: {
+                        title: 'Procurement Queue',
+                        subtitle: 'Antrean PR Approved Siap Pengadaan',
+                        stageName: 'Tahap 2: Antrean Pemrosesan Pengadaan',
+                        description: 'Daftar seluruh Purchase Requisition yang telah disetujui (approved) dan siap diproses oleh tim Purchasing untuk pengalokasian sumber daya atau metode pengadaan.'
+                    },
+                    meta: {
+                        permission: 'procurement.read'
+                    }
+                },
+                {
+                    path: 'procurement-plans',
+                    name: 'user.purchasing.plans',
+                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
+                    props: {
+                        title: 'Procurement Plans',
+                        subtitle: 'Perencanaan Strategis & Konsolidasi Pengadaan',
+                        stageName: 'Tahap 3: Perencanaan & Alokasi',
+                        description: 'Atur metode pengadaan (Direct Purchase, Tender RFQ, atau Kontrak Payung), alokasi kuantitas item, serta konsolidasi kebutuhan multi-divisi untuk efisiensi biaya.'
+                    },
+                    meta: {
+                        permission: 'procurement-plan.read'
+                    }
+                },
+                {
+                    path: 'direct-purchases',
+                    name: 'user.purchasing.direct',
+                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
+                    props: {
+                        title: 'Direct Purchases',
+                        subtitle: 'Pengadaan Pembelian Langsung & Marketplace',
+                        stageName: 'Tahap 4: Eksekusi Pembelian Langsung',
+                        description: 'Kelola transaksi pembelian barang langsung ke toko rekanan offline atau marketplace online, pelampiran bukti bayar, dan pencatatan penerimaan barang.'
+                    },
+                    meta: {
+                        permission: 'direct-purchase.read'
+                    }
+                },
             ],
         },
         {
@@ -171,6 +243,31 @@ const router = createRouter({
                             component: () => import('../views/admin/master/supplier/tabs/SupplierItemsTab.vue')
                         }
                     ]
+                },
+                {
+                    path: 'approvals/inbox',
+                    name: 'approvals.inbox',
+                    redirect: { name: 'user.approvals.inbox' }
+                },
+                {
+                    path: 'settings/approvals',
+                    name: 'admin.settings.approval',
+                    component: () => import('../views/admin/settings/approval/ApprovalConfigListView.vue'),
+                },
+                {
+                    path: 'settings/approvals/create',
+                    name: 'admin.settings.approval.create',
+                    component: () => import('../views/admin/settings/approval/ApprovalConfigCreateView.vue'),
+                },
+                {
+                    path: 'settings/approvals/:id',
+                    name: 'admin.settings.approval.detail',
+                    component: () => import('../views/admin/settings/approval/ApprovalConfigDetailView.vue'),
+                },
+                {
+                    path: 'settings/approvals/:id/edit',
+                    name: 'admin.settings.approval.edit',
+                    component: () => import('../views/admin/settings/approval/ApprovalConfigEditView.vue'),
                 }
             ],
         },

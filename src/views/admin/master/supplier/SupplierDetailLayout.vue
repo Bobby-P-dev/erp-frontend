@@ -19,8 +19,11 @@ import {
     AlertCircle
 } from '@lucide/vue'
 import { showSupplier } from '../../../../services/supplierServices.js'
-import { showError } from '../../../../utils/swal.js'
+import { showError, showSuccess, showLoading } from '../../../../utils/swal.js'
 import StatusBadge from '../../../../components/ui/StatusBadge.vue'
+import ApprovalBadge from '../../../../components/approval/ApprovalBadge.vue'
+import ApprovalRevisionBanner from '../../../../components/approval/ApprovalRevisionBanner.vue'
+import { resubmitApprovalRequest, getApprovalTrackerByDocument } from '../../../../services/approvalServices.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,14 +82,26 @@ const goBack = () => {
     router.push({ name: 'admin.master.supplier' })
 }
 
-const getApprovalBadge = (status) => {
-    switch (status) {
-        case 'approved':
-            return { label: 'Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
-        case 'rejected':
-            return { label: 'Rejected', class: 'bg-rose-50 text-rose-700 border-rose-200' }
-        default:
-            return { label: 'Pending Approval', class: 'bg-amber-50 text-amber-700 border-amber-200' }
+const handleResubmitApproval = async () => {
+    try {
+        showLoading('Mengirim ulang persetujuan...', 'Mohon tunggu sebentar.')
+        let trackerId = supplier.value?.approval_tracker_id || supplier.value?.approval_request_id
+        if (!trackerId && supplier.value?.id) {
+            try {
+                const trackerRes = await getApprovalTrackerByDocument('supplier', supplier.value.id)
+                trackerId = trackerRes?.data?.request?.id || trackerRes?.data?.id
+            } catch (resolveErr) {
+                console.warn('Could not resolve tracker id by document, falling back to supplier id', resolveErr)
+            }
+        }
+        await resubmitApprovalRequest(trackerId || supplier.value?.id, {
+            notes: 'Revisi data supplier telah dilengkapi.'
+        })
+        showSuccess('Berhasil!', 'Permohonan persetujuan berhasil dikirim ulang.')
+        fetchSupplier()
+    } catch (err) {
+        console.error('Failed to resubmit approval:', err)
+        showError('Gagal!', err.response?.data?.message || 'Terjadi kesalahan saat mengirim ulang persetujuan.')
     }
 }
 </script>
@@ -169,12 +184,7 @@ const getApprovalBadge = (status) => {
                     <!-- Status Badges in Header -->
                     <div class="flex flex-wrap items-center md:flex-col md:items-end gap-2.5 shrink-0">
                         <div class="flex items-center gap-2">
-                            <span 
-                                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border"
-                                :class="getApprovalBadge(supplier.approval_status).class"
-                            >
-                                {{ getApprovalBadge(supplier.approval_status).label }}
-                            </span>
+                            <ApprovalBadge :status="supplier.approval_status" size="sm" />
                             <StatusBadge :isActive="Boolean(supplier.is_active)" />
                         </div>
 
@@ -182,6 +192,17 @@ const getApprovalBadge = (status) => {
                             NPWP: {{ supplier.tax_id }}
                         </div>
                     </div>
+                </div>
+
+                <!-- Approval Revision Banner (if revision requested) -->
+                <div v-if="supplier.approval_status === 'revision_requested'" class="mt-6">
+                    <ApprovalRevisionBanner
+                        :revisionNotes="supplier.revision_notes || supplier.approval_revision_notes || 'Mohon perbaiki data kontak dan kelengkapan dokumen NPWP.'"
+                        :requestedBy="supplier.approval_requested_by || 'Approver'"
+                        :requestedAt="supplier.approval_requested_at"
+                        @edit="router.push({ name: 'admin.master.supplier.general', params: { id: supplier.id } })"
+                        @resubmit="handleResubmitApproval"
+                    />
                 </div>
 
                 <!-- Navigation Tabs -->

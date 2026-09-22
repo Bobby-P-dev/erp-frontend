@@ -34,12 +34,17 @@ const props = defineProps({
     searchable: {
         type: Boolean,
         default: true
+    },
+    error: {
+        type: String,
+        default: ''
     }
 })
 
 const emit = defineEmits(['update:modelValue', 'search'])
 
 const isOpen = ref(false)
+const openUpwards = ref(false)
 const searchQuery = ref('')
 const containerRef = ref(null)
 
@@ -68,15 +73,25 @@ const selectedLabel = computed(() => {
     return selected ? selected.label : ''
 })
 
+const calculatePlacement = () => {
+    if (!containerRef.value) return
+    const rect = containerRef.value.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const estimatedHeight = 280
+    openUpwards.value = spaceBelow < estimatedHeight && spaceAbove > spaceBelow
+}
+
 const toggleDropdown = () => {
     if (props.disabled) return
-    isOpen.value = !isOpen.value
-    if (isOpen.value) {
+    if (!isOpen.value) {
+        calculatePlacement()
         searchQuery.value = ''
         if (props.searchable) {
             emit('search', '') 
         }
     }
+    isOpen.value = !isOpen.value
 }
 
 const selectOption = (option) => {
@@ -107,10 +122,11 @@ onUnmounted(() => {
 
         <div 
             @click="toggleDropdown"
-            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm flex items-center justify-between transition-all"
+            class="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm flex items-center justify-between transition-all select-none"
             :class="[
                 disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'cursor-pointer hover:bg-white focus:bg-white',
-                isOpen ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-white' : ''
+                error ? 'border-rose-300 ring-1 ring-rose-400 bg-rose-50/20' : 'border-gray-200',
+                isOpen ? 'ring-2 ring-indigo-500/50 border-indigo-500 bg-white shadow-xs' : ''
             ]"
         >
             <span :class="selectedLabel ? 'text-gray-900 font-medium' : 'text-gray-400'">
@@ -118,13 +134,20 @@ onUnmounted(() => {
             </span>
             <ChevronDown 
                 class="w-4 h-4 text-gray-400 transition-transform duration-200"
-                :class="isOpen ? 'rotate-180' : ''"
+                :class="isOpen ? 'rotate-180 text-indigo-600' : ''"
             />
         </div>
 
+        <p v-if="error" class="text-xs text-rose-500 mt-1 font-medium">
+            {{ error }}
+        </p>
+
         <div 
             v-if="isOpen"
-            class="absolute z-[110] w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+            class="absolute z-[120] w-full bg-white rounded-2xl shadow-2xl border border-gray-100 ring-1 ring-black/5 overflow-hidden transition-all duration-150"
+            :class="[
+                openUpwards ? 'bottom-full mb-2 origin-bottom' : 'top-full mt-2 origin-top'
+            ]"
         >
             <div v-if="searchable" class="p-2 border-b border-gray-100 bg-gray-50/50 sticky top-0">
                 <div class="relative">

@@ -54,7 +54,13 @@ const navigation = [
         ]
     },
     { name: 'Users', to: '#', icon: Users },
-    { name: 'Settings', to: '#', icon: Settings },
+    { 
+        name: 'Settings', 
+        icon: Settings,
+        children: [
+            { name: 'Approval Workflows', to: 'admin.settings.approval' }
+        ]
+    },
 ]
 
 const isActive = (routeName) => {
