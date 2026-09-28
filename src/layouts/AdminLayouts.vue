@@ -20,18 +20,20 @@ onMounted(() => {
         
         <AppHeader isSticky>
             <template #left>
-                <div class="flex items-center gap-3 text-indigo-600 pl-2 lg:w-[15rem]">
-                    <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-indigo-200">
-                        M
-                    </div>
-                </div>
+                <RouterLink :to="{ name: 'admin.dashboard' }" class="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer">
+                    <img 
+                        src="/pses_transparent.png" 
+                        alt="Padma Soode ERP Sistem" 
+                        class="h-5.5 sm:h-6.5 w-auto object-contain transition-transform duration-200 group-hover:scale-105" 
+                    />
+                </RouterLink>
             </template>
 
             <template #right>
                 <!-- Approval Inbox Quick Access Button -->
                 <RouterLink
                     :to="{ name: 'user.approvals.inbox' }"
-                    class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative flex items-center justify-center"
+                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative flex items-center justify-center"
                     title="Kotak Masuk Persetujuan"
                 >
                     <CheckSquare class="w-5 h-5" />
@@ -43,21 +45,21 @@ onMounted(() => {
                     </span>
                 </RouterLink>
 
-                <button type="button" class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative" title="Notifikasi">
+                <button type="button" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative" title="Notifikasi">
                     <Bell class="w-5 h-5" />
                     <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
                 
-                <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                <div class="w-px h-6 bg-slate-200 mx-1"></div>
 
                 <UserProfileDropdown />
             </template>
         </AppHeader>
 
-        <div class="flex-1 flex min-h-0 py-4 pr-4 gap-4">
-            <AdminSidebar class="rounded-r-2xl border-y border-r border-gray-100 shadow-[2px_0_8px_-3px_rgba(0,0,0,0.05)] z-20" />
+        <div class="flex-1 flex min-h-0 px-3 sm:px-6 py-3 sm:py-4 gap-3 sm:gap-4">
+            <AdminSidebar class="z-20" />
 
-            <div class="flex-1 flex flex-col min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="flex-1 flex flex-col min-w-0 bg-white rounded-2xl shadow-xs border border-slate-200/70 overflow-hidden">
                 <main class="flex-1 p-6 lg:p-8 overflow-y-auto">
                     <div class="w-full">
                         <RouterView />

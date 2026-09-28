@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { 
     ArrowLeft, 
-    Shield, 
+    GitBranch, 
     Save, 
     Building2, 
     DollarSign, 
@@ -195,6 +195,9 @@ const handleSubmit = async () => {
                 step_name: lvl.step_name.trim(),
                 approver_scope: lvl.approver_scope,
                 approval_mode: lvl.approval_mode,
+                division_id: ['role_and_division', 'job_level_and_division', 'position_and_division', 'department_head'].includes(lvl.approver_scope) && lvl.division_id ? Number(lvl.division_id) : null,
+                division_source: lvl.division_id ? 'fixed' : 'document',
+                position_id: lvl.approver_scope === 'position_and_division' && lvl.position_id ? Number(lvl.position_id) : null,
                 role_id: ['role_only', 'role_and_division'].includes(lvl.approver_scope) ? Number(lvl.role_id) : null,
                 job_level_id: lvl.approver_scope === 'job_level_and_division' ? Number(lvl.job_level_id) : null,
                 specific_user_id: lvl.approver_scope === 'specific_user' ? Number(lvl.specific_user_id) : null,
@@ -230,11 +233,13 @@ onMounted(async () => {
     <div class="space-y-6 max-w-5xl mx-auto pb-12">
         <!-- HEADER -->
         <PageHeader
-            title="Edit Approval Flow"
-            description="Perbarui aturan matriks persetujuan, batas nominal, atau tingkatan hierarki."
+            title="Edit Konfigurasi Alur Persetujuan"
+            description="Perbarui matriks persetujuan, batas nominal pengadaan, atau tahapan hierarki otorisasi."
         >
             <template #icon>
-                <Shield class="w-7 h-7 text-indigo-600" />
+                <div class="p-2.5 bg-blue-50 border border-blue-200/80 rounded-xl text-blue-600">
+                    <GitBranch class="w-6 h-6" />
+                </div>
             </template>
             <template #actions>
                 <BaseButton 
@@ -248,22 +253,27 @@ onMounted(async () => {
         </PageHeader>
 
         <!-- LOADING STATE -->
-        <div v-if="isLoading" class="bg-white rounded-3xl p-12 border border-gray-100 shadow-sm text-center">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent mb-2"></div>
-            <p class="text-sm font-medium text-gray-500">Memuat data konfigurasi alur persetujuan...</p>
+        <div v-if="isLoading" class="bg-white rounded-2xl p-12 border border-slate-200/90 shadow-2xs text-center">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mb-3"></div>
+            <p class="text-sm font-medium text-slate-500">Memuat data konfigurasi alur persetujuan...</p>
         </div>
 
         <!-- MAIN FORM -->
         <form v-else @submit.prevent="handleSubmit" class="space-y-6">
             <!-- CARD 1: BASIC INFO -->
-            <div class="bg-white rounded-3xl p-6 sm:p-7 border border-gray-100 shadow-sm space-y-5">
-                <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                    <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                        <Layers class="w-4 h-4 text-indigo-600" />
-                        Informasi Alur & Dokumen
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-semibold text-gray-500">Status Aktif:</span>
+            <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-2xs space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shrink-0">
+                            <Layers class="w-4 h-4" />
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 leading-tight">Informasi Alur & Cakupan Dokumen</h3>
+                            <p class="text-xs text-slate-500">Atur parameter dasar alur dan entitas yang diberlakukan.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/70">
+                        <span class="text-xs font-semibold text-slate-600">Status Alur:</span>
                         <ToggleSwitch v-model="form.is_active" />
                     </div>
                 </div>
@@ -283,7 +293,7 @@ onMounted(async () => {
 
                     <!-- Company Selector -->
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                             Cakupan Perusahaan (Company)
                         </label>
                         <SearchableSelect
@@ -292,8 +302,8 @@ onMounted(async () => {
                             placeholder="Semua Perusahaan (Universal)"
                             :error="errors.company_id"
                         />
-                        <p class="text-[11px] text-gray-400 mt-1">
-                            Kosongkan jika alur berlaku untuk seluruh entitas legal/anak perusahaan.
+                        <p class="text-[11px] text-slate-400 mt-1">
+                            Kosongkan jika alur berlaku untuk seluruh entitas legal / anak perusahaan.
                         </p>
                     </div>
 
@@ -321,38 +331,43 @@ onMounted(async () => {
 
                     <!-- Description -->
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                             Keterangan / Deskripsi Aturan
                         </label>
                         <textarea
                             v-model="form.description"
                             rows="2"
-                            placeholder="Catatan tambahan mengenai ruang lingkup alur persetujuan ini..."
-                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-gray-800 font-medium placeholder:text-gray-400"
+                            placeholder="Catatan tambahan mengenai ruang lingkup atau batasan alur persetujuan ini..."
+                            class="w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 font-medium placeholder:text-slate-400 transition-colors"
                         ></textarea>
                     </div>
                 </div>
 
                 <!-- AMOUNT THRESHOLD RANGE -->
-                <div class="bg-indigo-50/40 rounded-2xl p-5 border border-indigo-100/70 space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                            <h4 class="text-xs font-bold text-indigo-950 uppercase tracking-wider">
-                                Batasan Nominal Pengadaan (Amount Range)
-                            </h4>
-                            <p class="text-xs text-indigo-700 mt-0.5">
-                                Atur apakah alur persetujuan ini universal untuk semua nilai atau memiliki batas nominal tertentu.
-                            </p>
+                <div class="bg-slate-50/70 rounded-xl p-5 border border-slate-200/80 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-start gap-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+                                <DollarSign class="w-4 h-4" />
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    Batasan Nominal Transaksi (Amount Range)
+                                </h4>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    Tentukan apakah alur persetujuan ini berlaku universal tanpa batas atau memiliki rentang nominal pengadaan tertentu.
+                                </p>
+                            </div>
                         </div>
 
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-semibold text-gray-700">Berlaku untuk semua nominal:</span>
+                        <div class="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200/80 shrink-0">
+                            <span class="text-xs font-medium text-slate-700">Semua Nominal (Universal):</span>
                             <ToggleSwitch v-model="form.applies_to_all_amounts" />
                         </div>
                     </div>
 
                     <!-- Min & Max Fields (If not applies_to_all_amounts) -->
-                    <div v-if="!form.applies_to_all_amounts" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div v-if="!form.applies_to_all_amounts" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-200/60">
                         <div>
                             <BaseInput
                                 v-model="form.min_amount"
@@ -378,7 +393,7 @@ onMounted(async () => {
             </div>
 
             <!-- CARD 2: TIER BUILDER COMPONENT -->
-            <div class="bg-white rounded-3xl p-6 sm:p-7 border border-gray-100 shadow-sm">
+            <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-2xs">
                 <ApprovalLevelBuilder
                     v-model="form.levels"
                     :company-id="form.company_id"
@@ -399,6 +414,7 @@ onMounted(async () => {
 
                 <BaseButton
                     type="submit"
+                    variant="primary"
                     :disabled="isSubmitting"
                     class="px-7"
                 >

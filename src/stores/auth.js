@@ -14,18 +14,37 @@ export const useAuthStore = defineStore('auth', {
     }),
 
     getters: {
-        permission: (state) =>{
+        permission: (state) => {
             return state.user?.permissions ?? []
         },
 
         hasPermission: (state) => {
             return (permission) => {
+                if (!permission) return true
+
+                // Super Admin & Admin have full bypass access
+                const roles = state.user?.roles || []
+                const isSuperOrAdmin = roles.some(role => {
+                    const name = typeof role === 'string' ? role : role?.name
+                    return name === 'Super Admin' || name === 'Admin'
+                })
+                if (isSuperOrAdmin) return true
+
                 return state.user?.all_permissions?.includes(permission) ?? false
             }
         },
 
         hasAnyPermission: (state) => {
             return (permissions) => {
+                if (!permissions || permissions.length === 0) return true
+
+                const roles = state.user?.roles || []
+                const isSuperOrAdmin = roles.some(role => {
+                    const name = typeof role === 'string' ? role : role?.name
+                    return name === 'Super Admin' || name === 'Admin'
+                })
+                if (isSuperOrAdmin) return true
+
                 return permissions.some(permission =>
                     state.user?.all_permissions?.includes(permission)
                 )
@@ -34,6 +53,15 @@ export const useAuthStore = defineStore('auth', {
 
         hasAllPermissions: (state) => {
             return (permissions) => {
+                if (!permissions || permissions.length === 0) return true
+
+                const roles = state.user?.roles || []
+                const isSuperOrAdmin = roles.some(role => {
+                    const name = typeof role === 'string' ? role : role?.name
+                    return name === 'Super Admin' || name === 'Admin'
+                })
+                if (isSuperOrAdmin) return true
+
                 return permissions.every(permission =>
                     state.user?.all_permissions?.includes(permission)
                 )

@@ -37,7 +37,6 @@ const navigation = [
                     { name: 'Roles', to: 'admin.master.role' },
                     { name: 'Job Levels', to: 'admin.master.job-level' },
                     { name: 'Employees', to: 'admin.master.employee' },
-                    { name: 'Users', to: 'admin.master.user' },
                     { name: 'Accounting Categories', to: 'admin.master.accounting-category' },
                     { name: 'Accounting Subcategories', to: 'admin.master.accounting-subcategory' },
                     { name: 'Accounting Accounts', to: 'admin.master.accounting-account' }
@@ -48,12 +47,12 @@ const navigation = [
                 children: [
                     { name: 'Suppliers', to: 'admin.master.supplier' },
                     { name: 'Items', to: 'admin.master.item' },
-                    { name: 'Units', to: '#' },
+                    { name: 'Units', to: 'admin.master.unit' },
                 ]
             }
         ]
     },
-    { name: 'Users', to: '#', icon: Users },
+    { name: 'Users', to: 'admin.master.user', icon: Users },
     { 
         name: 'Settings', 
         icon: Settings,
@@ -91,19 +90,19 @@ navigation.forEach(item => {
 
 <template>
     <aside 
-        class="bg-white border-r border-gray-100 flex flex-col h-full transition-all duration-300 relative z-20"
+        class="bg-white rounded-2xl border border-slate-200/70 shadow-xs flex flex-col h-full transition-all duration-300 relative z-20"
         :class="isCollapsed ? 'w-20' : 'w-72'"
     >
         <button 
             @click="isCollapsed = !isCollapsed"
-            class="absolute -right-3 top-8 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-200 transition-colors shadow-sm z-30"
+            class="absolute -right-3 top-8 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-200 transition-colors shadow-sm z-30 cursor-pointer"
         >
             <ChevronRight v-if="isCollapsed" class="w-4 h-4" />
             <ChevronLeft v-else class="w-4 h-4" />
         </button>
 
         <div 
-            class="h-[72px] flex items-center border-b border-gray-100 overflow-hidden transition-all duration-300"
+            class="h-[72px] flex items-center border-b border-slate-200/70 rounded-t-2xl overflow-hidden transition-all duration-300"
             :class="isCollapsed ? 'px-0 justify-center' : 'px-4'"
         >
             <div v-if="!isCollapsed" class="relative w-full">
@@ -119,7 +118,7 @@ navigation.forEach(item => {
             </div>
         </div>
 
-        <nav class="flex-1 py-4 space-y-1 transition-all duration-300" :class="isCollapsed ? 'px-2 overflow-visible' : 'px-0 pr-4 overflow-y-auto overflow-x-hidden'">
+        <nav class="flex-1 py-4 space-y-1 transition-all duration-300" :class="isCollapsed ? 'px-2 overflow-visible' : 'px-3 overflow-y-auto overflow-x-hidden'">
             <div v-for="item in navigation" :key="item.name" class="relative group border border-gray-100 rounded-xl p-1">
                 <component
                     :is="item.children ? 'button' : RouterLink"

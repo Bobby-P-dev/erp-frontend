@@ -56,29 +56,25 @@ describe('1. ERP Module Registry (src/config/modules.js)', () => {
 
 describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
     it('contains exactly 5 procurement lifecycle stages in sequence', () => {
-        assert.equal(purchasingMenuItems.length, 5);
+        assert.equal(purchasingMenuItems.length, 4);
         
         assert.equal(purchasingMenuItems[0].id, 'pr');
         assert.equal(purchasingMenuItems[0].title, 'Purchase Requisition');
         assert.equal(purchasingMenuItems[0].status, 'active');
         assert.equal(purchasingMenuItems[0].permission, null);
 
-        assert.equal(purchasingMenuItems[1].id, 'procurement-queue');
-        assert.equal(purchasingMenuItems[1].title, 'Procurement Queue');
-        assert.equal(purchasingMenuItems[1].permission, 'procurement.read');
+        assert.equal(purchasingMenuItems[1].id, 'procurement-plans');
+        assert.equal(purchasingMenuItems[1].title, 'Procurement Plans');
+        assert.equal(purchasingMenuItems[1].permission, 'procurement-plan.read');
 
-        assert.equal(purchasingMenuItems[2].id, 'procurement-plans');
-        assert.equal(purchasingMenuItems[2].title, 'Procurement Plans');
-        assert.equal(purchasingMenuItems[2].permission, 'procurement-plan.read');
+        assert.equal(purchasingMenuItems[2].id, 'direct-purchases');
+        assert.equal(purchasingMenuItems[2].title, 'Direct Purchases');
+        assert.equal(purchasingMenuItems[2].permission, 'direct-purchase.read');
 
-        assert.equal(purchasingMenuItems[3].id, 'direct-purchases');
-        assert.equal(purchasingMenuItems[3].title, 'Direct Purchases');
-        assert.equal(purchasingMenuItems[3].permission, 'direct-purchase.read');
-
-        assert.equal(purchasingMenuItems[4].id, 'rfq');
-        assert.equal(purchasingMenuItems[4].title, 'RFQ (Request for Quotation)');
-        assert.equal(purchasingMenuItems[4].status, 'coming_soon');
-        assert.equal(purchasingMenuItems[4].routeName, null);
+        assert.equal(purchasingMenuItems[3].id, 'rfq');
+        assert.equal(purchasingMenuItems[3].title, 'RFQ (Request for Quotation)');
+        assert.equal(purchasingMenuItems[3].status, 'coming_soon');
+        assert.equal(purchasingMenuItems[3].routeName, null);
     });
 
     it('correctly calculates authorization and restricted state for users', () => {
@@ -88,17 +84,12 @@ describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
         };
 
         const employeeItems = getAuthorizedPurchasingMenuItems(employeeAuthStore);
-        assert.equal(employeeItems.length, 5);
+        assert.equal(employeeItems.length, 4);
 
         // PR is open to all employees
         const prItem = employeeItems.find(i => i.id === 'pr');
         assert.equal(prItem.isAuthorized, true);
         assert.equal(prItem.restricted, false);
-
-        // Procurement Queue is restricted
-        const queueItem = employeeItems.find(i => i.id === 'procurement-queue');
-        assert.equal(queueItem.isAuthorized, false);
-        assert.equal(queueItem.restricted, true);
 
         // Procurement Plans is restricted
         const planItem = employeeItems.find(i => i.id === 'procurement-plans');
@@ -118,7 +109,7 @@ describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
     it('unlocks operations for authorized purchasing officer', () => {
         // Purchasing officer with full procurement permissions
         const purchasingOfficer = {
-            hasPermission: (perm) => ['procurement.read', 'procurement-plan.read', 'direct-purchase.read'].includes(perm)
+            hasPermission: (perm) => ['procurement-plan.read', 'direct-purchase.read'].includes(perm)
         };
 
         const officerItems = getAuthorizedPurchasingMenuItems(purchasingOfficer);
@@ -129,13 +120,27 @@ describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
             }
         }
     });
+
+    it('unlocks operations for Super Admin or Admin role bypass', () => {
+        // Super Admin hasPermission returns true for everything
+        const superAdminStore = {
+            hasPermission: () => true
+        };
+
+        const adminItems = getAuthorizedPurchasingMenuItems(superAdminStore);
+        for (const item of adminItems) {
+            if (item.id !== 'rfq') {
+                assert.equal(item.isAuthorized, true, `Item ${item.id} should be authorized for Super Admin`);
+                assert.equal(item.restricted, false, `Item ${item.id} should not be restricted for Super Admin`);
+            }
+        }
+    });
 });
 
 describe('3. Route Contract Verification', () => {
     it('verifies route names match between config and router expectation', () => {
         const expectedRoutes = [
             'user.purchasing.requisitions',
-            'user.purchasing.queue',
             'user.purchasing.plans',
             'user.purchasing.direct'
         ];

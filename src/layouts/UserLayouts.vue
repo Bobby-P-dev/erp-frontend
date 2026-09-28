@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import UserProfileDropdown from '../components/layout/UserProfileDropdown.vue'
-import { Hexagon, CheckSquare } from '@lucide/vue'
+import { Bell, CheckSquare } from '@lucide/vue'
 import { useApprovalStore } from '../stores/approvalStore'
 
 const approvalStore = useApprovalStore()
@@ -16,15 +16,16 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col bg-slate-50/50 font-sans">
+    <div class="min-h-screen flex flex-col bg-slate-50 font-sans">
         
         <AppHeader isSticky>
             <template #left>
-                <RouterLink :to="{ name: 'user.dashboard' }" class="flex items-center gap-2 text-indigo-600 group">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-200 transition-transform group-hover:scale-105">
-                        <Hexagon class="w-5 h-5 text-white" />
-                    </div>
-                    <span class="text-xl font-bold text-gray-900 tracking-tight">ERP System</span>
+                <RouterLink :to="{ name: 'user.dashboard' }" class="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer">
+                    <img 
+                        src="/pses_transparent.png" 
+                        alt="Padma Soode ERP Sistem" 
+                        class="h-5.5 sm:h-6.5 w-auto object-contain transition-transform duration-200 group-hover:scale-105" 
+                    />
                 </RouterLink>
             </template>
 
@@ -32,7 +33,7 @@ onMounted(() => {
                 <!-- Approval Inbox Quick Access for Non-Admin / Standard Users -->
                 <RouterLink
                     :to="{ name: 'user.approvals.inbox' }"
-                    class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative flex items-center justify-center"
+                    class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative flex items-center justify-center"
                     title="Kotak Masuk Persetujuan"
                 >
                     <CheckSquare class="w-5 h-5" />
@@ -44,7 +45,12 @@ onMounted(() => {
                     </span>
                 </RouterLink>
 
-                <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                <button type="button" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors relative" title="Notifikasi">
+                    <Bell class="w-5 h-5" />
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
+
+                <div class="w-px h-6 bg-slate-200 mx-1"></div>
 
                 <UserProfileDropdown />
             </template>

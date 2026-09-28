@@ -1,37 +1,148 @@
 <script setup>
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
-import { Hexagon, LogIn } from '@lucide/vue'
+import { LogIn, ArrowLeft } from '@lucide/vue'
+
+const route = useRoute()
+const router = useRouter()
+
+const activeSection = ref('beranda')
+
+const updateActiveSection = () => {
+    if (route.name !== 'welcome') {
+        activeSection.value = ''
+        return
+    }
+
+    const fiturEl = document.getElementById('fitur-utama')
+    if (fiturEl) {
+        const rect = fiturEl.getBoundingClientRect()
+        // If top of fitur-utama is within upper viewport (220px from top)
+        if (rect.top <= 220) {
+            activeSection.value = 'modul'
+            return
+        }
+    }
+    activeSection.value = 'beranda'
+}
+
+const navigateToSection = (target) => {
+    if (route.name !== 'welcome') {
+        router.push({ 
+            name: 'welcome', 
+            hash: target === 'modul' ? '#fitur-utama' : '#hero-section' 
+        })
+        return
+    }
+
+    if (target === 'beranda') {
+        activeSection.value = 'beranda'
+        const heroEl = document.getElementById('hero-section')
+        if (heroEl) {
+            heroEl.scrollIntoView({ behavior: 'smooth' })
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+    } else if (target === 'modul') {
+        activeSection.value = 'modul'
+        const fiturEl = document.getElementById('fitur-utama')
+        if (fiturEl) {
+            fiturEl.scrollIntoView({ behavior: 'smooth' })
+        }
+    }
+}
+
+watch(
+    () => route.name,
+    (newName) => {
+        if (newName === 'welcome') {
+            setTimeout(updateActiveSection, 50)
+        } else {
+            activeSection.value = ''
+        }
+    },
+    { immediate: true }
+)
+
+onMounted(() => {
+    window.addEventListener('scroll', updateActiveSection, { passive: true })
+    setTimeout(updateActiveSection, 100)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('scroll', updateActiveSection)
+})
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col bg-slate-50/50 font-sans">
+    <div class="min-h-screen flex flex-col bg-slate-50 font-sans">
         <AppHeader isSticky>
             <template #left>
-                <div class="flex items-center gap-2 text-indigo-600">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-200">
-                        <Hexagon class="w-5 h-5 text-white" />
-                    </div>
-                    <span class="text-xl font-bold text-gray-900 tracking-tight">ERP System</span>
-                </div>
+                <RouterLink 
+                    :to="{ name: 'welcome' }" 
+                    @click="navigateToSection('beranda')"
+                    class="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer"
+                >
+                    <img 
+                        src="/pses_transparent.png" 
+                        alt="Padma Soode ERP Sistem" 
+                        class="h-5.5 sm:h-6.5 w-auto object-contain transition-transform duration-200 group-hover:scale-105" 
+                    />
+                </RouterLink>
             </template>
+
             <template #center>
-                <nav class="text-sm text-gray-500 cursor-pointer hover:border-b-2 hover:border-gray-200 hover:text-indigo-600 transition-all px-2 py-2">Beranda</nav>
-                <nav class="text-sm text-gray-500 cursor-pointer hover:border-b-2 hover:border-gray-200 hover:text-indigo-600 transition-all px-2 py-2">Tentang</nav>
-                <nav class="text-sm text-gray-500 cursor-pointer hover:border-b-2 hover:border-gray-200 hover:text-indigo-600 transition-all px-2 py-2">Hubungi</nav>
+                <nav class="flex items-center gap-6 sm:gap-8 select-none">
+                    <button 
+                        type="button"
+                        @click="navigateToSection('beranda')"
+                        :class="[
+                            'text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer py-1',
+                            activeSection === 'beranda' 
+                                ? 'text-indigo-600 font-semibold' 
+                                : 'text-slate-500 hover:text-slate-900'
+                        ]"
+                    >
+                        Beranda
+                    </button>
+                    <button 
+                        type="button"
+                        @click="navigateToSection('modul')"
+                        :class="[
+                            'text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer py-1',
+                            activeSection === 'modul' 
+                                ? 'text-indigo-600 font-semibold' 
+                                : 'text-slate-500 hover:text-slate-900'
+                        ]"
+                    >
+                        Modul ERP
+                    </button>
+                </nav>
             </template>
+
             <template #right>
                 <RouterLink
+                    v-if="route.name !== 'login'"
                     :to="{ name: 'login' }"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm shadow-indigo-200 group"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs shadow-xs hover:shadow-sm transition-all duration-200 group"
                 >
-                    <LogIn class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                    <LogIn class="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     <span>Login</span>
+                </RouterLink>
+                <RouterLink
+                    v-else
+                    :to="{ name: 'welcome' }"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/70 border border-slate-200/80 transition-all duration-200"
+                >
+                    <ArrowLeft class="w-3.5 h-3.5" />
+                    <span>Kembali</span>
                 </RouterLink>
             </template>
         </AppHeader>
 
-        <main class="flex-1 flex flex-col pt-6">
+        <main class="flex-1 flex flex-col">
             <RouterView />
         </main>
 

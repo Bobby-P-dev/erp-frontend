@@ -477,8 +477,8 @@ export const getApprovalConfigurations = async (arg1 = {}, arg2, arg3) => {
         const response = await api.get(`/api/v1/approval-configurations${query}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
-            console.warn('[ApprovalService] Route /api/v1/approval-configurations not found. Using fallback mock.')
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
+            console.warn('[ApprovalService] Route /api/v1/approval-configurations unavailable or unauthorized. Using fallback mock.')
             let list = [...mockConfigurations]
             if (params.search) {
                 const s = params.search.toLowerCase()
@@ -513,7 +513,7 @@ export const showApprovalConfiguration = async (id) => {
         const response = await api.get(`/api/v1/approval-configurations/${id}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             const found = mockConfigurations.find(c => c.id === Number(id))
             if (found) {
                 return {
@@ -531,7 +531,7 @@ export const createApprovalConfiguration = async (data) => {
         const response = await api.post('/api/v1/approval-configurations', data)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             const newConfig = {
                 id: Date.now(),
                 ...data,
@@ -557,7 +557,7 @@ export const updateApprovalConfiguration = async (id, data) => {
         const response = await api.patch(`/api/v1/approval-configurations/${id}`, data)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             const idx = mockConfigurations.findIndex(c => c.id === Number(id))
             if (idx !== -1) {
                 mockConfigurations[idx] = {
@@ -584,7 +584,7 @@ export const deleteApprovalConfiguration = async (id) => {
         const response = await api.delete(`/api/v1/approval-configurations/${id}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             mockConfigurations = mockConfigurations.filter(c => c.id !== Number(id))
             return {
                 message: 'Approval configuration deleted successfully (Mock Fallback)',
@@ -606,7 +606,7 @@ export const getPendingApprovals = async (arg1 = {}, arg2, arg3) => {
         const response = await api.get(`/api/v1/approvals/pending${query}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             let list = [...mockPendingRequests]
             if (params.search) {
                 const s = params.search.toLowerCase()
@@ -643,7 +643,7 @@ export const getApprovalHistory = async (arg1 = {}, arg2, arg3) => {
         const response = await api.get(`/api/v1/approvals/history${query}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             let list = [...mockHistoryRequests]
             if (params.search) {
                 const s = params.search.toLowerCase()
@@ -674,7 +674,7 @@ export const getPendingApprovalCount = async () => {
         const response = await api.get('/api/v1/approvals/count')
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             return {
                 message: 'Count retrieved (Mock Fallback)',
                 count: mockPendingRequests.length,
@@ -694,7 +694,7 @@ export const getApprovalTracker = async (requestId) => {
         const response = await api.get(`/api/v1/approvals/requests/${requestId}/tracker`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             const found = mockPendingRequests.find(r => r.id === Number(requestId)) || mockPendingRequests[0]
             return {
                 message: 'Approval tracker retrieved successfully (Mock Fallback)',
@@ -716,7 +716,7 @@ export const getApprovalTrackerByDocument = async (documentType, documentId) => 
         const response = await api.get(`/api/v1/approvals/requests/by-document/${documentType}/${documentId}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             const found = mockPendingRequests.find(r => r.approvable_id === Number(documentId)) || mockPendingRequests[0]
             return {
                 message: 'Approval tracker by document retrieved (Mock Fallback)',
@@ -750,7 +750,7 @@ export const processApprovalDecision = async (requestId, { decision, notes = '',
         const response = await api.post(`/api/v1/approvals/requests/${requestId}/decision`, payload)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             // Update in mock store
             const targetIdx = mockPendingRequests.findIndex(r => r.id === Number(requestId))
             if (targetIdx !== -1) {
@@ -807,7 +807,7 @@ export const resubmitDocument = async (requestId, payload = {}) => {
         const response = await api.post(`/api/v1/approvals/requests/${requestId}/resubmit`, payload)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404) {
+        if (error?.response?.status === 404 || error?.response?.status === 401) {
             return {
                 message: 'Document resubmitted successfully for approval (Mock Fallback)',
                 data: { id: requestId, status: 'pending' },

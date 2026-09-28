@@ -37,7 +37,7 @@ const getActionMeta = (actionType) => {
         case 'approve':
         case 'approved':
             return {
-                label: 'APPROVED',
+                label: 'Disetujui',
                 color: 'text-emerald-700 bg-emerald-50 border-emerald-200',
                 dotColor: 'bg-emerald-500',
                 icon: CheckCircle2,
@@ -45,7 +45,7 @@ const getActionMeta = (actionType) => {
         case 'reject':
         case 'rejected':
             return {
-                label: 'REJECTED',
+                label: 'Ditolak',
                 color: 'text-rose-700 bg-rose-50 border-rose-200',
                 dotColor: 'bg-rose-500',
                 icon: XCircle,
@@ -54,7 +54,7 @@ const getActionMeta = (actionType) => {
         case 'revision':
         case 'revision_requested':
             return {
-                label: 'REVISION REQUESTED',
+                label: 'Perlu Revisi',
                 color: 'text-amber-700 bg-amber-50 border-amber-200',
                 dotColor: 'bg-amber-500',
                 icon: RotateCcw,
@@ -64,9 +64,9 @@ const getActionMeta = (actionType) => {
         case 'resubmit':
         case 'resubmitted':
             return {
-                label: act.includes('resubmit') ? 'RESUBMITTED' : 'SUBMITTED',
-                color: 'text-indigo-700 bg-indigo-50 border-indigo-200',
-                dotColor: 'bg-indigo-500',
+                label: act.includes('resubmit') ? 'Diajukan Ulang' : 'Diajukan',
+                color: 'text-blue-700 bg-blue-50 border-blue-200',
+                dotColor: 'bg-blue-600',
                 icon: Send,
             }
         default:
@@ -97,7 +97,7 @@ const formatDate = (dateString) => {
     <div class="space-y-4">
         <div class="flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <History class="w-4 h-4 text-indigo-600" />
+                <History class="w-4 h-4 text-blue-600" />
                 Jejak Audit Persetujuan (Audit Trail)
             </h3>
             <span class="text-xs text-gray-400 font-medium">Urutan terbaru</span>
@@ -105,7 +105,7 @@ const formatDate = (dateString) => {
 
         <!-- LOADING STATE -->
         <div v-if="isLoading" class="py-8 text-center text-gray-400">
-            <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent mb-2"></div>
+            <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent mb-2"></div>
             <p class="text-xs">Memuat jejak riwayat persetujuan...</p>
         </div>
 
@@ -159,10 +159,10 @@ const formatDate = (dateString) => {
                 <!-- Notes / Comment Box -->
                 <div 
                     v-if="act.notes"
-                    class="mt-1 text-xs text-gray-700 bg-gray-50/80 border-l-4 border-indigo-400 p-3 rounded-r-xl leading-relaxed italic"
+                    class="mt-1 text-xs text-gray-700 bg-gray-50/80 border-l-4 border-blue-500 p-3 rounded-r-xl leading-relaxed italic"
                 >
                     <div class="flex items-start gap-1.5 not-italic text-gray-500 mb-1 text-[11px] font-semibold">
-                        <MessageSquareQuote class="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" /> Catatan Keputusan:
+                        <MessageSquareQuote class="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" /> Catatan Keputusan:
                     </div>
                     "{{ act.notes }}"
                 </div>

@@ -17,6 +17,21 @@ Dokumen ini berisi kumpulan aturan, standar kode, dan arsitektur untuk pengemban
 
 ---
 
+## 1.1. Tema Warna & Identitas Desain (Color Palette)
+
+- **Primary Color**: **BIRU (Corporate Blue / Royal Blue)**:
+  - Kelas Tailwind: `bg-blue-600`, `hover:bg-blue-700`, `text-blue-600`, `border-blue-200`, `bg-blue-50`.
+  - Digunakan untuk: Tombol aksi utama, tab/navigasi aktif, ikon brand, dan highlight interaktif.
+- **Secondary & Functional Accents**:
+  - **Emerald / Green**: Status aktif, disetujui (*Approved*), sukses, dan nominal positif (`text-emerald-700 bg-emerald-50 border-emerald-200`).
+  - **Amber / Yellow**: Status antrean (*Queue*), pending, draft, dan peringatan (*Warning*) (`text-amber-800 bg-amber-50 border-amber-200`).
+  - **Rose / Red**: Status ditolak (*Rejected*), tombol hapus (*Delete*), dan error (`text-rose-700 bg-rose-50 border-rose-200`).
+- **Surface & Canvas**:
+  - Latar belakang bersih dan cerah (`bg-slate-50`, `bg-white`, border `border-slate-200/80`).
+  - **DILARANG** mendesain antarmuka yang serba hitam pekat (`bg-slate-900`, `bg-black`) atau monokrom mati tanpa warna (*colorless*). Antarmuka harus profesional, kaya warna fungsional, dan ramah pengguna dengan warna utama **Biru**.
+
+---
+
 ## 2. Struktur Direktori & Tanggung Jawab Layer
 
 Patuhi struktur folder yang sudah mapan:

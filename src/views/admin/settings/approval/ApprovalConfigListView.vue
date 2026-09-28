@@ -3,7 +3,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
     Plus, 
-    Shield, 
+    GitBranch,
+    ShieldCheck, 
     Eye, 
     Edit, 
     Trash2, 
@@ -12,7 +13,10 @@ import {
     Filter,
     CheckCircle2,
     XCircle,
-    FileText
+    FileText,
+    Building2,
+    Coins,
+    RotateCcw
 } from '@lucide/vue'
 import PageHeader from '../../../../components/ui/PageHeader.vue'
 import BaseButton from '../../../../components/ui/BaseButton.vue'
@@ -53,7 +57,7 @@ const documentTypes = ref([])
 const companies = ref([])
 
 const docTypeFilterOptions = computed(() => [
-    { value: '', label: 'Semua Dokumen (All Documents)' },
+    { value: '', label: 'Semua Tipe Dokumen' },
     ...(documentTypes.value || []).map(d => ({
         value: d.value,
         label: d.label,
@@ -75,15 +79,38 @@ const statusFilterOptions = [
 ]
 
 const tableColumns = [
-    { key: 'code', label: 'Code', class: 'whitespace-nowrap' },
-    { key: 'name', label: 'Configuration Name', class: 'min-w-[220px]' },
-    { key: 'document_type', label: 'Document Type', class: 'whitespace-nowrap' },
-    { key: 'company', label: 'Company', class: 'whitespace-nowrap' },
-    { key: 'amount_range', label: 'Amount Range', class: 'whitespace-nowrap' },
-    { key: 'levels_count', label: 'Tiers', class: 'whitespace-nowrap' },
-    { key: 'status', label: 'Status', class: 'whitespace-nowrap' },
-    { key: 'actions', label: 'Actions', class: 'text-right whitespace-nowrap' },
+    { key: 'code', label: 'Kode Alur', class: 'whitespace-nowrap' },
+    { key: 'name', label: 'Nama & Cakupan Alur', class: 'min-w-[240px]' },
+    { key: 'document_type', label: 'Tipe Dokumen', class: 'whitespace-nowrap' },
+    { key: 'company', label: 'Entitas Perusahaan', class: 'whitespace-nowrap' },
+    { key: 'amount_range', label: 'Batas Nilai Transaksi', class: 'whitespace-nowrap' },
+    { key: 'levels_count', label: 'Tingkatan', class: 'whitespace-nowrap text-center' },
+    { key: 'status', label: 'Status', class: 'whitespace-nowrap text-center' },
+    { key: 'actions', label: 'Aksi', class: 'text-right whitespace-nowrap' },
 ]
+
+// Executive Summary Metrics (calculated from configurations and pagination)
+const totalConfigsCount = computed(() => pagination.value.total || configurations.value.length || 0)
+const activeConfigsCount = computed(() => configurations.value.filter(c => c.is_active).length)
+const uniqueDocTypesCount = computed(() => {
+    const set = new Set(configurations.value.map(c => c.document_type).filter(Boolean))
+    return set.size
+})
+const universalConfigsCount = computed(() => {
+    return configurations.value.filter(c => c.applies_to_all_amounts || (!c.min_amount && !c.max_amount)).length
+})
+
+const hasActiveFilters = computed(() => {
+    return Boolean(searchQuery.value || selectedDocType.value || selectedCompany.value || selectedStatus.value)
+})
+
+const resetFilters = () => {
+    searchQuery.value = ''
+    selectedDocType.value = ''
+    selectedCompany.value = ''
+    selectedStatus.value = ''
+    fetchConfigurations(1)
+}
 
 const fetchFilterOptions = async () => {
     try {
@@ -231,27 +258,92 @@ onMounted(() => {
     <div class="space-y-6">
         <!-- PAGE HEADER -->
         <PageHeader
-            title="Approval Configuration"
-            description="Kelola matriks alur persetujuan bertingkat, batas nominal otorisasi, dan hak approver."
+            title="Konfigurasi Alur Persetujuan"
+            description="Kelola matriks alur persetujuan berjenjang, batasan nominal otorisasi, dan pejabat berwenang."
         >
             <template #icon>
-                <Shield class="w-7 h-7 text-indigo-600" />
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    <GitBranch class="w-5 h-5 stroke-[2.2]" />
+                </div>
             </template>
             <template #actions>
-                <BaseButton @click="router.push({ name: 'admin.settings.approval.create' })">
+                <BaseButton 
+                    variant="primary"
+                    @click="router.push({ name: 'admin.settings.approval.create' })"
+                >
                     <Plus class="w-4 h-4 mr-1.5" />
                     Tambah Alur Baru
                 </BaseButton>
             </template>
         </PageHeader>
 
+        <!-- EXECUTIVE METRIC BENTO BAR -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- 1. Total Alur -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Total Matriks Alur</span>
+                    <div class="text-2xl font-black text-slate-900 mt-1 font-mono">
+                        {{ totalConfigsCount }}
+                    </div>
+                    <span class="text-xs text-slate-500 font-medium">Aturan persetujuan terdaftar</span>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <GitBranch class="w-5 h-5 stroke-[2.2]" />
+                </div>
+            </div>
+
+            <!-- 2. Alur Aktif -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Operasional</span>
+                    <div class="text-2xl font-black text-emerald-700 mt-1 font-mono flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        {{ activeConfigsCount }} Aktif
+                    </div>
+                    <span class="text-xs text-slate-500 font-medium">Siap mengeksekusi dokumen</span>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CheckCircle2 class="w-5 h-5 stroke-[2.2]" />
+                </div>
+            </div>
+
+            <!-- 3. Dokumen Terhubung -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Jenis Dokumen</span>
+                    <div class="text-2xl font-black text-slate-800 mt-1 font-mono">
+                        {{ uniqueDocTypesCount }} Modul
+                    </div>
+                    <span class="text-xs text-slate-500 font-medium">PR, PO, dan paket pengadaan</span>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+                    <FileText class="w-5 h-5 stroke-[2.2]" />
+                </div>
+            </div>
+
+            <!-- 4. Universal vs Threshold -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Cakupan Nominal</span>
+                    <div class="text-2xl font-black text-blue-700 mt-1 font-mono">
+                        {{ universalConfigsCount }} Universal
+                    </div>
+                    <span class="text-xs text-slate-500 font-medium">Berlaku tanpa batasan nominal</span>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <Coins class="w-5 h-5 stroke-[2.2]" />
+                </div>
+            </div>
+        </div>
+
         <!-- TOOLBAR & FILTERS -->
-        <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-4">
             <div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-                <div class="w-full lg:w-72 shrink-0">
+                <div class="w-full lg:w-80 shrink-0">
                     <SearchInput 
                         v-model="searchQuery" 
-                        placeholder="Cari kode atau nama konfigurasi..." 
+                        placeholder="Cari kode atau nama alur..." 
                     />
                 </div>
 
@@ -260,7 +352,7 @@ onMounted(() => {
                     <BaseSelect
                         v-model="selectedDocType"
                         :options="docTypeFilterOptions"
-                        placeholder="Semua Dokumen"
+                        placeholder="Semua Tipe Dokumen"
                         size="sm"
                     />
 
@@ -280,15 +372,27 @@ onMounted(() => {
                         size="sm"
                     />
                 </div>
+
+                <div v-if="hasActiveFilters" class="shrink-0 flex items-center">
+                    <BaseButton
+                        variant="outline"
+                        size="sm"
+                        @click="resetFilters"
+                        title="Reset semua filter pencarian"
+                    >
+                        <RotateCcw class="w-3.5 h-3.5 mr-1" />
+                        Reset
+                    </BaseButton>
+                </div>
             </div>
 
             <!-- TABLE -->
             <BaseTable :columns="tableColumns">
                 <!-- Loading State -->
                 <tr v-if="isLoading">
-                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent mb-2"></div>
-                        <div class="text-sm font-medium text-gray-600">Loading configurations...</div>
+                    <td colspan="8" class="px-6 py-12 text-center text-slate-500">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mb-2"></div>
+                        <div class="text-sm font-medium text-slate-600">Memuat data konfigurasi alur persetujuan...</div>
                     </td>
                 </tr>
 
@@ -297,67 +401,92 @@ onMounted(() => {
                     v-else-if="configurations.length > 0"
                     v-for="item in configurations" 
                     :key="item.id"
-                    class="hover:bg-gray-50/70 transition-colors"
+                    class="hover:bg-slate-50/80 transition-colors"
                 >
-                    <td class="px-6 py-4 font-mono text-xs font-bold text-indigo-700 whitespace-nowrap">
-                        {{ item.code }}
+                    <!-- Code -->
+                    <td class="px-5 py-4 whitespace-nowrap">
+                        <span class="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/80 inline-block shadow-2xs">
+                            {{ item.code }}
+                        </span>
                     </td>
 
-                    <td class="px-6 py-4 min-w-[200px]">
-                        <div class="font-bold text-gray-900 text-sm">
+                    <!-- Name & Description -->
+                    <td class="px-5 py-4 min-w-[220px]">
+                        <div class="font-bold text-slate-900 text-sm">
                             {{ item.name }}
                         </div>
-                        <div v-if="item.description" class="text-xs text-gray-400 truncate max-w-xs mt-0.5" :title="item.description">
+                        <div v-if="item.description" class="text-xs text-slate-500 truncate max-w-sm mt-0.5" :title="item.description">
                             {{ item.description }}
                         </div>
                     </td>
 
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <!-- Document Type -->
+                    <td class="px-5 py-4 whitespace-nowrap">
                         <div class="inline-flex flex-col items-start">
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100/80 whitespace-nowrap">
-                                <FileText class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 whitespace-nowrap">
+                                <FileText class="w-3.5 h-3.5 text-blue-600 shrink-0" />
                                 {{ formatDocType(item.document_type).label }}
                             </span>
                             <span 
                                 v-if="formatDocType(item.document_type).subtitle" 
-                                class="text-[11px] text-gray-400 mt-1 pl-1 font-medium whitespace-nowrap"
+                                class="text-[11px] text-slate-400 mt-1 pl-0.5 font-medium whitespace-nowrap"
                             >
                                 {{ formatDocType(item.document_type).subtitle }}
                             </span>
                         </div>
                     </td>
 
-                    <td class="px-6 py-4 text-xs font-medium text-gray-600 whitespace-nowrap">
-                        {{ item.company?.name || 'All Companies (Universal)' }}
+                    <!-- Company -->
+                    <td class="px-5 py-4 text-xs font-medium text-slate-600 whitespace-nowrap">
+                        <div class="flex items-center gap-1.5">
+                            <Building2 class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{{ item.company?.name || 'Semua Perusahaan (Universal)' }}</span>
+                        </div>
                     </td>
 
-                    <td class="px-6 py-4 text-xs font-semibold text-gray-800 font-mono whitespace-nowrap">
-                        {{ formatAmountRange(item.min_amount, item.max_amount) }}
-                    </td>
-
-                    <td class="px-6 py-4 text-xs whitespace-nowrap">
-                        <span class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 font-bold">
-                            {{ item.levels?.length || item.levels_count || 0 }} Tiers
+                    <!-- Amount Range -->
+                    <td class="px-5 py-4 text-xs font-medium whitespace-nowrap">
+                        <span 
+                            v-if="item.applies_to_all_amounts || (!item.min_amount && !item.max_amount)"
+                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200"
+                        >
+                            Universal (Semua Nilai)
+                        </span>
+                        <span 
+                            v-else 
+                            class="font-mono text-xs font-semibold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200"
+                        >
+                            {{ formatAmountRange(item.min_amount, item.max_amount) }}
                         </span>
                     </td>
 
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <!-- Tiers -->
+                    <td class="px-5 py-4 text-xs whitespace-nowrap text-center">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                            {{ item.levels?.length || item.levels_count || 0 }} Tahap
+                        </span>
+                    </td>
+
+                    <!-- Status -->
+                    <td class="px-5 py-4 whitespace-nowrap text-center">
                         <button 
                             @click="handleToggleStatus(item)" 
-                            class="focus:outline-none transition-transform active:scale-95"
-                            title="Klik untuk mengubah status"
+                            class="focus:outline-none transition-transform active:scale-95 inline-flex"
+                            title="Klik untuk mengubah status aktif/nonaktif"
                         >
                             <StatusBadge :isActive="Boolean(item.is_active)" />
                         </button>
                     </td>
 
-                    <td class="px-6 py-4 text-right whitespace-nowrap">
-                        <div class="flex items-center justify-end gap-1">
+                    <!-- Actions -->
+                    <td class="px-5 py-4 text-right whitespace-nowrap">
+                        <div class="flex items-center justify-end gap-1.5">
                             <!-- View Detail -->
                             <button
                                 @click="router.push({ name: 'admin.settings.approval.detail', params: { id: item.id } })"
-                                class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-                                title="Lihat Detail"
+                                class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-transparent hover:border-blue-200 transition-colors"
+                                title="Lihat Detail Alur"
                             >
                                 <Eye class="w-4 h-4" />
                             </button>
@@ -365,8 +494,8 @@ onMounted(() => {
                             <!-- Edit -->
                             <button
                                 @click="router.push({ name: 'admin.settings.approval.edit', params: { id: item.id } })"
-                                class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
-                                title="Edit Alur"
+                                class="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg border border-transparent hover:border-amber-200 transition-colors"
+                                title="Edit Alur Persetujuan"
                             >
                                 <Edit class="w-4 h-4" />
                             </button>
@@ -374,8 +503,8 @@ onMounted(() => {
                             <!-- Duplicate -->
                             <button
                                 @click="handleDuplicate(item.id)"
-                                class="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors"
-                                title="Duplikasi Alur"
+                                class="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg border border-transparent hover:border-sky-200 transition-colors"
+                                title="Duplikasi Alur Ini"
                             >
                                 <Copy class="w-4 h-4" />
                             </button>
@@ -383,8 +512,8 @@ onMounted(() => {
                             <!-- Delete -->
                             <button
                                 @click="handleDelete(item.id, item.name)"
-                                class="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                                title="Hapus Alur"
+                                class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-colors"
+                                title="Hapus Alur Persetujuan"
                             >
                                 <Trash2 class="w-4 h-4" />
                             </button>
@@ -394,13 +523,16 @@ onMounted(() => {
 
                 <!-- Empty State -->
                 <tr v-else>
-                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                        <Shield class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                        <div class="text-base font-semibold text-gray-800">No approval configurations found</div>
-                        <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                            Belum ada alur persetujuan yang terdaftar atau sesuai dengan filter pencarian Anda.
+                    <td colspan="8" class="px-6 py-12 text-center text-slate-500">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+                            <GitBranch class="w-6 h-6 stroke-[1.8]" />
+                        </div>
+                        <div class="text-base font-bold text-slate-800">Tidak ada alur persetujuan ditemukan</div>
+                        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                            Belum ada konfigurasi alur persetujuan yang terdaftar atau sesuai dengan filter pencarian Anda.
                         </p>
                         <BaseButton 
+                            variant="primary"
                             @click="router.push({ name: 'admin.settings.approval.create' })" 
                             size="sm" 
                             class="mt-4"

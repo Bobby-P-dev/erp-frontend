@@ -11,7 +11,11 @@ import {
     CheckCircle2, 
     RotateCcw, 
     XCircle,
-    AlertCircle
+    AlertCircle,
+    Calendar,
+    Layers,
+    Package,
+    ShieldAlert
 } from '@lucide/vue'
 import ApprovalBadge from './ApprovalBadge.vue'
 import ApprovalStepper from './ApprovalStepper.vue'
@@ -52,9 +56,17 @@ const authStore = useAuthStore()
 const isLoadingTracker = ref(false)
 const trackerData = ref(null)
 
+const effectiveDoc = computed(() => {
+    return trackerData.value?.request || props.task || {}
+})
+
+const effectiveItems = computed(() => {
+    return effectiveDoc.value?.items || []
+})
+
 const isCurrentRequester = computed(() => {
     const currentUserId = authStore.user?.id
-    const requesterId = props.task?.requester_id || props.task?.requester?.id || trackerData.value?.request?.requester_id
+    const requesterId = effectiveDoc.value?.requester_id || effectiveDoc.value?.requester?.id
     if (currentUserId && requesterId) {
         return Number(currentUserId) === Number(requesterId)
     }
@@ -73,7 +85,7 @@ const canUserAct = computed(() => {
         return false
     }
     // Cannot act on already completed/rejected/cancelled request
-    const status = props.task?.status || trackerData.value?.request?.status
+    const status = effectiveDoc.value?.status
     if (status && ['approved', 'rejected', 'cancelled'].includes(status)) {
         return false
     }
@@ -128,7 +140,7 @@ const handleActionConfirm = async ({ action, notes, done, fail }) => {
             showSuccess('Disetujui!', `Dokumen ${props.task.document_number} berhasil disetujui.`)
         } else if (action === 'revision') {
             await requestRevisionDocument(props.task.id, notes, expectedStep)
-            showSuccess('Revisi Diminta!', `Instruksi revisi untuk ${props.task.document_number} telah dikirim ke pemohon.`)
+            showSuccess('Permintaan Revisi Terkirim!', `Dokumen ${props.task.document_number} telah dikembalikan kepada pemohon dengan instruksi perbaikan Anda.`)
         } else if (action === 'reject') {
             await rejectDocument(props.task.id, notes, expectedStep)
             showSuccess('Ditolak!', `Dokumen ${props.task.document_number} telah ditolak.`)
@@ -150,174 +162,330 @@ const handleActionConfirm = async ({ action, notes, done, fail }) => {
         }
     }
 }
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return '-'
+    const d = new Date(dateStr)
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    })
+}
 </script>
 
 <template>
     <Teleport to="body">
-        <div v-if="isDrawerVisible" class="fixed inset-0 z-[100] overflow-hidden">
-            <!-- Backdrop (Tanpa backdrop-blur agar scroll ringan dan tidak patah-patah) -->
+        <div 
+            v-if="isDrawerVisible" 
+            class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-slate-900/50"
+            @click="emit('close')"
+        >
+            <!-- Centered Modal Box -->
             <div 
-                class="fixed inset-0 bg-gray-900/40 transition-opacity"
-                @click="emit('close')"
-            ></div>
-
-            <div class="fixed inset-y-0 right-0 max-w-full flex pl-10 pointer-events-none">
-                <div class="w-screen max-w-2xl bg-white shadow-2xl flex flex-col h-full overflow-hidden pointer-events-auto">
-                    <!-- DRAWER HEADER (Sticky) -->
-                    <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                                <FileText class="w-5 h-5" />
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <h3 class="text-base font-bold text-gray-900">
-                                        {{ task?.document_number || 'Review Dokumen' }}
-                                    </h3>
-                                    <ApprovalBadge :status="task?.status || 'pending'" size="sm" />
-                                </div>
-                                <p class="text-xs text-gray-400 capitalize">
-                                    {{ String(task?.document_type || '').replace(/_/g, ' ') }}
-                                </p>
-                            </div>
+                class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl lg:max-w-5xl flex flex-col max-h-[90vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+                @click.stop
+            >
+                <!-- MODAL HEADER -->
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
+                            <FileText class="w-5 h-5" />
                         </div>
-
-                        <button 
-                            @click="emit('close')"
-                            class="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-                        >
-                            <X class="w-5 h-5" />
-                        </button>
+                        <div>
+                            <div class="flex items-center gap-2.5">
+                                <h3 class="text-base font-bold text-slate-900 font-mono tracking-tight">
+                                    {{ effectiveDoc.document_number || 'Review Dokumen' }}
+                                </h3>
+                                <ApprovalBadge :status="effectiveDoc.status || 'pending'" size="sm" />
+                            </div>
+                            <p class="text-xs text-slate-500 capitalize mt-0.5">
+                                {{ effectiveDoc.document_type_label || String(effectiveDoc.document_type || '').replace(/_/g, ' ') }}
+                            </p>
+                        </div>
                     </div>
 
-                    <!-- DRAWER CONTENT (Scrollable) -->
-                    <div class="flex-1 overflow-y-auto p-6 space-y-6 overscroll-contain">
-                        <!-- Overview Card -->
-                        <div class="bg-gray-50/80 rounded-3xl p-5 border border-gray-100 space-y-4">
-                            <div class="flex items-center justify-between pb-3 border-b border-gray-200/60">
-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                                    Ringkasan Pengajuan
-                                </span>
-                                <span v-if="task?.is_overdue" class="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                    <button 
+                        type="button"
+                        @click="emit('close')"
+                        class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                        title="Tutup Modal"
+                    >
+                        <X class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <!-- MODAL CONTENT (Scrollable) -->
+                <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 overscroll-contain">
+                    <!-- Overview Card -->
+                    <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3.5">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <FileText class="w-4 h-4 text-slate-500" />
+                                Ringkasan Pengajuan Dokumen
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <span v-if="effectiveDoc.is_overdue" class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                    <ShieldAlert class="w-3.5 h-3.5 text-rose-600" />
                                     SLA Overdue
                                 </span>
-                                <span v-else-if="task?.sla_hours_left !== undefined" class="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                                    {{ task.sla_hours_left }}j tersisa
+                                <span v-else-if="effectiveDoc.sla_hours_left !== undefined && effectiveDoc.sla_hours_left !== null" class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                    <Clock class="w-3.5 h-3.5 text-amber-600" />
+                                    {{ effectiveDoc.sla_hours_left }}j tersisa
                                 </span>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                                <div>
-                                    <span class="text-gray-400">Pemohon (Requester):</span>
-                                    <div class="font-bold text-gray-800 mt-0.5 flex items-center gap-1.5">
-                                        <User class="w-3.5 h-3.5 text-gray-400" />
-                                        {{ task?.requester?.name || '-' }}
-                                    </div>
-                                    <div class="text-[11px] text-gray-500 ml-5">
-                                        {{ task?.requester?.division || task?.requester?.email || '' }}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <span class="text-gray-400">Total Nilai Nominal:</span>
-                                    <div class="font-bold text-emerald-700 text-sm mt-0.5">
-                                        {{ formatCurrency(task?.total_amount) }}
-                                    </div>
-                                </div>
-
-                                <div class="sm:col-span-2">
-                                    <span class="text-gray-400">Perihal / Deskripsi Pengajuan:</span>
-                                    <div class="text-gray-800 font-medium mt-1 leading-relaxed bg-white p-3 rounded-2xl border border-gray-100">
-                                        {{ task?.document_title || '-' }}
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
-                        <!-- Stepper Section -->
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between">
-                                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-700">
-                                    Progres Alur Persetujuan
-                                </h4>
-                                <span class="text-xs text-indigo-600 font-semibold">
-                                    Tahap {{ task?.current_step_order || 1 }} dari {{ task?.total_steps || task?.levels?.length || 2 }}
-                                </span>
+                        <!-- Metadata Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+                            <!-- Pemohon -->
+                            <div>
+                                <span class="text-slate-400 font-medium block text-[11px]">Pemohon (Requester):</span>
+                                <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
+                                    <User class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span class="truncate">{{ effectiveDoc.requester?.name || effectiveDoc.requester_name || '-' }}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 ml-5 truncate">
+                                    {{ effectiveDoc.requester?.division || effectiveDoc.division_name || effectiveDoc.requester?.email || '' }}
+                                </div>
                             </div>
 
-                            <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-2xs">
-                                <ApprovalStepper
-                                    :levels="trackerData?.levels || task?.levels || []"
-                                    :currentStepOrder="trackerData?.request?.current_step_order || task?.current_step_order || 1"
-                                    :overallStatus="task?.status || 'pending'"
-                                    orientation="vertical"
-                                />
+                            <!-- Perusahaan & Divisi -->
+                            <div>
+                                <span class="text-slate-400 font-medium block text-[11px]">Perusahaan & Divisi:</span>
+                                <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
+                                    <Building2 class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span class="truncate">{{ effectiveDoc.company?.name || effectiveDoc.company_name || '-' }}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 ml-5 truncate">
+                                    Divisi: {{ effectiveDoc.division?.name || effectiveDoc.division_name || '-' }}
+                                </div>
+                            </div>
+
+                            <!-- Tanggal Pengajuan & Dibutuhkan -->
+                            <div>
+                                <span class="text-slate-400 font-medium block text-[11px]">Tanggal Pengajuan:</span>
+                                <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
+                                    <Calendar class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>{{ formatDate(effectiveDoc.request_date || effectiveDoc.submitted_at || effectiveDoc.created_at) }}</span>
+                                </div>
+                                <div v-if="effectiveDoc.required_date" class="text-[11px] text-slate-600 font-medium ml-5 mt-0.5">
+                                    Target: {{ formatDate(effectiveDoc.required_date) }}
+                                </div>
+                            </div>
+
+                            <!-- Total Nilai Nominal -->
+                            <div>
+                                <span class="text-slate-400 font-medium block text-[11px]">Total Nilai Pengajuan:</span>
+                                <div class="font-mono font-bold text-slate-900 text-sm mt-1">
+                                    {{ effectiveDoc.total_amount ? formatCurrency(effectiveDoc.total_amount) : '-' }}
+                                </div>
+                            </div>
+
+                            <!-- Perihal / Deskripsi Pengajuan -->
+                            <div class="sm:col-span-2 lg:col-span-4">
+                                <span class="text-slate-400 font-medium block text-[11px]">Perihal / Keperluan Pengajuan:</span>
+                                <div class="text-slate-900 font-medium mt-1 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">
+                                    {{ effectiveDoc.purpose || effectiveDoc.document_title || '-' }}
+                                </div>
+                            </div>
+
+                            <!-- Catatan Tambahan -->
+                            <div v-if="effectiveDoc.notes" class="sm:col-span-2 lg:col-span-4">
+                                <span class="text-slate-400 font-medium block text-[11px]">Catatan Tambahan:</span>
+                                <div class="text-slate-700 mt-1 leading-relaxed bg-white p-3 rounded-lg border border-slate-200 text-xs">
+                                    {{ effectiveDoc.notes }}
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Audit Trail Section -->
-                        <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-2xs">
-                            <ApprovalAuditTrail
-                                :actions="trackerData?.actions || task?.actions || []"
-                                :isLoading="isLoadingTracker"
+                    <!-- RINCIAN BARANG / JASA (ITEMS TABLE) -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                <Package class="w-4 h-4 text-slate-600" />
+                                Daftar Barang / Jasa yang Diajukan
+                                <span class="px-2 py-0.2 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                    {{ effectiveItems.length }} Item
+                                </span>
+                            </h4>
+                        </div>
+
+                        <div v-if="isLoadingTracker && effectiveItems.length === 0" class="p-8 text-center bg-slate-50 rounded-lg border border-slate-200">
+                            <div class="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                            <span class="text-xs text-slate-500">Memuat rincian item pengajuan...</span>
+                        </div>
+
+                        <div v-else-if="effectiveItems.length === 0" class="p-6 text-center bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500">
+                            Dokumen ini tidak memiliki rincian item barang/jasa atau item dimuat dari sistem dokumen terkait.
+                        </div>
+
+                        <div v-else class="border border-slate-200 rounded-lg overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                                            <th class="py-2.5 px-3 w-10 text-center">No</th>
+                                            <th class="py-2.5 px-3 min-w-[200px]">Item / Barang</th>
+                                            <th class="py-2.5 px-3 text-right w-20">Jumlah</th>
+                                            <th class="py-2.5 px-3 w-20">Satuan</th>
+                                            <th class="py-2.5 px-3 text-right w-32">Est. Harga Satuan</th>
+                                            <th class="py-2.5 px-3 text-right w-32">Subtotal</th>
+                                            <th class="py-2.5 px-3 min-w-[180px]">Catatan / Referensi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 bg-white">
+                                        <tr 
+                                            v-for="(item, idx) in effectiveItems" 
+                                            :key="item.id || idx" 
+                                            class="hover:bg-slate-50/70 transition-colors"
+                                        >
+                                            <td class="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{{ idx + 1 }}</td>
+                                            <td class="py-2.5 px-3">
+                                                <div class="font-bold text-slate-900 flex items-center gap-2">
+                                                    <span>{{ item.item_name || 'Item #' + (item.item_id || item.id) }}</span>
+                                                    <span 
+                                                        v-if="item.is_non_catalog" 
+                                                        class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                                                    >
+                                                        Non-Katalog
+                                                    </span>
+                                                </div>
+                                                <div v-if="item.item_code" class="text-[10px] text-slate-400 font-mono mt-0.5">
+                                                    Kode: {{ item.item_code }}
+                                                </div>
+                                            </td>
+                                            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                                {{ item.quantity }}
+                                            </td>
+                                            <td class="py-2.5 px-3 text-slate-600">
+                                                {{ item.unit?.code || item.unit?.name || item.unit_name || '-' }}
+                                            </td>
+                                            <td class="py-2.5 px-3 text-right font-mono text-slate-700">
+                                                {{ formatCurrency(item.estimated_price || 0) }}
+                                            </td>
+                                            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                                {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0))) }}
+                                            </td>
+                                            <td class="py-2.5 px-3">
+                                                <div v-if="item.notes" class="text-slate-700 leading-snug">
+                                                    {{ item.notes }}
+                                                </div>
+                                                <a 
+                                                    v-if="item.reference_url" 
+                                                    :href="item.reference_url" 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium mt-0.5"
+                                                >
+                                                    <ExternalLink class="w-3 h-3" />
+                                                    <span>Link Referensi</span>
+                                                </a>
+                                                <span v-if="!item.notes && !item.reference_url" class="text-slate-400">-</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
+                                            <td colspan="5" class="py-2.5 px-3 text-right text-xs uppercase tracking-wider text-slate-600">
+                                                Total Estimasi Pengadaan:
+                                            </td>
+                                            <td class="py-2.5 px-3 text-right text-xs font-mono font-bold text-slate-900">
+                                                {{ formatCurrency(effectiveDoc.total_amount) }}
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stepper Section (Alur Persetujuan) -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                <Clock class="w-4 h-4 text-slate-600" />
+                                Progres Alur Persetujuan (Workflow)
+                            </h4>
+                            <span class="text-xs text-slate-600 font-medium">
+                                Tahap {{ effectiveDoc.current_step_order || 1 }} dari {{ effectiveDoc.total_steps || trackerData?.levels?.length || 2 }}
+                            </span>
+                        </div>
+
+                        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                            <ApprovalStepper
+                                :levels="trackerData?.levels || effectiveDoc.levels || []"
+                                :currentStepOrder="trackerData?.request?.current_step_order || effectiveDoc.current_step_order || 1"
+                                :overallStatus="effectiveDoc.status || 'pending'"
+                                orientation="vertical"
                             />
                         </div>
                     </div>
 
-                    <!-- DRAWER FOOTER (Sticky Decision Action Bar) -->
-                    <div class="p-5 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <!-- Audit Trail Section -->
+                    <div class="bg-white rounded-lg p-4 border border-slate-200">
+                        <ApprovalAuditTrail
+                            :actions="trackerData?.actions || effectiveDoc.actions || []"
+                            :isLoading="isLoadingTracker"
+                        />
+                    </div>
+                </div>
+
+                <!-- MODAL FOOTER (Decision Action Bar) -->
+                <div class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <button
+                        type="button"
+                        @click="emit('close')"
+                        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                        Tutup
+                    </button>
+
+                    <!-- Action Buttons (when user is authorized approver) -->
+                    <div v-if="canUserAct" class="flex items-center gap-2">
+                        <!-- Request Revision -->
                         <button
                             type="button"
-                            @click="emit('close')"
-                            class="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-200/70 transition-colors"
+                            @click="openDecision('revision')"
+                            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
-                            Tutup Panel
+                            <RotateCcw class="w-3.5 h-3.5" />
+                            Minta Revisi
                         </button>
 
-                        <!-- Action Buttons (when user is authorized approver) -->
-                        <div v-if="canUserAct" class="flex items-center gap-2">
-                            <!-- Request Revision -->
-                            <button
-                                type="button"
-                                @click="openDecision('revision')"
-                                class="px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-100/80 hover:bg-amber-200 border border-amber-300 flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                            >
-                                <RotateCcw class="w-4 h-4" />
-                                Minta Revisi
-                            </button>
+                        <!-- Reject -->
+                        <button
+                            type="button"
+                            @click="openDecision('reject')"
+                            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                            <XCircle class="w-3.5 h-3.5" />
+                            Tolak
+                        </button>
 
-                            <!-- Reject -->
-                            <button
-                                type="button"
-                                @click="openDecision('reject')"
-                                class="px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-                            >
-                                <XCircle class="w-4 h-4" />
-                                Tolak
-                            </button>
+                        <!-- Approve -->
+                        <button
+                            type="button"
+                            @click="openDecision('approve')"
+                            class="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                        >
+                            <CheckCircle2 class="w-3.5 h-3.5" />
+                            Setujui Dokumen
+                        </button>
+                    </div>
 
-                            <!-- Approve -->
-                            <button
-                                type="button"
-                                @click="openDecision('approve')"
-                                class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-md shadow-emerald-200 cursor-pointer"
-                            >
-                                <CheckCircle2 class="w-4 h-4" />
-                                Setujui Dokumen
-                            </button>
-                        </div>
+                    <!-- Maker-Checker Alert (Requester cannot approve their own document) -->
+                    <div v-else-if="isCurrentRequester" class="text-xs text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-2">
+                        <AlertCircle class="w-4 h-4 text-amber-600 shrink-0" />
+                        <span><strong>Prinsip Maker-Checker:</strong> Anda adalah pemohon dokumen ini sehingga tidak dapat menyetujuinya sendiri.</span>
+                    </div>
 
-                        <!-- Maker-Checker Alert (Requester cannot approve their own document) -->
-                        <div v-else-if="isCurrentRequester" class="text-xs text-amber-800 bg-amber-50 px-3.5 py-2 rounded-xl border border-amber-200 flex items-center gap-2">
-                            <AlertCircle class="w-4 h-4 text-amber-600 shrink-0" />
-                            <span><strong>Prinsip Maker-Checker:</strong> Anda adalah pemohon dokumen ini sehingga tidak dapat menyetujuinya sendiri.</span>
-                        </div>
-
-                        <!-- Inactive / Unauthorized info -->
-                        <div v-else class="text-xs text-gray-500 bg-gray-100 px-3.5 py-2 rounded-xl border border-gray-200 flex items-center gap-2">
-                            <Clock class="w-4 h-4 text-gray-400 shrink-0" />
-                            <span>Menunggu tindakan pejabat approver berwenang atau alur telah selesai.</span>
-                        </div>
+                    <!-- Inactive / Unauthorized info -->
+                    <div v-else class="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
+                        <Clock class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Menunggu tindakan pejabat approver berwenang atau alur telah selesai.</span>
                     </div>
                 </div>
             </div>
@@ -326,9 +494,9 @@ const handleActionConfirm = async ({ action, notes, done, fail }) => {
             <ApprovalActionDialog
                 :isOpen="showActionDialog"
                 :actionType="selectedActionType"
-                :documentNumber="task?.document_number"
-                :documentTitle="task?.document_title"
-                :currentStepName="task?.current_step_name"
+                :documentNumber="effectiveDoc.document_number"
+                :documentTitle="effectiveDoc.document_title"
+                :currentStepName="effectiveDoc.current_step_name"
                 @close="showActionDialog = false"
                 @confirm="handleActionConfirm"
             />

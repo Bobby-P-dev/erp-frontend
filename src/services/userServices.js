@@ -44,3 +44,14 @@ export const searchUsers = async (search = '') => {
     }
 }
 
+export const getAvailableUserCandidates = async ({ type = 'employee', search = '', limit = 20 } = {}) => {
+    const params = new URLSearchParams()
+    if (type) params.append('type', type)
+    if (search) params.append('search', search)
+    if (limit) params.append('limit', limit)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    const response = await api.get(`/api/v1/user/available-candidates${queryString}`)
+    return response.data
+}
+
+

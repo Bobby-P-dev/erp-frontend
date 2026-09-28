@@ -1,10 +1,8 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { Plus, Edit, Users, X, Check, Filter, Search } from '@lucide/vue'
-import { getUsers, updateUserPassword, syncUserRoles } from '../../../services/userServices'
+import { getUsers, updateUserPassword, syncUserRoles, getAvailableUserCandidates } from '../../../services/userServices'
 import { register } from '../../../services/authServices'
-import { searchEmployees } from '../../../services/employeeServices'
-import { searchSuppliers } from '../../../services/supplierService'
 import { searchCompanies } from '../../../services/companyServices'
 import { searchDivisions } from '../../../services/divisionServices'
 import { searchJobLevels } from '../../../services/jobLevelServices'
@@ -162,10 +160,11 @@ const loadModalRoles = async (search = '') => {
 
 const loadEmployees = async (search = '') => {
     try {
-        const res = await searchEmployees(search)
-        employeeOptions.value = res.data.map(item => ({ 
+        const res = await getAvailableUserCandidates({ type: 'employee', search })
+        const list = res.data || []
+        employeeOptions.value = list.map(item => ({ 
             value: item.id, 
-            label: `${item.name} (${item.nik})` 
+            label: item.label || `${item.name} (${item.nik})` 
         }))
     } catch (e) {
         console.error(e)
@@ -174,11 +173,11 @@ const loadEmployees = async (search = '') => {
 
 const loadSuppliers = async (search = '') => {
     try {
-        const res = await searchSuppliers(search)
+        const res = await getAvailableUserCandidates({ type: 'supplier', search })
         const list = res.data || []
         supplierOptions.value = list.map(item => ({
             value: item.id,
-            label: item.supplier_code ? `${item.name} (${item.supplier_code})` : item.name
+            label: item.label || (item.supplier_code ? `${item.name} (${item.supplier_code})` : item.name)
         }))
     } catch (e) {
         console.error(e)
@@ -229,6 +228,7 @@ const openModal = async (user = null) => {
         }
         employeeOptions.value = []
         supplierOptions.value = []
+        loadEmployees('')
     }
     showModal.value = true
 }

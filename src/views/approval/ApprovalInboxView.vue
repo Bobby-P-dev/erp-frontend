@@ -1,10 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
-import BaseSelect from '../../components/ui/BaseSelect.vue'
-import SearchInput from '../../components/ui/SearchInput.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import ApprovalBadge from '../../components/approval/ApprovalBadge.vue'
 import ApprovalReviewDrawer from '../../components/approval/ApprovalReviewDrawer.vue'
@@ -21,15 +18,15 @@ import {
     CheckSquare,
     History,
     Clock,
-    AlertCircle,
     Eye,
-    Filter,
     RefreshCw,
     Building2,
     Calendar,
     ChevronRight,
     Search,
-    ShieldAlert
+    ShieldAlert,
+    X,
+    ArrowUpRight
 } from '@lucide/vue'
 
 const approvalStore = useApprovalStore()
@@ -58,10 +55,11 @@ const pagination = ref({
     last_page: 1,
     from: 0,
     to: 0,
-    total: 0
+    total: 0,
+    per_page: 10
 })
 
-// Drawer review state
+// Review Dialog state
 const isDrawerOpen = ref(false)
 const selectedTask = ref(null)
 
@@ -112,7 +110,8 @@ const fetchTasks = async (page = 1) => {
                 last_page: response.meta?.last_page || response.last_page || 1,
                 from: response.meta?.from || response.from || (items.value.length > 0 ? 1 : 0),
                 to: response.meta?.to || response.to || items.value.length,
-                total: response.meta?.total ?? response.total ?? items.value.length
+                total: response.meta?.total ?? response.total ?? items.value.length,
+                per_page: response.meta?.per_page || 10
             }
         } else if (Array.isArray(response)) {
             items.value = response
@@ -121,7 +120,8 @@ const fetchTasks = async (page = 1) => {
                 last_page: 1,
                 from: items.value.length > 0 ? 1 : 0,
                 to: items.value.length,
-                total: items.value.length
+                total: items.value.length,
+                per_page: 10
             }
         } else {
             items.value = []
@@ -188,12 +188,17 @@ const formatDate = (dateStr) => {
     if (!dateStr) return '-'
     const d = new Date(dateStr)
     return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('id-ID', {
-        day: 'numeric',
+        day: '2-digit',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
     })
+}
+
+const clearSearch = () => {
+    searchQuery.value = ''
+    fetchTasks(1)
 }
 
 // Watch filters
@@ -202,7 +207,7 @@ watch(searchQuery, () => {
     clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => {
         fetchTasks(1)
-    }, 400)
+    }, 350)
 })
 
 watch(selectedDocumentType, () => {
@@ -228,251 +233,296 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6">
-        <!-- Breadcrumb Navigation -->
-        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-gray-500">
+    <div class="flex flex-col gap-5">
+        <!-- 1. BREADCRUMB -->
+        <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
             <RouterLink 
                 :to="{ name: 'user.dashboard' }" 
-                class="hover:text-indigo-600 font-medium transition-colors flex items-center gap-1.5"
+                class="hover:text-slate-900 transition-colors flex items-center gap-1"
             >
-                <Home class="w-4 h-4" />
+                <Home class="w-3.5 h-3.5" />
                 <span>Dashboard</span>
             </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400 shrink-0" />
-            <span class="font-semibold text-gray-900" aria-current="page">Approvals</span>
+            <ChevronRight class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span class="text-slate-900 font-semibold" aria-current="page">Kotak Masuk Persetujuan</span>
         </nav>
 
-        <!-- Page Header -->
-        <PageHeader
-            title="Kotak Masuk Persetujuan"
-            description="Tinjau dan proses dokumen yang membutuhkan persetujuan Anda."
-        >
-            <template #actions>
-                <BaseButton
-                    variant="outline"
-                    size="sm"
-                    @click="fetchTasks(pagination.current_page)"
-                    :disabled="isLoading"
-                >
-                    <RefreshCw class="w-4 h-4 mr-1.5" :class="{ 'animate-spin': isLoading }" />
-                    Segarkan
-                </BaseButton>
-            </template>
-        </PageHeader>
-
-        <!-- Tabs Navigation -->
-        <div class="border-b border-gray-200">
-            <nav class="flex space-x-6" aria-label="Tabs">
-                <button
-                    type="button"
-                    @click="handleTabChange('pending')"
-                    :class="[
-                        'pb-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors relative',
-                        activeTab === 'pending'
-                            ? 'border-indigo-600 text-indigo-600 font-semibold'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    ]"
-                >
-                    <CheckSquare class="w-4 h-4" />
-                    Menunggu Tindakan (Pending)
-                    <span
-                        v-if="approvalStore.pendingCount > 0"
-                        class="px-2 py-0.5 text-xs rounded-full font-bold bg-amber-100 text-amber-800 ml-1"
-                    >
-                        {{ approvalStore.formattedBadge }}
-                    </span>
-                </button>
-
-                <button
-                    type="button"
-                    @click="handleTabChange('history')"
-                    :class="[
-                        'pb-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors',
-                        activeTab === 'history'
-                            ? 'border-indigo-600 text-indigo-600 font-semibold'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    ]"
-                >
-                    <History class="w-4 h-4" />
-                    Riwayat Persetujuan
-                </button>
-            </nav>
-        </div>
-
-        <!-- Filter & Search Toolbar -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
-            <div class="w-full sm:w-80">
-                <SearchInput
-                    v-model="searchQuery"
-                    placeholder="Cari no. dokumen, judul, pemohon..."
-                />
+        <!-- 2. PAGE HEADER -->
+        <div class="bg-white px-5 py-4 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 bg-slate-100 text-slate-700 rounded-lg border border-slate-200/60">
+                        <CheckSquare class="w-5 h-5 text-slate-800" />
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 tracking-tight">
+                            Kotak Masuk Persetujuan
+                        </h1>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Tinjau dan proses dokumen yang membutuhkan persetujuan berjenjang Anda.
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            <div class="flex items-center gap-3 w-full sm:w-auto">
-                <div class="w-full sm:w-60">
-                    <BaseSelect
-                        v-model="selectedDocumentType"
-                        :options="filterDocTypeOptions"
-                        size="sm"
-                        placeholder="Semua Jenis Dokumen"
+            <div class="flex items-center gap-2.5 shrink-0">
+                <button
+                    type="button"
+                    @click="fetchTasks(pagination.current_page)"
+                    :disabled="isLoading"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                    <RefreshCw class="w-3.5 h-3.5 text-slate-500" :class="{ 'animate-spin': isLoading }" />
+                    <span>Segarkan</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. UNIFIED DATA TABLE CONTAINER -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col overflow-hidden">
+            <!-- STATUS TAB BAR (Segmented Filter) -->
+            <div class="border-b border-slate-200 bg-slate-50/70 px-4 pt-2.5 flex items-center justify-between gap-4 overflow-x-auto">
+                <div class="flex items-center gap-1 -mb-px">
+                    <button
+                        type="button"
+                        @click="handleTabChange('pending')"
+                        :class="[
+                            activeTab === 'pending'
+                                ? 'border-slate-900 text-slate-900 bg-white font-semibold shadow-2xs'
+                                : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 font-medium',
+                            'px-3.5 py-2 text-xs rounded-t-lg border-b-2 transition-all flex items-center gap-2 whitespace-nowrap'
+                        ]"
+                    >
+                        <CheckSquare class="w-3.5 h-3.5" />
+                        <span>Menunggu Tindakan (Pending)</span>
+                        <span
+                            v-if="approvalStore.pendingCount > 0"
+                            class="px-1.5 py-0.2 text-[10px] rounded font-mono font-bold bg-amber-100 text-amber-900"
+                        >
+                            {{ approvalStore.formattedBadge }}
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="handleTabChange('history')"
+                        :class="[
+                            activeTab === 'history'
+                                ? 'border-slate-900 text-slate-900 bg-white font-semibold shadow-2xs'
+                                : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 font-medium',
+                            'px-3.5 py-2 text-xs rounded-t-lg border-b-2 transition-all flex items-center gap-2 whitespace-nowrap'
+                        ]"
+                    >
+                        <History class="w-3.5 h-3.5" />
+                        <span>Riwayat Persetujuan</span>
+                    </button>
+                </div>
+
+                <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 pb-2">
+                    <span>Total Tugas:</span>
+                    <span class="font-mono font-bold text-slate-900">{{ pagination.total }}</span>
+                </div>
+            </div>
+
+            <!-- TOOLBAR -->
+            <div class="p-3.5 border-b border-slate-200/80 bg-white flex flex-col sm:flex-row gap-3 justify-between items-center">
+                <div class="relative w-full sm:max-w-md">
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <input 
+                        v-model="searchQuery"
+                        type="text" 
+                        placeholder="Cari no. dokumen, judul, atau pemohon..."
+                        class="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-all"
+                    >
+                    <button 
+                        v-if="searchQuery"
+                        type="button"
+                        @click="clearSearch"
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                        <X class="w-3.5 h-3.5" />
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                    <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                        <span>Tipe:</span>
+                        <select
+                            v-model="selectedDocumentType"
+                            class="py-1 px-2.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400"
+                        >
+                            <option 
+                                v-for="opt in filterDocTypeOptions" 
+                                :key="opt.value" 
+                                :value="opt.value"
+                            >
+                                {{ opt.label }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLE CONTENT -->
+            <div>
+                <!-- Loading State -->
+                <div v-if="isLoading" class="p-14 text-center">
+                    <div class="inline-flex items-center gap-2 text-xs text-slate-500 font-medium">
+                        <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
+                        Memuat daftar tugas approval...
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div
+                    v-else-if="items.length === 0"
+                    class="p-14 text-center space-y-2.5"
+                >
+                    <div class="p-3 bg-slate-100 rounded-xl border border-slate-200/80 w-12 h-12 flex items-center justify-center mx-auto text-slate-500">
+                        <CheckSquare v-if="activeTab === 'pending'" class="w-6 h-6 text-slate-400" />
+                        <History v-else class="w-6 h-6 text-slate-400" />
+                    </div>
+                    <div class="text-xs font-semibold text-slate-700">
+                        {{ activeTab === 'pending' ? 'Tidak Ada Dokumen Menunggu Persetujuan' : 'Belum Ada Riwayat Persetujuan' }}
+                    </div>
+                    <p class="text-[11px] text-slate-400 max-w-sm mx-auto">
+                        {{ activeTab === 'pending'
+                            ? 'Semua dokumen telah diproses atau belum ada dokumen baru yang diarahkan ke wewenang Anda.'
+                            : 'Aktivitas persetujuan atau penolakan dokumen yang Anda lakukan akan tersimpan di sini.'
+                        }}
+                    </p>
+                </div>
+
+                <!-- Tasks Table -->
+                <div v-else class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                            <tr>
+                                <th class="py-2.5 px-4 min-w-[190px]">Dokumen</th>
+                                <th class="py-2.5 px-4 w-36">Jenis Dokumen</th>
+                                <th class="py-2.5 px-4 min-w-[170px]">Pemohon & Divisi</th>
+                                <th class="py-2.5 px-4 min-w-[170px]">Tahap Persetujuan</th>
+                                <th class="py-2.5 px-4 min-w-[130px]">Nominal</th>
+                                <th class="py-2.5 px-4 w-32 text-center">Status</th>
+                                <th class="py-2.5 px-4 w-40" v-if="activeTab === 'pending'">SLA / Batas Waktu</th>
+                                <th class="py-2.5 px-4 w-40" v-else>Keputusan Terakhir</th>
+                                <th class="py-2.5 px-4 text-center w-24">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            <tr
+                                v-for="task in items"
+                                :key="task.id"
+                                class="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                                @click="openReviewDrawer(task)"
+                            >
+                                <!-- Document Info -->
+                                <td class="py-3.5 px-4">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors text-left"
+                                        title="Klik untuk membuka rincian review"
+                                    >
+                                        <span class="group-hover:underline">{{ task.document_number }}</span>
+                                        <ArrowUpRight class="w-3 h-3 text-slate-400 group-hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all shrink-0" />
+                                    </button>
+                                    <p class="text-xs text-slate-500 mt-0.5 max-w-xs truncate" :title="task.title || task.document_title">
+                                        {{ task.title || task.document_title || '-' }}
+                                    </p>
+                                </td>
+
+                                <!-- Document Type -->
+                                <td class="py-3.5 px-4">
+                                    <span class="px-2 py-0.5 text-[11px] font-semibold rounded bg-slate-100 text-slate-700 border border-slate-200/70 whitespace-nowrap">
+                                        {{ task.document_type_label || task.document_type }}
+                                    </span>
+                                </td>
+
+                                <!-- Requester -->
+                                <td class="py-3.5 px-4">
+                                    <p class="font-semibold text-slate-800 text-xs">{{ task.requester_name || task.requester?.name || '-' }}</p>
+                                    <p class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                        <span>{{ task.division_name || task.requester?.division?.name || '-' }}</span>
+                                    </p>
+                                </td>
+
+                                <!-- Current Level -->
+                                <td class="py-3.5 px-4">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-bold flex items-center justify-center border border-slate-300">
+                                            {{ task.current_step || task.current_level?.step_order || 1 }}
+                                        </span>
+                                        <span class="text-xs text-slate-800 font-medium">
+                                            {{ task.current_level?.step_name || `Langkah ${task.current_step || 1}` }}
+                                        </span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 block mt-0.5">
+                                        Mode: {{ task.current_level?.approval_mode === 'all' ? 'Semua (Konsensus)' : 'Tunggal (Any)' }}
+                                    </span>
+                                </td>
+
+                                <!-- Amount -->
+                                <td class="py-3.5 px-4 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
+                                    {{ task.total_amount ? formatCurrency(task.total_amount) : '-' }}
+                                </td>
+
+                                <!-- Overall Status -->
+                                <td class="py-3.5 px-4 text-center">
+                                    <ApprovalBadge :status="task.status" size="sm" />
+                                </td>
+
+                                <!-- Tab 1 SLA / Tab 2 Decision -->
+                                <td class="py-3.5 px-4" v-if="activeTab === 'pending'">
+                                    <div v-if="getSlaStatus(task) === 'overdue'" class="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                        <ShieldAlert class="w-3 h-3 text-rose-600" />
+                                        Terlewat (Overdue)
+                                    </div>
+                                    <div v-else-if="getSlaStatus(task) === 'warning'" class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                        <Clock class="w-3 h-3 text-amber-600" />
+                                        Mendekati Batas
+                                    </div>
+                                    <div v-else class="text-xs text-slate-500">
+                                        {{ task.sla_hours_left !== undefined ? `${task.sla_hours_left}j tersisa` : (task.due_date ? formatDate(task.due_date) : (task.created_at ? formatDate(task.created_at) : '-')) }}
+                                    </div>
+                                </td>
+
+                                <td class="py-3.5 px-4 text-xs text-slate-600" v-else>
+                                    <div v-if="task.last_action">
+                                        <span class="font-semibold capitalize text-slate-800">{{ task.last_action.action_type?.replace('_', ' ') }}</span>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">{{ formatDate(task.last_action.created_at) }}</p>
+                                    </div>
+                                    <span v-else class="text-slate-400">-</span>
+                                </td>
+
+                                <!-- Actions -->
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap" @click.stop>
+                                    <button
+                                        type="button"
+                                        @click="openReviewDrawer(task)"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs"
+                                        title="Tinjau Detail Dokumen"
+                                    >
+                                        <Eye class="w-3.5 h-3.5 text-slate-600" />
+                                        <span>Tinjau</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="border-t border-slate-200/80 bg-slate-50/40" v-if="pagination.total > 0">
+                    <Pagination
+                        :pagination="pagination"
+                        @change-page="handlePageChange"
+                        @page-change="handlePageChange"
                     />
                 </div>
             </div>
         </div>
 
-        <!-- Task List Content -->
-        <div class="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
-            <!-- Loading Indicator -->
-            <div v-if="isLoading" class="p-12 text-center space-y-3">
-                <div class="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p class="text-sm text-gray-500">Memuat daftar tugas approval...</p>
-            </div>
-
-            <!-- Empty State -->
-            <div
-                v-else-if="items.length === 0"
-                class="p-12 text-center space-y-4"
-            >
-                <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto text-indigo-500">
-                    <CheckSquare v-if="activeTab === 'pending'" class="w-7 h-7" />
-                    <History v-else class="w-7 h-7 text-gray-400" />
-                </div>
-                <div>
-                    <h3 class="text-base font-bold text-gray-900">
-                        {{ activeTab === 'pending' ? 'Tidak Ada Tugas Tertunda' : 'Belum Ada Riwayat' }}
-                    </h3>
-                    <p class="text-xs text-gray-500 max-w-sm mx-auto mt-1">
-                        {{ activeTab === 'pending'
-                            ? 'Semua permintaan persetujuan telah Anda tangani atau belum ada dokumen baru yang memerlukan persetujuan Anda.'
-                            : 'Anda belum pernah menyetujui, meminta revisi, atau menolak dokumen apa pun.'
-                        }}
-                    </p>
-                </div>
-            </div>
-
-            <!-- Tasks Table -->
-            <div v-else class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-gray-50/80 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                        <tr>
-                            <th class="py-3.5 px-4">Dokumen</th>
-                            <th class="py-3.5 px-4">Tipe Dokumen</th>
-                            <th class="py-3.5 px-4">Pemohon & Divisi</th>
-                            <th class="py-3.5 px-4">Tingkat Approval</th>
-                            <th class="py-3.5 px-4">Nominal</th>
-                            <th class="py-3.5 px-4">Status</th>
-                            <th class="py-3.5 px-4" v-if="activeTab === 'pending'">SLA / Batas</th>
-                            <th class="py-3.5 px-4" v-else>Keputusan Terakhir</th>
-                            <th class="py-3.5 px-4 text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        <tr
-                            v-for="task in items"
-                            :key="task.id"
-                            class="hover:bg-indigo-50/20 transition-colors group cursor-pointer"
-                            @click="openReviewDrawer(task)"
-                        >
-                            <!-- Document Info -->
-                            <td class="py-4 px-4">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors font-mono text-xs">
-                                        {{ task.document_number }}
-                                    </span>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-0.5 max-w-xs truncate" :title="task.title || task.document_title">
-                                    {{ task.title || task.document_title || '-' }}
-                                </p>
-                            </td>
-
-                            <!-- Document Type -->
-                            <td class="py-4 px-4">
-                                <span class="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 text-gray-700 border border-gray-200 whitespace-nowrap">
-                                    {{ task.document_type_label || task.document_type }}
-                                </span>
-                            </td>
-
-                            <!-- Requester -->
-                            <td class="py-4 px-4">
-                                <p class="font-medium text-gray-900 text-xs">{{ task.requester_name || task.requester?.name || '-' }}</p>
-                                <p class="text-[11px] text-gray-400 mt-0.5">{{ task.division_name || task.requester?.division?.name || '-' }}</p>
-                            </td>
-
-                            <!-- Current Level -->
-                            <td class="py-4 px-4">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold flex items-center justify-center border border-indigo-200">
-                                        {{ task.current_step || task.current_level?.step_order || 1 }}
-                                    </span>
-                                    <span class="text-xs text-gray-700 font-medium">
-                                        {{ task.current_level?.step_name || `Langkah ${task.current_step || 1}` }}
-                                    </span>
-                                </div>
-                                <span class="text-[10px] text-gray-400 block mt-0.5">
-                                    Mode: {{ task.current_level?.approval_mode || 'ANY' }}
-                                </span>
-                            </td>
-
-                            <!-- Amount -->
-                            <td class="py-4 px-4 font-mono text-xs font-medium text-gray-800 whitespace-nowrap">
-                                {{ task.total_amount ? formatCurrency(task.total_amount) : '-' }}
-                            </td>
-
-                            <!-- Overall Status -->
-                            <td class="py-4 px-4">
-                                <ApprovalBadge :status="task.status" size="sm" />
-                            </td>
-
-                            <!-- Tab 1 SLA / Tab 2 Decision -->
-                            <td class="py-4 px-4" v-if="activeTab === 'pending'">
-                                <div v-if="getSlaStatus(task) === 'overdue'" class="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
-                                    <ShieldAlert class="w-3.5 h-3.5 text-red-600" />
-                                    Terlewat (Overdue)
-                                </div>
-                                <div v-else-if="getSlaStatus(task) === 'warning'" class="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                                    <Clock class="w-3.5 h-3.5 text-amber-600" />
-                                    Mendekati Batas
-                                </div>
-                                <div v-else class="text-xs text-gray-500">
-                                    {{ task.sla_hours_left !== undefined ? `${task.sla_hours_left}j tersisa` : (task.due_date ? formatDate(task.due_date) : (task.created_at ? formatDate(task.created_at) : '-')) }}
-                                </div>
-                            </td>
-
-                            <td class="py-4 px-4 text-xs text-gray-600" v-else>
-                                <div v-if="task.last_action">
-                                    <span class="font-medium capitalize text-gray-900">{{ task.last_action.action_type?.replace('_', ' ') }}</span>
-                                    <p class="text-[11px] text-gray-400 mt-0.5">{{ formatDate(task.last_action.created_at) }}</p>
-                                </div>
-                                <span v-else class="text-gray-400">-</span>
-                            </td>
-
-                            <!-- Actions -->
-                            <td class="py-4 px-4 text-right whitespace-nowrap" @click.stop>
-                                <BaseButton
-                                    variant="outline"
-                                    size="sm"
-                                    @click="openReviewDrawer(task)"
-                                    class="group-hover:border-indigo-300 group-hover:bg-indigo-50/50"
-                                >
-                                    <Eye class="w-3.5 h-3.5 mr-1 text-indigo-600" />
-                                    Tinjau
-                                </BaseButton>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination -->
-            <div class="p-4 border-t border-gray-100" v-if="pagination.total > 0">
-                <Pagination
-                    :pagination="pagination"
-                    @change-page="handlePageChange"
-                />
-            </div>
-        </div>
-
-        <!-- Slide-over Review Drawer -->
+        <!-- Centered Review Dialog Modal -->
         <ApprovalReviewDrawer
             :isOpen="isDrawerOpen"
             :task="selectedTask"

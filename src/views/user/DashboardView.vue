@@ -37,7 +37,7 @@ const activeModules = computed(() => {
             </h1>
 
             <p class="mt-2 text-gray-600">
-                Selamat datang di ERP System.
+                Selamat datang di Padma Soode ERP Sistem.
             </p>
         </div>
 

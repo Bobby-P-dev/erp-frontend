@@ -28,21 +28,21 @@ const badgeConfig = computed(() => {
         case 'pending':
         case 'pending_approval':
             return {
-                label: 'Pending',
+                label: 'Menunggu Persetujuan',
                 icon: Clock,
                 classes: 'bg-amber-50 text-amber-700 border-amber-200/60 ring-amber-500/20',
                 dotClass: 'bg-amber-500',
             }
         case 'approved':
             return {
-                label: 'Approved',
+                label: 'Disetujui',
                 icon: CheckCircle2,
                 classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 ring-emerald-500/20',
                 dotClass: 'bg-emerald-500',
             }
         case 'rejected':
             return {
-                label: 'Rejected',
+                label: 'Ditolak',
                 icon: XCircle,
                 classes: 'bg-rose-50 text-rose-700 border-rose-200/60 ring-rose-500/20',
                 dotClass: 'bg-rose-500',
@@ -51,21 +51,21 @@ const badgeConfig = computed(() => {
         case 'revision_requested':
         case 'request_revision':
             return {
-                label: 'Revision Requested',
+                label: 'Perlu Revisi',
                 icon: RotateCcw,
                 classes: 'bg-orange-50 text-orange-700 border-orange-200/60 ring-orange-500/20',
                 dotClass: 'bg-orange-500',
             }
         case 'skipped':
             return {
-                label: 'Skipped',
+                label: 'Dilewati',
                 icon: SkipForward,
                 classes: 'bg-slate-100 text-slate-600 border-slate-200 ring-slate-400/20',
                 dotClass: 'bg-slate-400',
             }
         case 'cancelled':
             return {
-                label: 'Cancelled',
+                label: 'Dibatalkan',
                 icon: Ban,
                 classes: 'bg-gray-100 text-gray-600 border-gray-200 ring-gray-400/20',
                 dotClass: 'bg-gray-400',

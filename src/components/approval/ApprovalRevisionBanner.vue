@@ -67,7 +67,7 @@ const formatDate = (dateString) => {
                             Dokumen Memerlukan Revisi
                         </h3>
                         <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-200/60 text-amber-900">
-                            Action Required
+                            Perlu Perbaikan
                         </span>
                     </div>
 
@@ -91,7 +91,7 @@ const formatDate = (dateString) => {
                     class="border-amber-300 text-amber-900 hover:bg-amber-100/60"
                 >
                     <Edit3 class="w-4 h-4 mr-1.5" />
-                    Ubah Dokumen
+                    Perbaiki Dokumen
                 </BaseButton>
 
                 <BaseButton
@@ -102,7 +102,7 @@ const formatDate = (dateString) => {
                     class="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
                 >
                     <Send class="w-4 h-4 mr-1.5" />
-                    Kirim Ulang (Resubmit)
+                    Ajukan Ulang Persetujuan
                 </BaseButton>
             </div>
         </div>

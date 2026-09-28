@@ -41,16 +41,27 @@ export const closeSwal = () => {
     Swal.close()
 }
 
-export const showConfirm = async (title = 'Apakah Anda yakin?', text = 'Data ini akan dihapus permanen!') => {
+export const showConfirm = async (
+    title = 'Apakah Anda yakin?', 
+    text = 'Tindakan ini akan diproses.', 
+    confirmButtonText = null, 
+    cancelButtonText = 'Batal',
+    confirmButtonColor = null
+) => {
+    const isDelete = /hapus|delete/i.test(title + ' ' + text)
+    const btnText = confirmButtonText || (isDelete ? 'Ya, Hapus!' : 'Ya, Lanjutkan')
+    const btnColor = confirmButtonColor || (isDelete ? '#ef4444' : '#4f46e5')
+    const icon = isDelete ? 'warning' : 'question'
+
     return Swal.fire({
         title: title,
         text: text,
-        icon: 'warning',
+        icon: icon,
         showCancelButton: true,
-        confirmButtonColor: '#ef4444', 
+        confirmButtonColor: btnColor, 
         cancelButtonColor: '#6b7280', 
-        confirmButtonText: 'Ya, Hapus!',
-        cancelButtonText: 'Batal'
+        confirmButtonText: btnText,
+        cancelButtonText: cancelButtonText
     }).then((result) => {
         return result.isConfirmed
     })

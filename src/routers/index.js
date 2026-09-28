@@ -3,10 +3,21 @@ import { useAuthStore } from "../stores/auth.js";
 
 const router = createRouter({
     history: createWebHistory(),
+    scrollBehavior(to, from, savedPosition) {
+        if (to.hash) {
+            return {
+                el: to.hash,
+                behavior: 'smooth',
+            }
+        }
+        if (savedPosition) {
+            return savedPosition
+        }
+        return { top: 0 }
+    },
     routes: [
         {
             path: '/',
-            name: 'guest',
             component: () => import('../layouts/GuestLayouts.vue'),
             meta: {
                 guest: true
@@ -17,15 +28,12 @@ const router = createRouter({
                     name: 'welcome',
                     component: () => import('../views/guest/WelcomeView.vue'),
                 },
+                {
+                    path: 'login',
+                    name: 'login',
+                    component: () => import('../views/guest/LoginView.vue'),
+                },
             ],
-        },
-        {
-            path: '/login',
-            name: 'login',
-            component: () => import('../views/guest/LoginView.vue'),
-            meta: {
-                guest: true
-            }
         },
         {
             path: '/dashboard',
@@ -62,38 +70,42 @@ const router = createRouter({
                 {
                     path: 'purchase-requisitions',
                     name: 'user.purchasing.requisitions',
-                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
-                    props: {
-                        title: 'Purchase Requisitions',
-                        subtitle: 'Daftar dan Pengajuan Kebutuhan Barang / Jasa',
-                        stageName: 'Tahap 1: Pengajuan Kebutuhan',
-                        description: 'Kelola pengajuan kebutuhan barang dan jasa divisi Anda. Fitur mencakup pembuatan form PR, monitoring status verifikasi anggaran, dan tracking persetujuan atasan.'
-                    }
+                    component: () => import('../views/purchasing/PurchaseRequisitionListView.vue'),
+                },
+                {
+                    path: 'purchase-requisitions/create',
+                    name: 'user.purchasing.requisitions.create',
+                    component: () => import('../views/purchasing/PurchaseRequisitionCreateView.vue'),
+                },
+                {
+                    path: 'purchase-requisitions/:id/edit',
+                    name: 'user.purchasing.requisitions.edit',
+                    component: () => import('../views/purchasing/PurchaseRequisitionCreateView.vue'),
                 },
                 {
                     path: 'procurement-queue',
-                    name: 'user.purchasing.queue',
-                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
-                    props: {
-                        title: 'Procurement Queue',
-                        subtitle: 'Antrean PR Approved Siap Pengadaan',
-                        stageName: 'Tahap 2: Antrean Pemrosesan Pengadaan',
-                        description: 'Daftar seluruh Purchase Requisition yang telah disetujui (approved) dan siap diproses oleh tim Purchasing untuk pengalokasian sumber daya atau metode pengadaan.'
-                    },
-                    meta: {
-                        permission: 'procurement.read'
-                    }
+                    redirect: { name: 'user.purchasing.plans' }
                 },
                 {
                     path: 'procurement-plans',
                     name: 'user.purchasing.plans',
-                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
-                    props: {
-                        title: 'Procurement Plans',
-                        subtitle: 'Perencanaan Strategis & Konsolidasi Pengadaan',
-                        stageName: 'Tahap 3: Perencanaan & Alokasi',
-                        description: 'Atur metode pengadaan (Direct Purchase, Tender RFQ, atau Kontrak Payung), alokasi kuantitas item, serta konsolidasi kebutuhan multi-divisi untuk efisiensi biaya.'
-                    },
+                    component: () => import('../views/purchasing/ProcurementPlanListView.vue'),
+                    meta: {
+                        permission: 'procurement-plan.read'
+                    }
+                },
+                {
+                    path: 'procurement-plans/create',
+                    name: 'user.purchasing.plans.create',
+                    component: () => import('../views/purchasing/ProcurementPlanCreateView.vue'),
+                    meta: {
+                        permission: 'procurement-plan.create'
+                    }
+                },
+                {
+                    path: 'procurement-plans/:id',
+                    name: 'user.purchasing.plans.detail',
+                    component: () => import('../views/purchasing/ProcurementPlanDetailView.vue'),
                     meta: {
                         permission: 'procurement-plan.read'
                     }
@@ -101,13 +113,23 @@ const router = createRouter({
                 {
                     path: 'direct-purchases',
                     name: 'user.purchasing.direct',
-                    component: () => import('../components/ui/FeaturePlaceholder.vue'),
-                    props: {
-                        title: 'Direct Purchases',
-                        subtitle: 'Pengadaan Pembelian Langsung & Marketplace',
-                        stageName: 'Tahap 4: Eksekusi Pembelian Langsung',
-                        description: 'Kelola transaksi pembelian barang langsung ke toko rekanan offline atau marketplace online, pelampiran bukti bayar, dan pencatatan penerimaan barang.'
-                    },
+                    component: () => import('../views/purchasing/DirectPurchaseListView.vue'),
+                    meta: {
+                        permission: 'direct-purchase.read'
+                    }
+                },
+                {
+                    path: 'direct-purchases/create',
+                    name: 'user.purchasing.direct.create',
+                    component: () => import('../views/purchasing/DirectPurchaseCreateView.vue'),
+                    meta: {
+                        permission: 'direct-purchase.create'
+                    }
+                },
+                {
+                    path: 'direct-purchases/:id',
+                    name: 'user.purchasing.direct.detail',
+                    component: () => import('../views/purchasing/DirectPurchaseDetailView.vue'),
                     meta: {
                         permission: 'direct-purchase.read'
                     }
@@ -202,6 +224,11 @@ const router = createRouter({
                     path: 'master/items',
                     name: 'admin.master.item',
                     component: () => import('../views/admin/master/ItemView.vue'),
+                },
+                {
+                    path: 'master/units',
+                    name: 'admin.master.unit',
+                    component: () => import('../views/admin/master/UnitView.vue'),
                 },
                 {
                     path: 'master/suppliers/create',

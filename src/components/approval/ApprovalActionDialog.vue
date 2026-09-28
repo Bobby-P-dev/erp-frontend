@@ -184,7 +184,7 @@ const handleConfirm = async () => {
                             rows="4"
                             :disabled="isSubmitting"
                             :placeholder="actionConfig.placeholder"
-                            class="w-full px-4 py-3 bg-gray-50 border rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all text-gray-900 font-medium placeholder:text-gray-400"
+                            class="w-full px-4 py-3 bg-gray-50 border rounded-2xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all text-gray-900 font-medium placeholder:text-gray-400"
                             :class="validationError ? 'border-rose-300 ring-1 ring-rose-400 bg-rose-50/20' : 'border-gray-200'"
                         ></textarea>
 
