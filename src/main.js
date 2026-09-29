@@ -7,8 +7,11 @@ import App from './App.vue'
 import router from './routers/index.js'
 
 import { useAuthStore } from './stores/auth'
+import BaseBreadcrumb from './components/ui/BaseBreadcrumb.vue'
 
 const app = createApp(App)
+
+app.component('BaseBreadcrumb', BaseBreadcrumb)
 
 const pinia = createPinia()
 

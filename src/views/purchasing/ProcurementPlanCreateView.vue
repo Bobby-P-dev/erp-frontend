@@ -15,6 +15,7 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
+import SearchableSelect from '../../components/ui/SearchableSelect.vue'
 import DocumentWorkflowTracker from '../../components/approval/DocumentWorkflowTracker.vue'
 
 import {
@@ -72,7 +73,8 @@ const prOptions = computed(() => {
         if (!map.has(item.pr_id)) {
             map.set(item.pr_id, {
                 value: item.pr_id,
-                label: `${item.pr_number || 'PR #' + item.pr_id} - ${item.company?.name || ''} (${item.division?.name || ''})`,
+                label: `${item.pr_number || 'PR #' + item.pr_id} • ${item.company?.name || ''} (${item.division?.name || ''})`,
+                subtitle: `Tujuan: ${item.purpose || '-'} | Diajukan: ${item.requester?.name || '-'}`,
                 pr_number: item.pr_number,
                 company: item.company,
                 division: item.division,
@@ -370,29 +372,16 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6 max-w-7xl mx-auto pb-16">
-        <!-- Breadcrumb -->
-        <nav class="flex items-center gap-2 text-sm text-slate-500 font-medium">
-            <RouterLink to="/" class="hover:text-blue-600 transition-colors flex items-center gap-1">
-                <Home class="w-4 h-4" />
-                <span>Beranda</span>
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <RouterLink to="/purchasing" class="hover:text-blue-600 transition-colors">
-                Purchasing
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <RouterLink :to="{ name: 'user.purchasing.plans' }" class="hover:text-blue-600 transition-colors">
-                Rencana Pengadaan
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <span class="text-slate-900 font-semibold">Buat Rencana</span>
-        </nav>
-
+    <div class="space-y-6 w-full pb-16">
         <!-- Page Header -->
         <PageHeader 
             title="Buat Rencana Pengadaan (Procurement Plan)" 
             description="Tentukan metode pengadaan (Direct Purchase vs Tender RFQ), alokasikan kuantitas item dari Purchase Requisition yang disetujui, dan aktifkan alur transaksi."
+            :breadcrumbs="[
+                { label: 'Purchasing', to: { name: 'user.purchasing' } },
+                { label: 'Rencana Pengadaan', to: { name: 'user.purchasing.plans' } },
+                { label: 'Buat Rencana' }
+            ]"
         >
             <template #actions>
                 <RouterLink :to="{ name: 'user.purchasing.plans' }">
@@ -437,11 +426,13 @@ onMounted(() => {
                             Ganti dokumen PR untuk mengubah paket rencana pengadaan
                         </span>
                     </div>
-                    <BaseSelect 
+                    <SearchableSelect 
                         v-model="selectedPrId"
                         :options="prOptions"
-                        placeholder="Pilih Dokumen Purchase Requisition (Approved)"
+                        placeholder="-- Cari atau Pilih Dokumen PR (Approved) --"
+                        searchPlaceholder="Ketik nomor PR, nama divisi, atau perusahaan..."
                         :disabled="isLoadingQueue"
+                        :loading="isLoadingQueue"
                         required
                     />
                     <p v-if="prOptions.length === 0 && !isLoadingQueue" class="text-xs text-amber-600 flex items-center gap-1 mt-1 font-medium">

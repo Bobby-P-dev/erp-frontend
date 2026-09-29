@@ -47,7 +47,7 @@ defineEmits(['update:modelValue'])
 
 <template>
     <div class="w-full">
-        <label v-if="label" class="block text-sm font-bold text-gray-700 mb-1.5">
+        <label v-if="label" class="block text-base font-bold text-slate-700 mb-2">
             {{ label }} <span v-if="required" class="text-rose-500">*</span>
         </label>
         <div class="relative">
@@ -60,16 +60,16 @@ defineEmits(['update:modelValue'])
                 :min="min"
                 :max="max"
                 :step="step"
-                class="w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm transition-all font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white"
+                class="w-full px-4 py-3 sm:py-3.5 bg-slate-50 border rounded-xl text-base transition-all font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white"
                 :class="[
-                    disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : '',
+                    disabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : '',
                     error 
                         ? 'border-rose-300 ring-1 ring-rose-400 bg-rose-50/20 text-rose-900 focus:ring-2 focus:ring-rose-400/50 focus:border-rose-500' 
-                        : 'border-gray-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500'
+                        : 'border-slate-300 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500'
                 ]"
             >
         </div>
-        <p v-if="error" class="text-xs text-rose-500 mt-1 font-medium">
+        <p v-if="error" class="text-sm text-rose-600 mt-1.5 font-medium">
             {{ error }}
         </p>
     </div>

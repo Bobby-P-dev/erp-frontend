@@ -19,7 +19,7 @@ defineProps({
             isSticky ? (fullWidth ? 'sticky top-0' : 'sticky top-3 sm:top-4') : 'relative'
         ]"
     >
-        <div class="flex items-center justify-between h-14 md:h-16 px-4 md:px-6 mx-auto w-full relative">
+        <div class="flex items-center justify-between h-16 sm:h-20 px-4 sm:px-8 mx-auto w-full relative">
             <div class="flex items-center gap-2 md:gap-3 flex-1">
                 <slot name="left"></slot>
             </div>

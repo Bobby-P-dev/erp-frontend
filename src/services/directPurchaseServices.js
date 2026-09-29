@@ -59,13 +59,49 @@ export const updateDirectPurchase = async (id, data) => {
 }
 
 /**
- * Mengajukan Direct Purchase untuk proses pembayaran (Ready for Payment).
+ * Mengajukan Direct Purchase untuk proses pembayaran (Ready for Payment) dan menghasilkan Payment Request.
  *
  * @param {number|string} id
+ * @param {object} paymentData
  * @returns {Promise<object>}
  */
-export const submitDirectPurchaseForPayment = async (id) => {
-    const response = await api.post(`/api/v1/direct-purchases/${id}/submit-for-payment`)
+export const submitDirectPurchaseForPayment = async (id, paymentData = {}) => {
+    const response = await api.post(`/api/v1/direct-purchases/${id}/submit-for-payment`, paymentData)
+    return response.data
+}
+
+/**
+ * Mencairkan permohonan pembayaran yang telah disetujui oleh Finance.
+ *
+ * @param {number|string} paymentRequestId
+ * @param {object} disbursementData
+ * @returns {Promise<object>}
+ */
+export const disbursePayment = async (paymentRequestId, disbursementData) => {
+    const response = await api.post(`/api/v1/finance/payments/${paymentRequestId}/disburse`, disbursementData)
+    return response.data
+}
+
+/**
+ * Mencatat bukti penerimaan fisik barang (Goods Receipt) untuk Direct Purchase.
+ *
+ * @param {object} goodsReceiptData
+ * @returns {Promise<object>}
+ */
+export const recordGoodsReceipt = async (goodsReceiptData) => {
+    const response = await api.post('/api/v1/inventory/goods-receipts', goodsReceiptData)
+    return response.data
+}
+
+/**
+ * Mengajukan ulang permohonan pembayaran yang diminta revisi oleh approver.
+ *
+ * @param {number|string} paymentRequestId
+ * @param {object} resubmitData
+ * @returns {Promise<object>}
+ */
+export const resubmitPaymentRequest = async (paymentRequestId, resubmitData) => {
+    const response = await api.post(`/api/v1/finance/payment-requests/${paymentRequestId}/resubmit`, resubmitData)
     return response.data
 }
 

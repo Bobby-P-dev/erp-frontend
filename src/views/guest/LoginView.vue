@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { login, getProfile } from '../../services/authServices'
 import { 
-    Lock, 
     User, 
     KeyRound, 
     Eye, 
@@ -53,12 +52,16 @@ const handleLogin = async () => {
             profileResponse.data
         )
 
+        localStorage.setItem('is_logged_in', 'true')
+
         router.push({
             name: 'user.dashboard',
         })
 
     } catch (err) {
         console.error(err)
+
+        localStorage.removeItem('is_logged_in')
 
         if (err.response?.status === 422) {
             error.value = err.response?.data?.message || 'NIK, Email, atau password tidak valid.'

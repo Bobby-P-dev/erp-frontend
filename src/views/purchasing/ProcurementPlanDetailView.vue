@@ -205,24 +205,15 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6 max-w-7xl mx-auto pb-16">
+    <div class="space-y-6 w-full pb-16">
         <!-- Breadcrumb -->
-        <nav class="flex items-center gap-2 text-sm text-slate-500 font-medium">
-            <RouterLink to="/" class="hover:text-blue-600 transition-colors flex items-center gap-1">
-                <Home class="w-4 h-4" />
-                <span>Beranda</span>
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <RouterLink to="/purchasing" class="hover:text-blue-600 transition-colors">
-                Purchasing
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <RouterLink :to="{ name: 'user.purchasing.plans' }" class="hover:text-blue-600 transition-colors">
-                Rencana Pengadaan
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <span class="text-slate-900 font-semibold font-mono">{{ plan?.pp_number || 'Detail Rencana' }}</span>
-        </nav>
+        <BaseBreadcrumb 
+            :items="[
+                { label: 'Purchasing', to: { name: 'user.purchasing' } },
+                { label: 'Rencana Pengadaan', to: { name: 'user.purchasing.plans' } },
+                { label: plan?.pp_number || 'Detail Rencana' }
+            ]" 
+        />
 
         <!-- Loading State -->
         <div v-if="isLoading" class="bg-white rounded-2xl border border-slate-200/80 p-16 text-center shadow-xs">

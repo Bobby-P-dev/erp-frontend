@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import { getPurchaseRequisitions } from '../../services/purchaseRequisitionServices.js'
 import { getProcurementPlans } from '../../services/procurementPlanServices.js'
 import { getDirectPurchases } from '../../services/directPurchaseServices.js'
+import { getPendingApprovalCount } from '../../services/approvalServices.js'
 import { 
     Home, 
     ChevronRight, 
@@ -12,11 +13,12 @@ import {
     Plus, 
     ArrowRight,
     FileText,
-    Layers,
-    ShoppingCart,
-    Scale,
-    Lock,
-    ShieldAlert
+    CheckSquare,
+    Layers, 
+    ShoppingCart, 
+    Scale, 
+    Lock, 
+    ShieldAlert 
 } from '@lucide/vue'
 
 const authStore = useAuthStore()
@@ -24,6 +26,7 @@ const authStore = useAuthStore()
 // Operational summary counts for live tactile feedback
 const counts = ref({
     pr: null,
+    approvals: null,
     plans: null,
     direct: null
 })
@@ -32,6 +35,11 @@ const fetchSummaryCounts = async () => {
     try {
         const prRes = await getPurchaseRequisitions('', 1, 1)
         counts.value.pr = prRes?.meta?.total ?? prRes?.data?.total ?? null
+    } catch (_) {}
+
+    try {
+        const appRes = await getPendingApprovalCount({ document_type: 'purchase_requisition' })
+        counts.value.approvals = Number(appRes?.count ?? 0)
     } catch (_) {}
 
     try {
@@ -53,17 +61,7 @@ onMounted(() => {
 <template>
     <section class="space-y-6">
         <!-- 1. Breadcrumb Navigation -->
-        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs sm:text-sm text-slate-500">
-            <RouterLink 
-                :to="{ name: 'user.dashboard' }" 
-                class="hover:text-blue-600 font-medium transition-colors flex items-center gap-1.5"
-            >
-                <Home class="w-4 h-4" />
-                <span>Dashboard</span>
-            </RouterLink>
-            <ChevronRight class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span class="font-semibold text-blue-900" aria-current="page">Pengadaan (Purchasing)</span>
-        </nav>
+        <BaseBreadcrumb :items="[{ label: 'Pengadaan (Purchasing)' }]" />
 
         <!-- 2. Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
@@ -79,7 +77,7 @@ onMounted(() => {
                     </div>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 max-w-2xl">
-                    Pusat pengelolaan permohonan barang (PR), penyusunan rencana pengadaan, dan realisasi transaksi operasional perusahaan.
+                    Pusat pengelolaan permohonan barang (PR), otorisasi persetujuan, penyusunan rencana pengadaan, dan realisasi transaksi operasional perusahaan.
                 </p>
             </div>
 
@@ -105,7 +103,7 @@ onMounted(() => {
                 </span>
             </div>
 
-            <div class="flex items-center min-w-[560px] justify-between gap-3 text-xs">
+            <div class="flex items-center min-w-[720px] justify-between gap-3 text-xs">
                 <!-- Step 1 -->
                 <div class="flex items-center gap-2.5 text-blue-900 font-semibold bg-blue-50/80 px-3.5 py-2 rounded-xl border border-blue-200/80 flex-1">
                     <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">1</span>
@@ -118,8 +116,19 @@ onMounted(() => {
                 <ArrowRight class="w-4 h-4 text-slate-300 shrink-0" />
 
                 <!-- Step 2 -->
+                <div class="flex items-center gap-2.5 text-amber-900 font-semibold bg-amber-50/80 px-3.5 py-2 rounded-xl border border-amber-200/80 flex-1">
+                    <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">2</span>
+                    <div>
+                        <div class="leading-tight text-slate-900 font-bold">Persetujuan (Approval)</div>
+                        <div class="text-[10px] text-amber-700 font-normal">Otorisasi Berjenjang</div>
+                    </div>
+                </div>
+
+                <ArrowRight class="w-4 h-4 text-slate-300 shrink-0" />
+
+                <!-- Step 3 -->
                 <div class="flex items-center gap-2.5 text-blue-900 font-semibold bg-blue-50/80 px-3.5 py-2 rounded-xl border border-blue-200/80 flex-1">
-                    <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">2</span>
+                    <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">3</span>
                     <div>
                         <div class="leading-tight text-slate-900 font-bold">Rencana Pengadaan</div>
                         <div class="text-[10px] text-blue-700 font-normal">Metode & Alokasi Pagu</div>
@@ -128,9 +137,9 @@ onMounted(() => {
 
                 <ArrowRight class="w-4 h-4 text-slate-300 shrink-0" />
 
-                <!-- Step 3 -->
+                <!-- Step 4 -->
                 <div class="flex items-center gap-2.5 text-emerald-900 font-semibold bg-emerald-50/80 px-3.5 py-2 rounded-xl border border-emerald-200/80 flex-1">
-                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">3</span>
+                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs">4</span>
                     <div>
                         <div class="leading-tight text-slate-900 font-bold">Realisasi Transaksi</div>
                         <div class="text-[10px] text-emerald-700 font-normal">PO, Direct Purchase & RFQ</div>
@@ -191,9 +200,47 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Card 2: Procurement Plans -->
+                <!-- Card 2: Purchasing Approvals (Tahap 2) -->
                 <div 
-                    v-if="authStore.hasPermission('procurement-plan.read')"
+                    class="bg-white rounded-2xl border border-amber-200/90 hover:border-amber-400 bg-gradient-to-b from-white to-amber-50/20 p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
+                >
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs shadow-amber-200">
+                                <CheckSquare class="w-5 h-5" />
+                            </div>
+                            <span v-if="counts.approvals !== null && counts.approvals > 0" class="text-xs font-mono font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2.5 py-0.5 rounded-md">
+                                {{ counts.approvals }} Menunggu
+                            </span>
+                            <span v-else class="text-[10px] font-semibold text-amber-700 uppercase tracking-wider bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md">
+                                Tahap 2
+                            </span>
+                        </div>
+
+                        <div>
+                            <h4 class="text-base font-bold text-slate-900 group-hover:text-amber-800 transition-colors">
+                                Persetujuan Pengadaan
+                            </h4>
+                            <p class="text-[11px] font-medium text-amber-600/90 mt-0.5">
+                                Purchasing Approvals
+                            </p>
+                            <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+                                Tinjau, setujui, minta revisi, atau tolak permohonan pembelian (Purchase Requisition) yang membutuhkan wewenang otorisasi Anda.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 pt-3.5 border-t border-amber-100 flex items-center justify-between text-xs font-semibold text-amber-800 group-hover:text-amber-900 transition-colors">
+                        <RouterLink :to="{ name: 'user.purchasing.approvals' }" class="flex items-center justify-between w-full">
+                            <span>Buka Persetujuan</span>
+                            <ArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </RouterLink>
+                    </div>
+                </div>
+
+                <!-- Card 3: Procurement Plans (Tahap 3) -->
+                <div 
+                    v-if="authStore.hasPermission('purchasing.view')"
                     class="bg-white rounded-2xl border border-blue-200/80 hover:border-blue-400 bg-gradient-to-b from-white to-blue-50/20 p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
                 >
                     <div class="space-y-3">
@@ -205,7 +252,7 @@ onMounted(() => {
                                 {{ counts.plans }} Rencana
                             </span>
                             <span v-else class="text-[10px] font-semibold text-blue-700 uppercase tracking-wider bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md">
-                                Tahap 2
+                                Tahap 3
                             </span>
                         </div>
 
@@ -230,7 +277,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Restricted Card 2: Plans -->
+                <!-- Restricted Card 3: Plans -->
                 <div 
                     v-else
                     class="bg-slate-50/60 rounded-2xl border border-slate-200/70 p-5 opacity-75 flex flex-col justify-between"
@@ -255,9 +302,9 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Card 3: Direct Purchases -->
+                <!-- Card 4: Direct Purchases (Tahap 4) -->
                 <div 
-                    v-if="authStore.hasPermission('direct-purchase.read')"
+                    v-if="authStore.hasPermission('purchasing.view')"
                     class="bg-white rounded-2xl border border-emerald-200/80 hover:border-emerald-400 bg-gradient-to-b from-white to-emerald-50/20 p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
                 >
                     <div class="space-y-3">
@@ -269,7 +316,7 @@ onMounted(() => {
                                 {{ counts.direct }} Transaksi
                             </span>
                             <span v-else class="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-md">
-                                Tahap 3
+                                Tahap 4
                             </span>
                         </div>
 
@@ -294,7 +341,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Restricted Card 3: Direct Purchases -->
+                <!-- Restricted Card 4: Direct Purchases -->
                 <div 
                     v-else
                     class="bg-slate-50/60 rounded-2xl border border-slate-200/70 p-5 opacity-75 flex flex-col justify-between"
@@ -319,7 +366,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Card 4: RFQ & Tender (Coming Soon) -->
+                <!-- Card 5: RFQ & Tender (Coming Soon, Tahap 5) -->
                 <div class="bg-slate-50/70 border border-dashed border-slate-200/90 rounded-2xl p-5 select-none opacity-85 flex flex-col justify-between">
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">

@@ -153,6 +153,18 @@ const getStatusBadge = (status) => {
                 bg: 'bg-blue-50 text-blue-700 border-blue-200',
                 dot: 'bg-blue-500'
             }
+        case 'paid':
+            return {
+                label: 'Telah Dibayar',
+                bg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                dot: 'bg-indigo-500'
+            }
+        case 'partially_received':
+            return {
+                label: 'Diterima Sebagian',
+                bg: 'bg-amber-50 text-amber-700 border-amber-200',
+                dot: 'bg-amber-500'
+            }
         case 'completed':
             return {
                 label: 'Selesai',
@@ -266,24 +278,14 @@ onMounted(() => {
 
 <template>
     <div class="space-y-6">
-        <!-- Breadcrumb -->
-        <nav class="flex items-center gap-2 text-sm text-gray-500 font-medium">
-            <RouterLink to="/" class="hover:text-indigo-600 transition-colors flex items-center gap-1">
-                <Home class="w-4 h-4" />
-                <span>Beranda</span>
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400" />
-            <RouterLink to="/purchasing" class="hover:text-indigo-600 transition-colors">
-                Purchasing
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400" />
-            <span class="text-gray-900 font-semibold">Direct Purchases</span>
-        </nav>
-
         <!-- Page Header -->
         <PageHeader 
             title="Direct Purchases (Pembelian Langsung)" 
             description="Realisasi transaksi pengadaan barang langsung melalui Marketplace online, Toko Retail, atau Supplier resmi tanpa tender."
+            :breadcrumbs="[
+                { label: 'Purchasing', to: { name: 'user.purchasing' } },
+                { label: 'Direct Purchases' }
+            ]"
         >
             <template #actions>
                 <div class="flex items-center gap-3">
@@ -389,6 +391,8 @@ onMounted(() => {
                         <option value="">Semua Status</option>
                         <option value="draft">Draft</option>
                         <option value="ready_for_payment">Siap Dibayar</option>
+                        <option value="paid">Telah Dibayar</option>
+                        <option value="partially_received">Diterima Sebagian</option>
                         <option value="completed">Selesai</option>
                         <option value="cancelled">Dibatalkan</option>
                     </select>

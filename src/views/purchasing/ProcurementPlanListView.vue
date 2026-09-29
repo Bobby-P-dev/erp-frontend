@@ -329,24 +329,14 @@ onMounted(async () => {
 
 <template>
     <div class="space-y-6">
-        <!-- Breadcrumb -->
-        <nav class="flex items-center gap-2 text-sm text-slate-500 font-medium">
-            <RouterLink to="/" class="hover:text-blue-600 transition-colors flex items-center gap-1">
-                <Home class="w-4 h-4" />
-                <span>Beranda</span>
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <RouterLink to="/purchasing" class="hover:text-blue-600 transition-colors">
-                Purchasing
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-slate-400" />
-            <span class="text-slate-900 font-semibold">Rencana Pengadaan</span>
-        </nav>
-
         <!-- Page Header -->
         <PageHeader 
             title="Rencana Pengadaan (Procurement Plans)" 
             description="Pilih Purchase Requisition (PR) approved untuk dibuatkan strategi pengadaan (Direct Purchase vs Tender RFQ) dan alokasi item."
+            :breadcrumbs="[
+                { label: 'Purchasing', to: { name: 'user.purchasing' } },
+                { label: 'Rencana Pengadaan' }
+            ]"
         >
             <template #actions>
                 <button

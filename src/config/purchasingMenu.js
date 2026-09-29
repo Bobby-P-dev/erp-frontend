@@ -1,6 +1,6 @@
 import { 
     FileText, 
-    Inbox, 
+    CheckSquare,
     Layers, 
     ShoppingCart, 
     Scale 
@@ -26,9 +26,23 @@ export const purchasingMenuItems = [
         permission: null // Accessible to all authenticated employees
     },
     {
+        id: 'purchasing-approvals',
+        title: 'Persetujuan Pengadaan (Approvals)',
+        subtitle: 'Tahap 2: Otorisasi & Persetujuan',
+        description: 'Tinjau, setujui, minta revisi, atau tolak pengajuan pembelian (Purchase Requisition) yang membutuhkan wewenang Anda.',
+        routeName: 'user.purchasing.approvals',
+        icon: CheckSquare,
+        color: 'amber',
+        badge: 'Otorisasi',
+        badgeVariant: 'amber',
+        actionText: 'Buka Persetujuan',
+        status: 'active',
+        permission: null // Accessible to all authenticated employees
+    },
+    {
         id: 'procurement-plans',
         title: 'Procurement Plans',
-        subtitle: 'Tahap 2: Perencanaan & Alokasi',
+        subtitle: 'Tahap 3: Perencanaan & Alokasi',
         description: 'Atur metode sourcing, konsolidasi item PR, dan alokasi anggaran procurement.',
         routeName: 'user.purchasing.plans',
         icon: Layers,
@@ -42,7 +56,7 @@ export const purchasingMenuItems = [
     {
         id: 'direct-purchases',
         title: 'Direct Purchases',
-        subtitle: 'Tahap 3: Eksekusi Pembelian Langsung',
+        subtitle: 'Tahap 4: Eksekusi Pembelian Langsung',
         description: 'Pembelian marketplace atau direct supplier dengan bukti bayar & penerimaan.',
         routeName: 'user.purchasing.direct',
         icon: ShoppingCart,
@@ -56,7 +70,7 @@ export const purchasingMenuItems = [
     {
         id: 'rfq',
         title: 'RFQ (Request for Quotation)',
-        subtitle: 'Tahap 4: Penawaran Rekanan',
+        subtitle: 'Tahap 5: Penawaran Rekanan',
         description: 'Request quotation ke beberapa supplier. Fitur komparasi penawaran multi-vendor sedang dipersiapkan.',
         routeName: null,
         icon: Scale,

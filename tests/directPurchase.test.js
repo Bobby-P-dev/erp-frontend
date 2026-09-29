@@ -6,7 +6,10 @@ import {
     createDirectPurchase,
     updateDirectPurchase,
     submitDirectPurchaseForPayment,
-    cancelDirectPurchase
+    cancelDirectPurchase,
+    disbursePayment,
+    recordGoodsReceipt,
+    resubmitPaymentRequest
 } from '../src/services/directPurchaseServices.js';
 
 describe('Direct Purchase Services & Business Logic Contract Tests', () => {
@@ -17,6 +20,9 @@ describe('Direct Purchase Services & Business Logic Contract Tests', () => {
         assert.equal(typeof updateDirectPurchase, 'function');
         assert.equal(typeof submitDirectPurchaseForPayment, 'function');
         assert.equal(typeof cancelDirectPurchase, 'function');
+        assert.equal(typeof disbursePayment, 'function');
+        assert.equal(typeof recordGoodsReceipt, 'function');
+        assert.equal(typeof resubmitPaymentRequest, 'function');
     });
 
     it('validates supported purchase channels (marketplace, direct_supplier, retail_store)', () => {
@@ -166,6 +172,12 @@ describe('Direct Purchase Services & Business Logic Contract Tests', () => {
             marketplace_name: form.purchase_channel === 'marketplace' ? form.marketplace_name : null,
             merchant_name: form.merchant_name || null,
             store_url: form.store_url || null,
+            payment_method: form.payment_method || null,
+            recipient_type: form.recipient_type || null,
+            recipient_name: form.recipient_name || null,
+            bank_name: form.bank_name || null,
+            bank_account_number: form.bank_account_number || null,
+            bank_account_holder: form.bank_account_holder || null,
             currency: 'IDR',
             discount_amount: Number(form.discount_amount) || 0,
             shipping_cost: Number(form.shipping_cost) || 0,
@@ -191,6 +203,12 @@ describe('Direct Purchase Services & Business Logic Contract Tests', () => {
             marketplace_name: 'Tokopedia',
             merchant_name: 'Official Store Tech',
             store_url: 'https://tokopedia.com/store-tech',
+            payment_method: 'marketplace_va',
+            recipient_type: 'marketplace_merchant',
+            recipient_name: 'Official Store Tech',
+            bank_name: 'BCA Virtual Account',
+            bank_account_number: '880123456789',
+            bank_account_holder: 'Official Store Tech',
             discount_amount: 15000,
             shipping_cost: 20000,
             platform_fee: 1000,
@@ -216,6 +234,9 @@ describe('Direct Purchase Services & Business Logic Contract Tests', () => {
         assert.equal(payload.purchase_channel, 'marketplace');
         assert.equal(payload.marketplace_name, 'Tokopedia');
         assert.equal(payload.merchant_name, 'Official Store Tech');
+        assert.equal(payload.payment_method, 'marketplace_va');
+        assert.equal(payload.bank_name, 'BCA Virtual Account');
+        assert.equal(payload.bank_account_number, '880123456789');
         assert.equal(payload.discount_amount, 15000);
         assert.equal(payload.shipping_cost, 20000);
         assert.equal(payload.platform_fee, 1000);
@@ -226,5 +247,125 @@ describe('Direct Purchase Services & Business Logic Contract Tests', () => {
         assert.equal(payload.items[0].unit_price, 95000);
         assert.equal(payload.items[0].discount_amount, 5000);
         assert.equal(payload.items[0].product_url, 'https://tokopedia.com/product/ugreen-3m');
+    });
+
+    it('validates Finance Disbursement payload and constraints', () => {
+        const validateDisbursement = (form) => {
+            const errs = {};
+            if (!form.source_account_id) {
+                errs.source_account_id = 'Akun kas / bank sumber wajib dipilih.';
+            }
+            if (!form.payment_method) {
+                errs.payment_method = 'Metode pembayaran wajib dipilih.';
+            }
+            if (!form.payment_date) {
+                errs.payment_date = 'Tanggal pencairan wajib diisi.';
+            }
+            return errs;
+        };
+
+        const invalid = validateDisbursement({
+            source_account_id: null,
+            payment_method: '',
+            payment_date: ''
+        });
+        assert.ok(invalid.source_account_id);
+        assert.ok(invalid.payment_method);
+        assert.ok(invalid.payment_date);
+
+        const valid = validateDisbursement({
+            source_account_id: 2,
+            payment_method: 'bank_transfer',
+            payment_date: '2026-09-28'
+        });
+        assert.equal(Object.keys(valid).length, 0);
+    });
+
+    it('validates Goods Receipt quantities and prevents exceeding received quantity', () => {
+        const validateGoodsReceiptItem = (item) => {
+            const received = Number(item.received_quantity) || 0;
+            const accepted = Number(item.accepted_quantity) || 0;
+            const rejected = Number(item.rejected_quantity) || 0;
+
+            if (received <= 0) {
+                return 'Jumlah fisik diterima harus lebih dari 0.';
+            }
+            if (accepted + rejected > received) {
+                return 'Jumlah diterima + ditolak tidak boleh melebihi jumlah fisik yang datang.';
+            }
+            if (rejected > 0 && !item.rejection_reason?.trim()) {
+                return 'Alasan penolakan wajib diisi jika ada barang cacat/ditolak.';
+            }
+            return null;
+        };
+
+        // Exceeding quantity error
+        const errExceed = validateGoodsReceiptItem({
+            received_quantity: 10,
+            accepted_quantity: 8,
+            rejected_quantity: 5,
+            rejection_reason: 'Barang rusak'
+        });
+        assert.equal(errExceed, 'Jumlah diterima + ditolak tidak boleh melebihi jumlah fisik yang datang.');
+
+        // Missing reason when rejected > 0
+        const errMissingReason = validateGoodsReceiptItem({
+            received_quantity: 10,
+            accepted_quantity: 8,
+            rejected_quantity: 2,
+            rejection_reason: ''
+        });
+        assert.equal(errMissingReason, 'Alasan penolakan wajib diisi jika ada barang cacat/ditolak.');
+
+        // Perfectly valid receipt
+        const errValid = validateGoodsReceiptItem({
+            received_quantity: 10,
+            accepted_quantity: 9,
+            rejected_quantity: 1,
+            rejection_reason: '1 unit retak saat pengiriman'
+        });
+        assert.equal(errValid, null);
+    });
+
+    it('validates full Direct Purchase enterprise status progression', () => {
+        const statuses = [
+            'draft',
+            'ready_for_payment',
+            'paid',
+            'partially_received',
+            'completed',
+            'cancelled'
+        ];
+
+        statuses.forEach(st => assert.ok(typeof st === 'string'));
+
+        // Check completion check logic
+        const isFullyReceived = (items, grnItems) => {
+            return items.every(dpItem => {
+                const totalAccepted = grnItems
+                    .filter(g => g.direct_purchase_item_id === dpItem.id)
+                    .reduce((sum, g) => sum + Number(g.accepted_quantity), 0);
+                return totalAccepted >= Number(dpItem.quantity);
+            });
+        };
+
+        const testItems = [
+            { id: 1, quantity: 5 },
+            { id: 2, quantity: 10 }
+        ];
+
+        // Partial
+        const partialGrn = [
+            { direct_purchase_item_id: 1, accepted_quantity: 5 },
+            { direct_purchase_item_id: 2, accepted_quantity: 6 }
+        ];
+        assert.equal(isFullyReceived(testItems, partialGrn), false);
+
+        // Full
+        const fullGrn = [
+            { direct_purchase_item_id: 1, accepted_quantity: 5 },
+            { direct_purchase_item_id: 2, accepted_quantity: 10 }
+        ];
+        assert.equal(isFullyReceived(testItems, fullGrn), true);
     });
 });

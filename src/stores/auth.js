@@ -83,6 +83,13 @@ export const useAuthStore = defineStore('auth', {
         },
 
         async initializeAuth() {
+
+            const isLoggedIn = localStorage.getItem('is_logged_in') === 'true'
+            if (!isLoggedIn) {
+                this.clearAuth()
+                return false
+            }
+
             this.loading = true
 
             try {
@@ -97,6 +104,7 @@ export const useAuthStore = defineStore('auth', {
 
                 return true
             } catch (error) {
+                localStorage.removeItem('is_logged_in')
                 this.clearAuth()
 
                 return false
@@ -109,6 +117,7 @@ export const useAuthStore = defineStore('auth', {
             try {
                 await logoutRequest()
             } finally {
+                localStorage.removeItem('is_logged_in')
                 this.clearAuth()
             }
         },

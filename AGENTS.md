@@ -95,7 +95,8 @@ Untuk menjaga estetika dan konsistensi, **JANGAN membuat elemen HTML manual (sep
 
 | Komponen | Props / Kegunaan Utama |
 | :--- | :--- |
-| `PageHeader.vue` | `title`, `description`, slot tombol aksi header |
+| `PageHeader.vue` | `title`, `description`, `:breadcrumbs`, slot tombol aksi header |
+| `BaseBreadcrumb.vue` | `:items="breadcrumbs"`, `showHome`, auto route resolution |
 | `BaseTable.vue` | `:columns="tableColumns"`, `:data="items"`, scoped slots untuk kolom khusus (status, actions) |
 | `Pagination.vue` | `:pagination="pagination"`, `@page-change="handlePageChange"` |
 | `BaseButton.vue` | `variant="primary|secondary|danger|outline"`, `size="sm|md|lg"` |

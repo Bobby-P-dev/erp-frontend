@@ -51,7 +51,7 @@ const router = createRouter({
                 {
                     path: 'approvals/inbox',
                     name: 'user.approvals.inbox',
-                    component: () => import('../views/approval/ApprovalInboxView.vue'),
+                    redirect: { name: 'user.purchasing.approvals' }
                 },
             ],
         },
@@ -66,6 +66,15 @@ const router = createRouter({
                     path: '',
                     name: 'user.purchasing',
                     component: () => import('../views/purchasing/PurchasingHomeView.vue'),
+                },
+                {
+                    path: 'approvals',
+                    name: 'user.purchasing.approvals',
+                    component: () => import('../views/purchasing/PurchasingApprovalInboxView.vue'),
+                    meta: {
+                        requiresAuth: true,
+                        title: 'Persetujuan Pengadaan (Approvals)'
+                    }
                 },
                 {
                     path: 'purchase-requisitions',
@@ -135,6 +144,60 @@ const router = createRouter({
                     }
                 },
             ],
+        },
+        {
+            path: '/finance',
+            component: () => import('../layouts/UserLayouts.vue'),
+            meta: {
+                requiresAuth: true
+            },
+            children: [
+                {
+                    path: '',
+                    redirect: { name: 'user.finance.payment-requests' }
+                },
+                {
+                    path: 'payment-requests',
+                    name: 'user.finance.payment-requests',
+                    alias: '/dashboard/finance/payment-requests',
+                    component: () => import('../views/finance/PaymentRequestListView.vue'),
+                    meta: { requiresAuth: true, title: 'Permohonan Pembayaran (Finance)' }
+                },
+                {
+                    path: 'payments',
+                    name: 'user.finance.payments',
+                    alias: '/dashboard/finance/payments',
+                    component: () => import('../views/finance/DisbursedPaymentListView.vue'),
+                    meta: { requiresAuth: true, title: 'Riwayat Pencairan Kas/Bank' }
+                },
+            ]
+        },
+        {
+            path: '/inventory',
+            component: () => import('../layouts/UserLayouts.vue'),
+            meta: {
+                requiresAuth: true
+            },
+            children: [
+                {
+                    path: '',
+                    redirect: { name: 'user.inventory.goods-receipts' }
+                },
+                {
+                    path: 'goods-receipts',
+                    name: 'user.inventory.goods-receipts',
+                    alias: '/dashboard/inventory/goods-receipts',
+                    component: () => import('../views/inventory/GoodsReceiptListView.vue'),
+                    meta: { requiresAuth: true, title: 'Penerimaan Barang (Goods Receipts)' }
+                },
+                {
+                    path: 'goods-receipts/:id',
+                    name: 'user.inventory.goods-receipts.detail',
+                    alias: '/dashboard/inventory/goods-receipts/:id',
+                    component: () => import('../views/inventory/GoodsReceiptDetailView.vue'),
+                    meta: { requiresAuth: true, title: 'Detail Surat Jalan & Penerimaan Fisik' }
+                }
+            ]
         },
         {
             path: '/admin',
@@ -274,7 +337,7 @@ const router = createRouter({
                 {
                     path: 'approvals/inbox',
                     name: 'approvals.inbox',
-                    redirect: { name: 'user.approvals.inbox' }
+                    redirect: { name: 'user.purchasing.approvals' }
                 },
                 {
                     path: 'settings/approvals',

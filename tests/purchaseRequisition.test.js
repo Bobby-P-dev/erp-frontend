@@ -5,7 +5,8 @@ import {
     showPurchaseRequisition,
     createPurchaseRequisition,
     updatePurchaseRequisition,
-    submitPurchaseRequisition
+    submitPurchaseRequisition,
+    confirmPurchaseRequisitionReceipt
 } from '../src/services/purchaseRequisitionServices.js';
 
 describe('Purchase Requisition Services & Validation Contract Tests', () => {
@@ -15,6 +16,7 @@ describe('Purchase Requisition Services & Validation Contract Tests', () => {
         assert.equal(typeof createPurchaseRequisition, 'function');
         assert.equal(typeof updatePurchaseRequisition, 'function');
         assert.equal(typeof submitPurchaseRequisition, 'function');
+        assert.equal(typeof confirmPurchaseRequisitionReceipt, 'function');
     });
 
     it('validates client-side constraints for both Catalog and Non-Catalog (Direct Purchase) items', () => {
@@ -314,5 +316,27 @@ describe('Purchase Requisition Services & Validation Contract Tests', () => {
         assert.ok(revisionMeta.class.includes('amber'));
         assert.notEqual(revisionMeta.label, 'revision_requested');
     });
+
+    it('maps ready_for_pickup and completed statuses to human-friendly labels and badges', () => {
+        const getStatusBadge = (status) => {
+            switch (status) {
+                case 'ready_for_pickup':
+                    return { label: 'Siap Diambil di Gudang', bg: 'bg-amber-50 text-amber-900 border-amber-300' };
+                case 'completed':
+                    return { label: 'Selesai', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+                default:
+                    return { label: status, bg: 'bg-slate-50' };
+            }
+        };
+
+        const readyMeta = getStatusBadge('ready_for_pickup');
+        assert.equal(readyMeta.label, 'Siap Diambil di Gudang');
+        assert.ok(readyMeta.bg.includes('amber'));
+
+        const completedMeta = getStatusBadge('completed');
+        assert.equal(completedMeta.label, 'Selesai');
+        assert.ok(completedMeta.bg.includes('emerald'));
+    });
 });
+
 

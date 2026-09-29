@@ -112,6 +112,16 @@ const goBack = () => {
 
 <template>
     <div class="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <!-- Breadcrumb -->
+        <BaseBreadcrumb 
+            :items="[
+                { label: 'Master Data' },
+                { label: 'Core' },
+                { label: 'Roles', to: { name: 'admin.master.role' } },
+                { label: role ? `Manage Permissions: ${role.name}` : 'Manage Permissions' }
+            ]" 
+        />
+
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex items-center gap-4">
                 <button @click="goBack" class="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-500 hover:text-indigo-600 transition-colors">

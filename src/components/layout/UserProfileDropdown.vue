@@ -42,20 +42,20 @@ const goToAdmin = () => {
         <button 
             type="button" 
             @click="toggleDropdown"
-            class="flex items-center gap-3 p-1 pr-3 rounded-full hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-200 focus:outline-none z-50 relative group"
+            class="flex items-center gap-3 p-1.5 pr-4 rounded-full hover:bg-gray-100/80 transition-colors border border-transparent hover:border-gray-200 focus:outline-none z-50 relative group cursor-pointer"
         >
-            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shadow-sm border border-indigo-200">
+            <div class="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-base font-bold shadow-xs border border-blue-200">
                 {{ authStore.profile?.name?.charAt(0)?.toUpperCase() || 'U' }}
             </div>
             <div class="text-left hidden sm:block">
-                <p class="text-sm font-semibold text-gray-900 leading-tight group-hover:text-indigo-700 transition-colors">
-                    {{ truncateText(authStore.profile?.name || 'User', 15) }}
+                <p class="text-base font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">
+                    {{ truncateText(authStore.profile?.name || 'User', 20) }}
                 </p>
-                <p class="text-xs text-gray-500 leading-tight">
+                <p class="text-sm font-medium text-slate-500 leading-tight mt-0.5">
                     {{ authStore.profile?.position?.name || 'Employee' }}
                 </p>
             </div>
-            <ChevronDown class="w-4 h-4 text-gray-400 hidden sm:block transition-transform duration-200" :class="{ 'rotate-180': isOpen }" />
+            <ChevronDown class="w-5 h-5 text-gray-400 hidden sm:block transition-transform duration-200" :class="{ 'rotate-180': isOpen }" />
         </button>
 
         <Transition
@@ -68,27 +68,27 @@ const goToAdmin = () => {
         >
             <div 
                 v-if="isOpen" 
-                class="absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-100/50 py-2 z-50"
+                class="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-100 py-2.5 z-50"
             >
-                <div class="px-4 py-3 border-b border-gray-50 mb-1 sm:hidden">
-                    <p class="text-sm font-semibold text-gray-900">{{ authStore.profile?.name || 'User' }}</p>
-                    <p class="text-xs text-gray-500">{{ authStore.profile?.position?.name || 'Employee' }}</p>
+                <div class="px-4 py-3 border-b border-gray-100 mb-1 sm:hidden">
+                    <p class="text-base font-bold text-slate-900">{{ authStore.profile?.name || 'User' }}</p>
+                    <p class="text-sm text-slate-500">{{ authStore.profile?.position?.name || 'Employee' }}</p>
                 </div>
 
                 <button 
                     @click="goToProfile"
-                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-base font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
                 >
-                    <User class="w-4 h-4" />
+                    <User class="w-5 h-5 text-slate-500" />
                     <span>Profil Saya</span>
                 </button>
                 
                 <button 
                     v-if="authStore.hasPermission('admin.read')"
                     @click="goToAdmin"
-                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-base font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
                 >
-                    <Shield class="w-4 h-4" />
+                    <Shield class="w-5 h-5 text-slate-500" />
                     <span>Admin Panel</span>
                 </button>
                 
@@ -96,9 +96,9 @@ const goToAdmin = () => {
                 
                 <button 
                     @click="handleLogout"
-                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-base font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
                 >
-                    <LogOut class="w-4 h-4" />
+                    <LogOut class="w-5 h-5 text-rose-500" />
                     <span>Logout</span>
                 </button>
             </div>

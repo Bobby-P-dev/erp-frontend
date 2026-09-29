@@ -230,7 +230,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="space-y-6 max-w-5xl mx-auto pb-12">
+    <div class="space-y-6 w-full pb-12">
         <!-- HEADER -->
         <PageHeader
             title="Edit Konfigurasi Alur Persetujuan"

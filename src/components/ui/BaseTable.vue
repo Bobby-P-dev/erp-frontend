@@ -8,21 +8,21 @@ defineProps({
 </script>
 
 <template>
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto w-full">
         <table class="w-full text-left border-collapse">
             <thead>
-                <tr class="bg-gray-50/80 border-b border-gray-100">
+                <tr class="bg-slate-50 border-b border-slate-200/80">
                     <th 
                         v-for="col in columns" 
                         :key="col.key" 
-                        class="px-6 py-5 text-sm font-bold text-gray-700 tracking-wide"
+                        class="px-6 py-4.5 text-base font-bold text-slate-800 tracking-wide select-none"
                         :class="col.class"
                     >
                         {{ col.label }}
                     </th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-slate-100 text-base text-slate-700">
                 <slot></slot>
             </tbody>
         </table>

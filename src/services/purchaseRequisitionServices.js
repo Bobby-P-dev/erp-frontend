@@ -54,3 +54,11 @@ export const submitPurchaseRequisition = async (id, data = {}) => {
     return response.data
 }
 
+/**
+ * Confirm physical receipt/pickup of items for a purchase requisition by requester.
+ */
+export const confirmPurchaseRequisitionReceipt = async (id, data = {}) => {
+    const response = await api.post(`/api/v1/purchase-requisitions/${id}/confirm-receipt`, data)
+    return response.data
+}
+

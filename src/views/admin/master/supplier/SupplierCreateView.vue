@@ -144,7 +144,7 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-    <div class="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 max-w-5xl mx-auto">
+    <div class="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 w-full">
         <div class="flex items-center gap-3">
             <button 
                 @click="goBack" 

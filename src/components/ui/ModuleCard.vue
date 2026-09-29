@@ -144,40 +144,40 @@ const badgeClass = computed(() => {
 
                 <span 
                     v-if="badge"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide shrink-0"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold tracking-wide shrink-0"
                     :class="badgeClass"
                 >
                     <span 
                         v-if="badgeVariant === 'emerald' || badge === 'Aktif'" 
-                        class="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                        class="w-2 h-2 rounded-full bg-emerald-500"
                     ></span>
                     {{ badge }}
                 </span>
             </div>
 
             <!-- Subtitle / Lifecycle Stage -->
-            <p v-if="subtitle" class="mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
+            <p v-if="subtitle" class="mt-4 text-sm font-bold text-slate-400 uppercase tracking-wider">
                 {{ subtitle }}
             </p>
 
             <!-- Title -->
             <h3 
-                class="text-base sm:text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors"
+                class="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors"
                 :class="{ 'mt-1': subtitle, 'mt-4': !subtitle }"
             >
                 {{ title }}
             </h3>
 
             <!-- Description -->
-            <p class="mt-1.5 text-sm text-gray-500 leading-relaxed line-clamp-3 min-h-[4.25rem]">
+            <p class="mt-2 text-base text-slate-600 leading-relaxed line-clamp-3 min-h-[4.5rem]">
                 {{ description }}
             </p>
         </div>
 
         <!-- Bottom Action CTA -->
-        <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-sm font-semibold transition-colors mt-auto shrink-0" :class="colorStyles.accent">
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-base font-bold transition-colors mt-auto shrink-0" :class="colorStyles.accent">
             <span>{{ actionText }}</span>
-            <ArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight class="w-5 h-5 transition-transform group-hover:translate-x-1" />
         </div>
     </RouterLink>
 
@@ -192,30 +192,30 @@ const badgeClass = computed(() => {
                 <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
                     <component :is="icon" class="w-6 h-6" />
                 </div>
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase shrink-0" :class="badgeClass">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase shrink-0" :class="badgeClass">
                     {{ badge || 'Coming Soon' }}
                 </span>
             </div>
 
-            <p v-if="subtitle" class="mt-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <p v-if="subtitle" class="mt-4 text-sm font-bold text-slate-400 uppercase tracking-wider">
                 {{ subtitle }}
             </p>
 
             <h3 
-                class="text-base sm:text-lg font-bold text-slate-700"
+                class="text-lg sm:text-xl font-bold text-slate-700"
                 :class="{ 'mt-1': subtitle, 'mt-4': !subtitle }"
             >
                 {{ title }}
             </h3>
 
-            <p class="mt-1.5 text-sm text-slate-500 leading-relaxed line-clamp-3 min-h-[4.25rem]">
+            <p class="mt-2 text-base text-slate-500 leading-relaxed line-clamp-3 min-h-[4.5rem]">
                 {{ description }}
             </p>
         </div>
 
-        <div class="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-slate-400 mt-auto shrink-0">
+        <div class="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-sm font-semibold text-slate-400 mt-auto shrink-0">
             <span>{{ actionText || 'Segera Hadir' }}</span>
-            <Lock class="w-3.5 h-3.5" />
+            <Lock class="w-4 h-4" />
         </div>
     </div>
 
@@ -230,30 +230,30 @@ const badgeClass = computed(() => {
                 <div class="w-12 h-12 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
                     <component :is="icon" class="w-6 h-6" />
                 </div>
-                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-gray-100 text-gray-500 border border-gray-200 shrink-0">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-gray-100 text-gray-500 border border-gray-200 shrink-0">
                     Akses Terbatas
                 </span>
             </div>
 
-            <p v-if="subtitle" class="mt-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
+            <p v-if="subtitle" class="mt-4 text-sm font-bold text-gray-400 uppercase tracking-wider">
                 {{ subtitle }}
             </p>
 
             <h3 
-                class="text-base sm:text-lg font-bold text-gray-700"
+                class="text-lg sm:text-xl font-bold text-gray-700"
                 :class="{ 'mt-1': subtitle, 'mt-4': !subtitle }"
             >
                 {{ title }}
             </h3>
 
-            <p class="mt-1.5 text-sm text-gray-500 leading-relaxed line-clamp-3 min-h-[4.25rem]">
+            <p class="mt-2 text-base text-gray-500 leading-relaxed line-clamp-3 min-h-[4.5rem]">
                 {{ description }}
             </p>
         </div>
 
-        <div class="mt-6 pt-4 border-t border-gray-200/60 flex items-center justify-between text-xs font-medium text-amber-700 mt-auto shrink-0">
+        <div class="mt-6 pt-4 border-t border-gray-200/60 flex items-center justify-between text-sm font-medium text-amber-700 mt-auto shrink-0">
             <span class="flex items-center gap-1.5">
-                <ShieldAlert class="w-3.5 h-3.5" />
+                <ShieldAlert class="w-4 h-4" />
                 {{ restrictedMessage }}
             </span>
             <span class="font-bold text-gray-400">Terkunci</span>
@@ -270,10 +270,10 @@ const badgeClass = computed(() => {
             <div class="w-12 h-12 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
                 <component :is="icon" class="w-6 h-6" />
             </div>
-            <h3 class="mt-4 text-base sm:text-lg font-bold text-gray-700">{{ title }}</h3>
-            <p class="mt-1.5 text-sm text-gray-400 line-clamp-3 min-h-[4.25rem]">{{ description }}</p>
+            <h3 class="mt-4 text-lg sm:text-xl font-bold text-gray-700">{{ title }}</h3>
+            <p class="mt-2 text-base text-gray-400 line-clamp-3 min-h-[4.5rem]">{{ description }}</p>
         </div>
-        <div class="mt-6 pt-4 border-t border-gray-200/60 text-xs text-gray-400 mt-auto shrink-0">
+        <div class="mt-6 pt-4 border-t border-gray-200/60 text-sm text-gray-400 mt-auto shrink-0">
             Tidak aktif
         </div>
     </div>

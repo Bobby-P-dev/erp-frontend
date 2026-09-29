@@ -235,17 +235,7 @@ onUnmounted(() => {
 <template>
     <div class="flex flex-col gap-5">
         <!-- 1. BREADCRUMB -->
-        <nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <RouterLink 
-                :to="{ name: 'user.dashboard' }" 
-                class="hover:text-slate-900 transition-colors flex items-center gap-1"
-            >
-                <Home class="w-3.5 h-3.5" />
-                <span>Dashboard</span>
-            </RouterLink>
-            <ChevronRight class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span class="text-slate-900 font-semibold" aria-current="page">Kotak Masuk Persetujuan</span>
-        </nav>
+        <BaseBreadcrumb :items="[{ label: 'Kotak Masuk Persetujuan' }]" />
 
         <!-- 2. PAGE HEADER -->
         <div class="bg-white px-5 py-4 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">

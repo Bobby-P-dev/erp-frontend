@@ -44,24 +44,12 @@ defineProps({
 <template>
     <div class="space-y-6">
         <!-- 1. Breadcrumb -->
-        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-gray-500">
-            <RouterLink 
-                :to="{ name: 'user.dashboard' }" 
-                class="hover:text-indigo-600 font-medium transition-colors flex items-center gap-1.5"
-            >
-                <Home class="w-4 h-4" />
-                <span>Dashboard</span>
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400 shrink-0" />
-            <RouterLink 
-                :to="{ name: 'user.purchasing' }" 
-                class="hover:text-indigo-600 font-medium transition-colors"
-            >
-                Purchasing
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400 shrink-0" />
-            <span class="font-semibold text-gray-900 truncate" aria-current="page">{{ title }}</span>
-        </nav>
+        <BaseBreadcrumb 
+            :items="[
+                { label: 'Purchasing', to: { name: 'user.purchasing' } },
+                { label: title }
+            ]" 
+        />
 
         <!-- 2. Main Placeholder Container -->
         <div class="bg-white rounded-3xl border border-gray-200/80 p-8 sm:p-12 shadow-2xs text-center max-w-2xl mx-auto space-y-6">

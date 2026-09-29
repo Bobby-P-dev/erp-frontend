@@ -108,24 +108,27 @@ const handleResubmitApproval = async () => {
 
 <template>
     <div class="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <!-- Back button & Breadcrumb -->
+        <!-- 1. Breadcrumb -->
+        <BaseBreadcrumb 
+            :items="[
+                { label: 'Master Data' },
+                { label: 'Purchasing' },
+                { label: 'Suppliers', to: { name: 'admin.master.supplier' } },
+                { label: supplier?.name ? `${supplier.name} (${supplier.supplier_code})` : (supplier?.supplier_code || 'Detail Supplier') }
+            ]" 
+        />
+
+        <!-- Back button & Header -->
         <div class="flex items-center gap-3">
             <button 
                 @click="goBack" 
-                class="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-white border border-gray-200 transition-colors shadow-sm"
+                class="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-white border border-gray-200 transition-colors shadow-sm cursor-pointer"
                 title="Back to Suppliers"
             >
                 <ArrowLeft class="w-5 h-5" />
             </button>
             <div>
-                <div class="flex items-center gap-2 text-xs text-gray-400 font-medium">
-                    <RouterLink :to="{ name: 'admin.master.supplier' }" class="hover:text-indigo-600 transition-colors">
-                        Suppliers
-                    </RouterLink>
-                    <span>/</span>
-                    <span class="text-gray-600 font-semibold">{{ supplier?.supplier_code || 'Supplier Detail' }}</span>
-                </div>
-                <h2 class="text-xl font-bold text-gray-900 mt-0.5">Supplier Master File</h2>
+                <h2 class="text-xl font-bold text-gray-900">Supplier Master File</h2>
             </div>
         </div>
 

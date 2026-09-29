@@ -10,6 +10,7 @@ import { formatCurrency } from '../../utils/stringUtils.js'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
+import SearchableSelect from '../../components/ui/SearchableSelect.vue'
 
 import {
     Home,
@@ -29,7 +30,10 @@ import {
     Truck,
     Receipt,
     Check,
-    Tag
+    Tag,
+    CreditCard,
+    Landmark,
+    Wallet
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -52,6 +56,12 @@ const form = ref({
     marketplace_name: 'Tokopedia',
     merchant_name: '',
     store_url: '',
+    payment_method: 'marketplace_va',
+    recipient_type: 'marketplace_merchant',
+    recipient_name: '',
+    bank_name: 'BCA Virtual Account',
+    bank_account_number: '',
+    bank_account_holder: '',
     currency: 'IDR',
     discount_amount: 0,
     shipping_cost: 0,
@@ -62,6 +72,17 @@ const form = ref({
 })
 
 const popularMarketplaces = ['Tokopedia', 'Shopee', 'Blibli', 'Lazada', 'Bukalapak', 'Monotaro', 'Amazon']
+const popularBanks = [
+    'BCA',
+    'Bank Mandiri',
+    'BNI',
+    'BRI',
+    'Permata',
+    'CIMB Niaga',
+    'BCA Virtual Account',
+    'Mandiri Virtual Account',
+    'BRIVA'
+]
 
 // Financial Calculations
 const itemsSubtotal = computed(() => {
@@ -80,6 +101,24 @@ const grandTotal = computed(() => {
     const fee = Number(form.value.platform_fee) || 0
     const tax = Number(form.value.tax_amount) || 0
     return Math.max(0, subtotal - headerDiscount + shipping + fee + tax)
+})
+
+// Searchable options for Procurement Plans
+const planOptions = computed(() => {
+    return activePlans.value.map(plan => ({
+        value: plan.id,
+        label: `${plan.pp_number} • PR: ${plan.purchase_requisition?.pr_number || '-'} (${plan.items?.length || 0} Item)`,
+        subtitle: `Perusahaan: ${plan.purchase_requisition?.company?.name || '-'} | Divisi: ${plan.purchase_requisition?.division?.name || '-'}`
+    }))
+})
+
+// Searchable options for Registered Suppliers
+const supplierOptions = computed(() => {
+    return suppliers.value.map(sup => ({
+        value: sup.id,
+        label: `${sup.name} (${sup.code || 'ID: ' + sup.id})`,
+        subtitle: sup.email ? `Email: ${sup.email}` : (sup.phone ? `Telp: ${sup.phone}` : '')
+    }))
 })
 
 // Fetch Active Direct Purchase Plans
@@ -171,7 +210,58 @@ const onPlanSelected = async () => {
 }
 
 // Validation
-const validateForm = () => {
+// Watch channel changes to auto-select payment method & recipient type
+watch(() => form.value.purchase_channel, (newChannel) => {
+    if (newChannel === 'marketplace') {
+        form.value.payment_method = 'marketplace_va'
+        form.value.recipient_type = 'marketplace_merchant'
+        if (form.value.merchant_name && !form.value.recipient_name) {
+            form.value.recipient_name = form.value.merchant_name
+            form.value.bank_account_holder = form.value.merchant_name
+        }
+        if (!form.value.bank_name || form.value.bank_name === 'Bank Mandiri') {
+            form.value.bank_name = 'BCA Virtual Account'
+        }
+    } else if (newChannel === 'direct_supplier') {
+        form.value.payment_method = 'bank_transfer'
+        form.value.recipient_type = 'supplier'
+        if (form.value.bank_name?.includes('Virtual Account')) {
+            form.value.bank_name = 'Bank Mandiri'
+        }
+    } else if (newChannel === 'retail_store') {
+        form.value.payment_method = 'bank_transfer'
+        form.value.recipient_type = 'other'
+        if (form.value.merchant_name && !form.value.recipient_name) {
+            form.value.recipient_name = form.value.merchant_name
+            form.value.bank_account_holder = form.value.merchant_name
+        }
+    }
+})
+
+// Auto sync recipient_name from merchant_name if in marketplace or retail
+watch(() => form.value.merchant_name, (newName) => {
+    if (['marketplace', 'retail_store'].includes(form.value.purchase_channel)) {
+        if (!form.value.recipient_name || form.value.recipient_name === form.value.bank_account_holder) {
+            form.value.recipient_name = newName || ''
+            form.value.bank_account_holder = newName || ''
+        }
+    }
+})
+
+// Auto populate supplier info when supplier selected
+watch(() => form.value.supplier_id, (newSupId) => {
+    if (form.value.purchase_channel === 'direct_supplier' && newSupId) {
+        const found = suppliers.value.find(s => s.id === Number(newSupId))
+        if (found) {
+            form.value.recipient_name = found.name || ''
+            form.value.bank_account_holder = found.bank_account_holder || found.name || ''
+            if (found.bank_name) form.value.bank_name = found.bank_name
+            if (found.bank_account_number) form.value.bank_account_number = found.bank_account_number
+        }
+    }
+})
+
+const validateForm = (shouldSubmitForPayment = false) => {
     if (!selectedPlanId.value) {
         showError('Validasi Gagal', 'Silakan pilih Rencana Pengadaan terlebih dahulu.')
         return false
@@ -224,12 +314,29 @@ const validateForm = () => {
         return false
     }
 
+    if (shouldSubmitForPayment) {
+        if (!form.value.payment_method) {
+            showError('Validasi Gagal', 'Silakan pilih metode pembayaran.')
+            return false
+        }
+        if (form.value.payment_method !== 'cash') {
+            if (!form.value.bank_name?.trim()) {
+                showError('Validasi Gagal', 'Nama Bank / Provider VA wajib diisi.')
+                return false
+            }
+            if (!form.value.bank_account_number?.trim()) {
+                showError('Validasi Gagal', 'Nomor Rekening / Virtual Account wajib diisi.')
+                return false
+            }
+        }
+    }
+
     return true
 }
 
 // Submit Form
 const handleSubmit = async (shouldSubmitForPayment = false) => {
-    if (!validateForm()) return
+    if (!validateForm(shouldSubmitForPayment)) return
 
     const channelTitle = form.value.purchase_channel === 'marketplace' 
         ? `${form.value.marketplace_name} (${form.value.merchant_name})`
@@ -255,6 +362,12 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
             marketplace_name: form.value.purchase_channel === 'marketplace' ? form.value.marketplace_name?.trim() : null,
             merchant_name: form.value.merchant_name ? form.value.merchant_name.trim() : null,
             store_url: form.value.store_url ? form.value.store_url.trim() : null,
+            payment_method: form.value.payment_method,
+            recipient_type: form.value.recipient_type,
+            recipient_name: form.value.recipient_name ? form.value.recipient_name.trim() : null,
+            bank_name: form.value.bank_name ? form.value.bank_name.trim() : null,
+            bank_account_number: form.value.bank_account_number ? form.value.bank_account_number.trim() : null,
+            bank_account_holder: form.value.bank_account_holder ? form.value.bank_account_holder.trim() : null,
             currency: 'IDR',
             discount_amount: Number(form.value.discount_amount) || 0,
             shipping_cost: Number(form.value.shipping_cost) || 0,
@@ -279,7 +392,15 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
         const dpNumber = createRes.data?.dp_number || createRes.dp_number || ''
 
         if (shouldSubmitForPayment && dpId) {
-            await submitDirectPurchaseForPayment(dpId)
+            await submitDirectPurchaseForPayment(dpId, {
+                payment_method: form.value.payment_method,
+                recipient_type: form.value.recipient_type,
+                recipient_name: form.value.recipient_name ? form.value.recipient_name.trim() : null,
+                bank_name: form.value.bank_name ? form.value.bank_name.trim() : null,
+                bank_account_number: form.value.bank_account_number ? form.value.bank_account_number.trim() : null,
+                bank_account_holder: form.value.bank_account_holder ? form.value.bank_account_holder.trim() : null,
+                notes: form.value.notes ? form.value.notes.trim() : null
+            })
             showSuccess('Berhasil!', `Direct Purchase ${dpNumber} berhasil dibuat dan diajukan untuk pembayaran.`)
         } else {
             showSuccess('Berhasil!', `Direct Purchase ${dpNumber} berhasil disimpan sebagai Draft.`)
@@ -301,24 +422,15 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6 max-w-7xl mx-auto pb-16">
+    <div class="space-y-6 w-full pb-16">
         <!-- Breadcrumb -->
-        <nav class="flex items-center gap-2 text-sm text-gray-500 font-medium">
-            <RouterLink to="/" class="hover:text-indigo-600 transition-colors flex items-center gap-1">
-                <Home class="w-4 h-4" />
-                <span>Beranda</span>
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400" />
-            <RouterLink to="/purchasing" class="hover:text-indigo-600 transition-colors">
-                Purchasing
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400" />
-            <RouterLink :to="{ name: 'user.purchasing.direct' }" class="hover:text-indigo-600 transition-colors">
-                Direct Purchases
-            </RouterLink>
-            <ChevronRight class="w-4 h-4 text-gray-400" />
-            <span class="text-gray-900 font-semibold">Buat Transaksi</span>
-        </nav>
+        <BaseBreadcrumb 
+            :items="[
+                { label: 'Purchasing', to: { name: 'user.purchasing' } },
+                { label: 'Direct Purchases', to: { name: 'user.purchasing.direct' } },
+                { label: 'Buat Transaksi' }
+            ]" 
+        />
 
         <!-- Page Header -->
         <div class="flex items-center justify-between">
@@ -349,24 +461,17 @@ onMounted(() => {
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-2">
-                        Nomor Rencana Pengadaan <span class="text-rose-500">*</span>
-                    </label>
-                    <select 
-                        v-model="selectedPlanId" 
-                        @change="onPlanSelected"
-                        class="w-full text-sm font-semibold p-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 bg-white"
+                    <SearchableSelect
+                        v-model="selectedPlanId"
+                        label="Nomor Rencana Pengadaan"
+                        :options="planOptions"
+                        placeholder="-- Cari atau Pilih Rencana Pengadaan Aktif --"
+                        searchPlaceholder="Ketik nomor PP, nomor PR, atau nama divisi..."
+                        required
                         :disabled="isLoadingPlans"
-                    >
-                        <option value="">-- Pilih Rencana Pengadaan Aktif --</option>
-                        <option 
-                            v-for="plan in activePlans" 
-                            :key="plan.id" 
-                            :value="plan.id"
-                        >
-                            {{ plan.pp_number }} • PR: {{ plan.purchase_requisition?.pr_number || '-' }} ({{ plan.items?.length || 0 }} Item)
-                        </option>
-                    </select>
+                        :loading="isLoadingPlans"
+                        @change="onPlanSelected"
+                    />
 
                     <p v-if="activePlans.length === 0 && !isLoadingPlans" class="text-xs text-amber-600 font-medium mt-2 flex items-center gap-1">
                         <AlertCircle class="w-4 h-4 shrink-0" />
@@ -528,22 +633,16 @@ onMounted(() => {
                     <!-- Direct Supplier Field -->
                     <template v-else-if="form.purchase_channel === 'direct_supplier'">
                         <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-2">
-                                Pilih Supplier Terdaftar <span class="text-rose-500">*</span>
-                            </label>
-                            <select 
-                                v-model="form.supplier_id" 
-                                class="w-full text-sm font-semibold p-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 bg-white"
-                            >
-                                <option :value="null">-- Pilih Supplier Rekanan --</option>
-                                <option 
-                                    v-for="sup in suppliers" 
-                                    :key="sup.id" 
-                                    :value="sup.id"
-                                >
-                                    {{ sup.name }} ({{ sup.code || 'ID: ' + sup.id }})
-                                </option>
-                            </select>
+                            <SearchableSelect
+                                v-model="form.supplier_id"
+                                label="Pilih Supplier Terdaftar"
+                                :options="supplierOptions"
+                                placeholder="-- Cari atau Pilih Supplier Rekanan --"
+                                searchPlaceholder="Ketik nama atau kode supplier..."
+                                required
+                                :loading="isLoadingSuppliers"
+                                clearable
+                            />
                         </div>
                     </template>
 
@@ -705,11 +804,173 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- SECTION 4: Komponen Biaya Tambahan & Total Transaksi -->
+            <!-- SECTION 4: Informasi Pembayaran / Rekening Tujuan -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                        4
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">Informasi Pembayaran & Rekening Tujuan (Finance)</h3>
+                        <p class="text-xs text-gray-500">Tentukan metode pencairan dan nomor rekening/Virtual Account untuk pembayaran langsung oleh kasir.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Metode Pembayaran Selector -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-2">
+                            Metode Pembayaran <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <button
+                                type="button"
+                                @click="form.payment_method = 'marketplace_va'"
+                                class="p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all text-xs font-semibold"
+                                :class="form.payment_method === 'marketplace_va' ? 'border-blue-600 bg-blue-50/40 text-blue-700 font-bold ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300 text-gray-700'"
+                            >
+                                <CreditCard class="w-4 h-4 shrink-0 text-blue-600" />
+                                <div>
+                                    <p class="leading-tight">Virtual Account</p>
+                                    <p class="text-[10px] text-gray-500 font-normal">Tokopedia/Shopee/VA</p>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="form.payment_method = 'bank_transfer'"
+                                class="p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all text-xs font-semibold"
+                                :class="form.payment_method === 'bank_transfer' ? 'border-blue-600 bg-blue-50/40 text-blue-700 font-bold ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300 text-gray-700'"
+                            >
+                                <Landmark class="w-4 h-4 shrink-0 text-indigo-600" />
+                                <div>
+                                    <p class="leading-tight">Transfer Bank</p>
+                                    <p class="text-[10px] text-gray-500 font-normal">Rekening giro / tabungan</p>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="form.payment_method = 'cash'"
+                                class="p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all text-xs font-semibold"
+                                :class="form.payment_method === 'cash' ? 'border-blue-600 bg-blue-50/40 text-blue-700 font-bold ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300 text-gray-700'"
+                            >
+                                <Wallet class="w-4 h-4 shrink-0 text-emerald-600" />
+                                <div>
+                                    <p class="leading-tight">Tunai / Kas Kecil</p>
+                                    <p class="text-[10px] text-gray-500 font-normal">Petty cash pembelian</p>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="form.payment_method = 'corporate_card'"
+                                class="p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all text-xs font-semibold"
+                                :class="form.payment_method === 'corporate_card' ? 'border-blue-600 bg-blue-50/40 text-blue-700 font-bold ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300 text-gray-700'"
+                            >
+                                <CreditCard class="w-4 h-4 shrink-0 text-purple-600" />
+                                <div>
+                                    <p class="leading-tight">Kartu Perusahaan</p>
+                                    <p class="text-[10px] text-gray-500 font-normal">Corporate card / Debit</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tipe Penerima & Nama Penerima -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">
+                                Kategori Penerima Dana
+                            </label>
+                            <select
+                                v-model="form.recipient_type"
+                                class="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                            >
+                                <option value="marketplace_merchant">Merchant / Toko Online</option>
+                                <option value="supplier">Vendor / Rekanan Resmi</option>
+                                <option value="employee_reimbursement">Reimbursement Karyawan</option>
+                                <option value="other">Pihak Ketiga Lainnya</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1.5">
+                                Nama Penerima Dana
+                            </label>
+                            <input
+                                type="text"
+                                v-model="form.recipient_name"
+                                placeholder="Contoh: PT Sumber Mesin atau Toko Jaya Elektronik"
+                                class="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Detail Rekening (Hidden if Cash) -->
+                    <div v-if="form.payment_method !== 'cash'" class="space-y-4 pt-2 border-t border-gray-100">
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-bold text-gray-700">
+                                    Nama Bank / Provider VA <span class="text-rose-500">*</span>
+                                </label>
+                                <span class="text-[11px] text-gray-400">Pilih cepat:</span>
+                            </div>
+                            <input
+                                type="text"
+                                v-model="form.bank_name"
+                                placeholder="Contoh: BCA Virtual Account, Bank Mandiri, BRI"
+                                class="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                            />
+                            <!-- Quick Chips -->
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                <button
+                                    v-for="b in popularBanks"
+                                    :key="b"
+                                    type="button"
+                                    @click="form.bank_name = b"
+                                    class="px-2.5 py-1 text-[11px] rounded-lg border transition-all"
+                                    :class="form.bank_name === b ? 'bg-blue-600 text-white border-blue-600 font-semibold' : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'"
+                                >
+                                    {{ b }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1.5">
+                                    Nomor Rekening / No. Virtual Account <span class="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    v-model="form.bank_account_number"
+                                    placeholder="Contoh: 880123456789 atau 142001122334"
+                                    class="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1.5">
+                                    Nama Pemilik Rekening (Atas Nama)
+                                </label>
+                                <input
+                                    type="text"
+                                    v-model="form.bank_account_holder"
+                                    placeholder="Contoh: Tokopedia - PT Toko Komputer"
+                                    class="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 5: Komponen Biaya Tambahan & Total Transaksi -->
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
                 <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
                     <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                        4
+                        5
                     </div>
                     <div>
                         <h3 class="text-base font-bold text-gray-900">Biaya Tambahan & Ringkasan Transaksi</h3>

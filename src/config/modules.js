@@ -1,6 +1,5 @@
 import { 
     ShoppingBag, 
-    CheckSquare,
     Landmark, 
     Boxes, 
     Users 
@@ -24,42 +23,30 @@ export const erpModules = [
         permission: null, // Accessible to all authenticated employees
         active: true
     },
-    {
-        id: 'approvals',
-        title: 'Approvals',
-        description: 'Tinjau dokumen pending dan riwayat persetujuan tugas Anda (Pending & History).',
-        routeName: 'user.approvals.inbox',
-        icon: CheckSquare,
-        color: 'amber',
-        badge: 'Tugas Saya',
-        status: 'active',
-        permission: null, // Accessible to all authenticated employees
-        active: true
-    },
-    // Future extensible modules (inactive until module features are built):
-    {
-        id: 'inventory',
-        title: 'Inventory',
-        description: 'Manajemen stok gudang, penerimaan barang, transfer antar gudang, dan stock opname.',
-        routeName: null,
-        icon: Boxes,
-        color: 'amber',
-        badge: 'Coming Soon',
-        status: 'coming_soon',
-        permission: 'inventory.read',
-        active: false
-    },
+    // Modul operasional utama:
     {
         id: 'finance',
-        title: 'Finance & Accounting',
-        description: 'Buku besar, jurnal penyesuaian, laporan keuangan, dan arus kas perusahaan.',
-        routeName: null,
+        title: 'Finance & Payments',
+        description: 'Kelola verifikasi tagihan supplier, permohonan pembayaran (Payment Requests), dan pencairan kas/bank.',
+        routeName: 'user.finance.payment-requests',
         icon: Landmark,
         color: 'emerald',
-        badge: 'Coming Soon',
-        status: 'coming_soon',
-        permission: 'accounting.read',
-        active: false
+        badge: 'Operasional',
+        status: 'active',
+        permission: null,
+        active: true
+    },
+    {
+        id: 'inventory',
+        title: 'Warehouse & Inventory',
+        description: 'Penerimaan fisik barang (Goods Receipts), pemeriksaan surat jalan vendor, dan verifikasi kualitas barang masuk.',
+        routeName: 'user.inventory.goods-receipts',
+        icon: Boxes,
+        color: 'blue',
+        badge: 'Operasional',
+        status: 'active',
+        permission: null,
+        active: true
     },
     {
         id: 'hr',

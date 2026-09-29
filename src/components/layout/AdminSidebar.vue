@@ -90,27 +90,27 @@ navigation.forEach(item => {
 
 <template>
     <aside 
-        class="bg-white rounded-2xl border border-slate-200/70 shadow-xs flex flex-col h-full transition-all duration-300 relative z-20"
-        :class="isCollapsed ? 'w-20' : 'w-72'"
+        class="bg-white rounded-2xl border border-slate-200/70 shadow-xs flex flex-col h-full transition-all duration-300 relative z-20 shrink-0"
+        :class="isCollapsed ? 'w-20' : 'w-80'"
     >
         <button 
             @click="isCollapsed = !isCollapsed"
-            class="absolute -right-3 top-8 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:border-indigo-200 transition-colors shadow-sm z-30 cursor-pointer"
+            class="absolute -right-3 top-8 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-sm z-30 cursor-pointer"
         >
             <ChevronRight v-if="isCollapsed" class="w-4 h-4" />
             <ChevronLeft v-else class="w-4 h-4" />
         </button>
 
         <div 
-            class="h-[72px] flex items-center border-b border-slate-200/70 rounded-t-2xl overflow-hidden transition-all duration-300"
+            class="h-[76px] flex items-center border-b border-slate-200/70 rounded-t-2xl overflow-hidden transition-all duration-300"
             :class="isCollapsed ? 'px-0 justify-center' : 'px-4'"
         >
             <div v-if="!isCollapsed" class="relative w-full">
-                <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
                     type="text" 
                     placeholder="Search Menu..." 
-                    class="pl-10 pr-4 py-2 bg-gray-100/80 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all w-full text-gray-700"
+                    class="pl-11 pr-4 py-2.5 bg-gray-100/80 border-none rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all w-full text-gray-700"
                 >
             </div>
             <div v-else class="text-gray-400">
@@ -118,30 +118,30 @@ navigation.forEach(item => {
             </div>
         </div>
 
-        <nav class="flex-1 py-4 space-y-1 transition-all duration-300" :class="isCollapsed ? 'px-2 overflow-visible' : 'px-3 overflow-y-auto overflow-x-hidden'">
+        <nav class="flex-1 py-4 space-y-1.5 transition-all duration-300" :class="isCollapsed ? 'px-2 overflow-visible' : 'px-3 overflow-y-auto overflow-x-hidden'">
             <div v-for="item in navigation" :key="item.name" class="relative group border border-gray-100 rounded-xl p-1">
                 <component
                     :is="item.children ? 'button' : RouterLink"
                     :to="item.children ? undefined : (item.to === '#' ? '' : { name: item.to })"
                     @click="item.children ? toggleMenu(item.name) : undefined"
                     :class="[
-                        'w-full relative flex items-center justify-between py-3 rounded-xl text-sm font-medium transition-all duration-300',
+                        'w-full relative flex items-center justify-between py-3 rounded-xl text-base font-semibold transition-all duration-300 cursor-pointer',
                         (item.children ? isChildActive(item) : isActive(item.to))
-                            ? 'text-indigo-700 bg-indigo-50/80' 
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50',
+                            ? 'text-blue-700 bg-blue-50/80' 
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
                         isCollapsed ? 'px-0 justify-center' : 'px-4 gap-3'
                     ]"
                 >
                     <div class="flex items-center gap-3">
                         <div 
                             v-if="item.children ? isChildActive(item) : isActive(item.to)" 
-                            class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r-full"
+                            class="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-blue-600 rounded-r-full"
                         ></div>
                         <component 
                             :is="item.icon" 
                             :class="[
                                 'w-5 h-5 shrink-0 transition-colors duration-300',
-                                (item.children ? isChildActive(item) : isActive(item.to)) ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'
+                                (item.children ? isChildActive(item) : isActive(item.to)) ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
                             ]" 
                         />
                         <span 
@@ -156,7 +156,7 @@ navigation.forEach(item => {
                         v-if="item.children && !isCollapsed" 
                         class="w-4 h-4 shrink-0 transition-transform duration-300"
                         :class="[
-                            expandedMenus[item.name] ? 'rotate-180 text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'
+                            expandedMenus[item.name] ? 'rotate-180 text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
                         ]"
                     />
                 </component>
@@ -171,17 +171,17 @@ navigation.forEach(item => {
                             <button
                                 @click="toggleMenu(child.name)"
                                 :class="[
-                                    'w-full flex items-center justify-between pl-[3.25rem] pr-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300',
+                                    'w-full flex items-center justify-between pl-[3.25rem] pr-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer',
                                     isChildActive(child)
-                                        ? 'text-indigo-700 bg-indigo-50/50'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                        ? 'text-blue-700 bg-blue-50/50'
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                                 ]"
                             >
                                 <span>{{ child.name }}</span>
                                 <ChevronDown 
                                     class="w-4 h-4 shrink-0 transition-transform duration-300"
                                     :class="[
-                                        expandedMenus[child.name] ? 'rotate-180 text-indigo-600' : 'text-gray-400'
+                                        expandedMenus[child.name] ? 'rotate-180 text-blue-600' : 'text-gray-400'
                                     ]"
                                 />
                             </button>
@@ -197,7 +197,7 @@ navigation.forEach(item => {
                                     :class="[
                                         'flex items-center pl-[4.5rem] pr-4 py-2 rounded-xl text-sm font-medium transition-all duration-300',
                                         isActive(subchild.to)
-                                            ? 'text-indigo-700 bg-indigo-50/50'
+                                            ? 'text-blue-700 bg-blue-50/50 font-semibold'
                                             : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                                     ]"
                                 >
@@ -211,9 +211,9 @@ navigation.forEach(item => {
                             v-else
                             :to="child.to === '#' ? '' : { name: child.to }"
                             :class="[
-                                'flex items-center pl-[3.25rem] pr-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300',
+                                'flex items-center pl-[3.25rem] pr-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300',
                                 isActive(child.to)
-                                    ? 'text-indigo-700 bg-indigo-50/50'
+                                    ? 'text-blue-700 bg-blue-50/50'
                                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                             ]"
                         >

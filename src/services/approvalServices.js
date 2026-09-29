@@ -669,9 +669,16 @@ export const getApprovalHistory = async (arg1 = {}, arg2, arg3) => {
     }
 }
 
-export const getPendingApprovalCount = async () => {
+export const getPendingApprovalCount = async (params = {}) => {
     try {
-        const response = await api.get('/api/v1/approvals/count')
+        const queryParams = new URLSearchParams()
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined && value !== null && value !== '') {
+                queryParams.append(key, value)
+            }
+        }
+        const qs = queryParams.toString() ? `?${queryParams.toString()}` : ''
+        const response = await api.get(`/api/v1/approvals/count${qs}`)
         return response.data
     } catch (error) {
         if (error?.response?.status === 404 || error?.response?.status === 401) {
