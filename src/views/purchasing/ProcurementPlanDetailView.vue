@@ -124,15 +124,18 @@ const totalPlannedQty = computed(() => {
 })
 
 // Table Columns for items
-const tableColumns = [
-    { key: 'no', label: 'No', class: 'w-12 text-center' },
-    { key: 'item', label: 'Item & Referensi', class: 'min-w-[240px]' },
-    { key: 'unit', label: 'Satuan', class: 'w-20 text-center' },
-    { key: 'price', label: 'Harga Satuan (PR)', class: 'w-36 text-right' },
-    { key: 'qty', label: 'Kuantitas Terencana', class: 'w-36 text-right' },
-    { key: 'subtotal', label: 'Subtotal Terencana', class: 'w-36 text-right' },
-    { key: 'notes', label: 'Catatan Item', class: 'min-w-[180px]' }
-]
+const tableColumns = computed(() => {
+    const cur = plan.value?.purchase_requisition?.currency ? `(${plan.value.purchase_requisition.currency})` : '(IDR)'
+    return [
+        { key: 'no', label: 'No', class: 'w-12 text-center' },
+        { key: 'item', label: 'Item & Referensi', class: 'min-w-[240px]' },
+        { key: 'unit', label: 'Satuan', class: 'w-20 text-center' },
+        { key: 'price', label: `Harga Satuan ${cur}`, class: 'w-36 text-right' },
+        { key: 'qty', label: 'Kuantitas Terencana', class: 'w-36 text-right' },
+        { key: 'subtotal', label: `Subtotal ${cur}`, class: 'w-36 text-right' },
+        { key: 'notes', label: 'Catatan Item', class: 'min-w-[180px]' }
+    ]
+})
 
 const formatDate = (dateString) => {
     if (!dateString) return '-'
@@ -405,9 +408,14 @@ onMounted(() => {
                         </div>
                         <div class="flex justify-between items-center py-2 px-3 bg-blue-50/70 border border-blue-200/70 rounded-xl">
                             <span class="text-blue-700 font-bold uppercase tracking-wider text-[11px]">Total Nilai Estimasi PR:</span>
-                            <span class="font-bold text-blue-900 font-mono text-sm">
-                                {{ formatCurrency(plan.purchase_requisition?.total_estimated_amount) }}
-                            </span>
+                            <div class="text-right">
+                                <span class="font-bold text-blue-900 font-mono text-sm block">
+                                    {{ formatCurrency(plan.purchase_requisition?.total_estimated_amount, plan.purchase_requisition?.currency) }}
+                                </span>
+                                <span v-if="plan.purchase_requisition?.currency && plan.purchase_requisition.currency !== 'IDR'" class="text-[10px] text-blue-600 font-mono block mt-0.5">
+                                    ≈ {{ formatCurrency((Number(plan.purchase_requisition?.total_estimated_amount) || 0) * (Number(plan.purchase_requisition?.exchange_rate) || 1), 'IDR') }}
+                                </span>
+                            </div>
                         </div>
                         <div class="pt-1" v-if="plan.purchase_requisition?.purpose">
                             <span class="text-slate-500 block mb-1">Keperluan Pengajuan:</span>
@@ -504,6 +512,11 @@ onMounted(() => {
                                     </span>
                                 </div>
 
+                                <!-- Detail / Specification Name -->
+                                <div v-if="item.purchase_requisition_item?.detail_name" class="text-xs text-slate-600 font-medium">
+                                    {{ item.purchase_requisition_item.detail_name }}
+                                </div>
+
                                 <!-- Reference link -->
                                 <a 
                                     v-if="item.purchase_requisition_item?.reference_url"
@@ -526,7 +539,7 @@ onMounted(() => {
                         <!-- PR Estimated Price -->
                         <td class="px-6 py-4 text-right">
                             <span class="text-xs font-bold font-mono text-slate-900 block">
-                                {{ formatCurrency(item.purchase_requisition_item?.estimated_price) }}
+                                {{ formatCurrency(item.purchase_requisition_item?.estimated_price, plan.purchase_requisition?.currency) }}
                             </span>
                             <span class="text-[10px] text-slate-400 block">Estimasi PR</span>
                         </td>
@@ -541,7 +554,7 @@ onMounted(() => {
                         <!-- Line Subtotal -->
                         <td class="px-6 py-4 text-right">
                             <span class="text-xs font-bold font-mono text-blue-700">
-                                {{ formatCurrency(item.planned_estimated_subtotal ?? (Number(item.planned_quantity) * Number(item.purchase_requisition_item?.estimated_price || 0))) }}
+                                {{ formatCurrency(item.planned_estimated_subtotal ?? (Number(item.planned_quantity) * Number(item.purchase_requisition_item?.estimated_price || 0)), plan.purchase_requisition?.currency) }}
                             </span>
                         </td>
 
@@ -560,9 +573,14 @@ onMounted(() => {
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-slate-500 font-medium">Total Estimasi Nilai Rencana:</span>
-                        <span class="text-sm font-bold text-blue-700 font-mono bg-blue-50 border border-blue-200/80 px-3 py-1 rounded-xl">
-                            {{ formatCurrency(totalPlannedAmount) }}
-                        </span>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-blue-700 font-mono bg-blue-50 border border-blue-200/80 px-3 py-1 rounded-xl block">
+                                {{ formatCurrency(totalPlannedAmount, plan.purchase_requisition?.currency) }}
+                            </span>
+                            <span v-if="plan.purchase_requisition?.currency && plan.purchase_requisition.currency !== 'IDR'" class="text-[10px] text-blue-600 font-mono block mt-0.5">
+                                ≈ {{ formatCurrency((Number(totalPlannedAmount) || 0) * (Number(plan.purchase_requisition?.exchange_rate) || 1), 'IDR') }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

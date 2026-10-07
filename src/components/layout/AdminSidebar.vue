@@ -39,7 +39,8 @@ const navigation = [
                     { name: 'Employees', to: 'admin.master.employee' },
                     { name: 'Accounting Categories', to: 'admin.master.accounting-category' },
                     { name: 'Accounting Subcategories', to: 'admin.master.accounting-subcategory' },
-                    { name: 'Accounting Accounts', to: 'admin.master.accounting-account' }
+                    { name: 'Accounting Accounts', to: 'admin.master.accounting-account' },
+                    { name: 'Currencies', to: 'admin.master.currency' }
                 ]
             },
             {

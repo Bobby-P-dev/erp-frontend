@@ -373,12 +373,12 @@ onMounted(() => {
 
                             <!-- Nominal Bayar -->
                             <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                                {{ formatCurrency(item.amount_paid) }}
+                                {{ formatCurrency(item.amount_paid, item.payment_request?.currency || 'IDR') }}
                             </td>
 
                             <!-- Biaya Admin -->
                             <td class="py-3.5 px-4 text-right font-mono text-slate-500">
-                                {{ formatCurrency(item.bank_fee) }}
+                                {{ formatCurrency(item.bank_fee, item.payment_request?.currency || 'IDR') }}
                             </td>
 
                             <!-- Kasir Eksekutor -->
@@ -417,7 +417,7 @@ onMounted(() => {
         <!-- 5. Detail Modal (Solid Overlay Without backdrop-blur) -->
         <div
             v-if="showDetailModal"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
             <div class="bg-white rounded-xl shadow-xl w-full max-w-xl flex flex-col overflow-hidden border border-slate-200">
                 <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-emerald-50/60">
@@ -448,16 +448,16 @@ onMounted(() => {
                     <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
                         <div class="flex justify-between items-center text-slate-500">
                             <span>Nominal Tagihan Dicairkan:</span>
-                            <span class="font-mono font-semibold text-slate-800">{{ formatCurrency(selectedPayment?.amount_paid) }}</span>
+                            <span class="font-mono font-semibold text-slate-800">{{ formatCurrency(selectedPayment?.amount_paid, selectedPayment?.payment_request?.currency || 'IDR') }}</span>
                         </div>
                         <div class="flex justify-between items-center text-slate-500">
                             <span>Biaya Administrasi Bank:</span>
-                            <span class="font-mono font-semibold text-slate-800">{{ formatCurrency(selectedPayment?.bank_fee) }}</span>
+                            <span class="font-mono font-semibold text-slate-800">{{ formatCurrency(selectedPayment?.bank_fee, selectedPayment?.payment_request?.currency || 'IDR') }}</span>
                         </div>
                         <div class="flex justify-between items-center pt-2 border-t border-slate-200">
                             <span class="font-bold text-slate-900">Total Pengeluaran Kas/Bank:</span>
                             <span class="font-mono text-base font-bold text-emerald-700">
-                                {{ formatCurrency((parseFloat(selectedPayment?.amount_paid) || 0) + (parseFloat(selectedPayment?.bank_fee) || 0)) }}
+                                {{ formatCurrency((parseFloat(selectedPayment?.amount_paid) || 0) + (parseFloat(selectedPayment?.bank_fee) || 0), selectedPayment?.payment_request?.currency || 'IDR') }}
                             </span>
                         </div>
                     </div>

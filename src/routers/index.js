@@ -143,6 +143,14 @@ const router = createRouter({
                         permission: 'direct-purchase.read'
                     }
                 },
+                {
+                    path: 'direct-purchases/:id/edit',
+                    name: 'user.purchasing.direct.edit',
+                    component: () => import('../views/purchasing/DirectPurchaseEditView.vue'),
+                    meta: {
+                        permission: 'direct-purchase.create'
+                    }
+                },
             ],
         },
         {
@@ -292,6 +300,11 @@ const router = createRouter({
                     path: 'master/units',
                     name: 'admin.master.unit',
                     component: () => import('../views/admin/master/UnitView.vue'),
+                },
+                {
+                    path: 'master/currencies',
+                    name: 'admin.master.currency',
+                    component: () => import('../views/admin/master/CurrencyView.vue'),
                 },
                 {
                     path: 'master/suppliers/create',

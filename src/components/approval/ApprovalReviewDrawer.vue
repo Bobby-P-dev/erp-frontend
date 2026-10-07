@@ -15,7 +15,8 @@ import {
     Calendar,
     Layers,
     Package,
-    ShieldAlert
+    ShieldAlert,
+    AlertTriangle
 } from '@lucide/vue'
 import ApprovalBadge from './ApprovalBadge.vue'
 import ApprovalStepper from './ApprovalStepper.vue'
@@ -96,6 +97,70 @@ const canUserAct = computed(() => {
 const showActionDialog = ref(false)
 const selectedActionType = ref('approve')
 
+// Item-level approval decisions state
+const itemRejectionStates = ref({})
+
+const isDocPurchaseRequisition = computed(() => {
+    const docType = String(effectiveDoc.value?.document_type || effectiveDoc.value?.approvable_type || '').toLowerCase()
+    return docType.includes('purchase_requisition')
+})
+
+watch([effectiveItems, isDrawerVisible], ([items, visible]) => {
+    if (visible && Array.isArray(items)) {
+        const nextState = {}
+        items.forEach(it => {
+            const isAlreadyRejected = it.approval_status === 'rejected'
+            nextState[it.id] = {
+                isRejected: isAlreadyRejected,
+                isPermanentlyLocked: isAlreadyRejected,
+                reason: it.rejection_reason || '',
+            }
+        })
+        itemRejectionStates.value = nextState
+    } else {
+        itemRejectionStates.value = {}
+    }
+}, { immediate: true })
+
+const activeApprovedItemsCount = computed(() => {
+    if (!effectiveItems.value.length) return 0
+    return effectiveItems.value.filter(it => !itemRejectionStates.value[it.id]?.isRejected).length
+})
+
+const totalRejectedItemsCount = computed(() => {
+    if (!effectiveItems.value.length) return 0
+    return effectiveItems.value.filter(it => itemRejectionStates.value[it.id]?.isRejected).length
+})
+
+const isAllItemsRejected = computed(() => {
+    if (!effectiveItems.value.length) return false
+    return activeApprovedItemsCount.value === 0
+})
+
+const dynamicEffectiveTotal = computed(() => {
+    if (!isDocPurchaseRequisition.value) {
+        return effectiveDoc.value?.total_amount
+    }
+    return effectiveItems.value
+        .filter(it => !itemRejectionStates.value[it.id]?.isRejected)
+        .reduce((acc, it) => {
+            const qty = Number(it.quantity) || 0
+            const price = Number(it.estimated_price) || 0
+            return acc + (qty * price)
+        }, 0)
+})
+
+const toggleItemRejection = (itemId, shouldReject) => {
+    if (!itemRejectionStates.value[itemId]) {
+        itemRejectionStates.value[itemId] = { isRejected: false, isPermanentlyLocked: false, reason: '' }
+    }
+    if (itemRejectionStates.value[itemId].isPermanentlyLocked) return
+    itemRejectionStates.value[itemId].isRejected = shouldReject
+    if (!shouldReject) {
+        itemRejectionStates.value[itemId].reason = ''
+    }
+}
+
 const fetchTracker = async (requestId) => {
     if (!requestId) return
     try {
@@ -136,8 +201,24 @@ const handleActionConfirm = async ({ action, notes, done, fail }) => {
         const expectedStep = trackerData.value?.request?.current_step_order || props.task.current_step_order
 
         if (action === 'approve') {
-            await approveDocument(props.task.id, notes, expectedStep)
-            showSuccess('Disetujui!', `Dokumen ${props.task.document_number} berhasil disetujui.`)
+            const rejectedDecisions = isDocPurchaseRequisition.value
+                ? effectiveItems.value
+                    .filter(it => itemRejectionStates.value[it.id]?.isRejected && !itemRejectionStates.value[it.id]?.isPermanentlyLocked)
+                    .map(it => ({
+                        item_id: it.id,
+                        action: 'reject',
+                        rejection_reason: itemRejectionStates.value[it.id]?.reason || notes || 'Ditolak oleh peninjau.',
+                    }))
+                : []
+
+            await approveDocument(props.task.id, notes, expectedStep, rejectedDecisions)
+            if (isAllItemsRejected.value) {
+                showSuccess('Ditolak Otomatis!', `Karena seluruh item ditolak, dokumen ${props.task.document_number} telah ditolak.`)
+            } else if (rejectedDecisions.length > 0) {
+                showSuccess('Disetujui Sebagian!', `Dokumen ${props.task.document_number} disetujui dengan ${rejectedDecisions.length} item dicoret/ditolak.`)
+            } else {
+                showSuccess('Disetujui!', `Dokumen ${props.task.document_number} berhasil disetujui.`)
+            }
         } else if (action === 'revision') {
             await requestRevisionDocument(props.task.id, notes, expectedStep)
             showSuccess('Permintaan Revisi Terkirim!', `Dokumen ${props.task.document_number} telah dikembalikan kepada pemohon dengan instruksi perbaikan Anda.`)
@@ -178,7 +259,7 @@ const formatDate = (dateStr) => {
     <Teleport to="body">
         <div 
             v-if="isDrawerVisible" 
-            class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-slate-900/50"
+            class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
             @click="emit('close')"
         >
             <!-- Centered Modal Box -->
@@ -312,6 +393,23 @@ const formatDate = (dateStr) => {
                             </h4>
                         </div>
 
+                        <!-- Alert Banner for Item-Level Decisions -->
+                        <div 
+                            v-if="canUserAct && isDocPurchaseRequisition && totalRejectedItemsCount > 0" 
+                            class="p-3 rounded-lg border text-xs flex items-center justify-between gap-3 animate-in fade-in duration-150"
+                            :class="isAllItemsRejected ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'"
+                        >
+                            <div class="flex items-center gap-2">
+                                <AlertTriangle class="w-4 h-4 shrink-0" :class="isAllItemsRejected ? 'text-rose-600' : 'text-amber-600'" />
+                                <span v-if="isAllItemsRejected" class="font-medium">
+                                    <strong>Perhatian:</strong> Seluruh item ({{ totalRejectedItemsCount }} item) ditandai ditolak. Jika Anda melanjutkan persetujuan dengan kondisi ini, dokumen pengajuan akan <strong>otomatis ditolak secara keseluruhan</strong>.
+                                </span>
+                                <span v-else class="font-medium">
+                                    <strong>Catatan Persetujuan Parsial:</strong> {{ totalRejectedItemsCount }} dari {{ effectiveItems.length }} item ditandai ditolak. Nilai estimasi disetujui disesuaikan menjadi <strong>{{ formatCurrency(dynamicEffectiveTotal) }}</strong>.
+                                </span>
+                            </div>
+                        </div>
+
                         <div v-if="isLoadingTracker && effectiveItems.length === 0" class="p-8 text-center bg-slate-50 rounded-lg border border-slate-200">
                             <div class="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                             <span class="text-xs text-slate-500">Memuat rincian item pengajuan...</span>
@@ -333,6 +431,7 @@ const formatDate = (dateStr) => {
                                             <th class="py-2.5 px-3 text-right w-32">Est. Harga Satuan</th>
                                             <th class="py-2.5 px-3 text-right w-32">Subtotal</th>
                                             <th class="py-2.5 px-3 min-w-[180px]">Catatan / Referensi</th>
+                                            <th v-if="isDocPurchaseRequisition" class="py-2.5 px-3 text-center min-w-[160px]">Keputusan Item</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -340,6 +439,7 @@ const formatDate = (dateStr) => {
                                             v-for="(item, idx) in effectiveItems" 
                                             :key="item.id || idx" 
                                             class="hover:bg-slate-50/70 transition-colors"
+                                            :class="{'bg-rose-50/30': itemRejectionStates[item.id]?.isRejected}"
                                         >
                                             <td class="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{{ idx + 1 }}</td>
                                             <td class="py-2.5 px-3">
@@ -351,6 +451,9 @@ const formatDate = (dateStr) => {
                                                     >
                                                         Non-Katalog
                                                     </span>
+                                                </div>
+                                                <div v-if="item.detail_name" class="text-xs text-slate-600 font-medium mt-0.5">
+                                                    {{ item.detail_name }}
                                                 </div>
                                                 <div v-if="item.item_code" class="text-[10px] text-slate-400 font-mono mt-0.5">
                                                     Kode: {{ item.item_code }}
@@ -384,17 +487,97 @@ const formatDate = (dateStr) => {
                                                 </a>
                                                 <span v-if="!item.notes && !item.reference_url" class="text-slate-400">-</span>
                                             </td>
+                                            <!-- KEPUTUSAN ITEM COLUMN -->
+                                            <td v-if="isDocPurchaseRequisition" class="py-2.5 px-3">
+                                                <!-- Jika barang sudah ditolak permanen dari tier sebelumnya -->
+                                                <div v-if="itemRejectionStates[item.id]?.isPermanentlyLocked" class="text-center">
+                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                                        <XCircle class="w-3 h-3 text-rose-600" />
+                                                        Ditolak Sebelumnya
+                                                    </span>
+                                                    <div v-if="itemRejectionStates[item.id]?.reason" class="text-[10px] text-rose-600 mt-0.5 line-clamp-2 italic" :title="itemRejectionStates[item.id]?.reason">
+                                                        "{{ itemRejectionStates[item.id]?.reason }}"
+                                                    </div>
+                                                </div>
+
+                                                <!-- Jika user adalah approver berwenang di step aktif -->
+                                                <div v-else-if="canUserAct" class="space-y-1.5">
+                                                    <div class="flex items-center justify-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+                                                        <button
+                                                            type="button"
+                                                            @click="toggleItemRejection(item.id, false)"
+                                                            :class="[
+                                                                'flex-1 py-1 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1',
+                                                                !itemRejectionStates[item.id]?.isRejected
+                                                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                                                    : 'text-slate-600 hover:text-slate-900'
+                                                            ]"
+                                                        >
+                                                            <CheckCircle2 class="w-3 h-3" />
+                                                            <span>Setuju</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            @click="toggleItemRejection(item.id, true)"
+                                                            :class="[
+                                                                'flex-1 py-1 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1',
+                                                                itemRejectionStates[item.id]?.isRejected
+                                                                    ? 'bg-rose-600 text-white shadow-xs'
+                                                                    : 'text-slate-600 hover:text-rose-700'
+                                                            ]"
+                                                        >
+                                                            <XCircle class="w-3 h-3" />
+                                                            <span>Tolak</span>
+                                                        </button>
+                                                    </div>
+
+                                                    <div v-if="itemRejectionStates[item.id]?.isRejected" class="animate-in fade-in duration-150">
+                                                        <input
+                                                            v-model="itemRejectionStates[item.id].reason"
+                                                            type="text"
+                                                            placeholder="Alasan tolak item..."
+                                                            class="w-full text-[11px] px-2 py-1 rounded border border-rose-300 focus:outline-none focus:ring-1 focus:ring-rose-500 bg-rose-50/50 text-rose-900 placeholder:text-rose-400"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <!-- Tampilan status read-only ketika melihat history / bukan reviewer -->
+                                                <div v-else class="text-center">
+                                                    <span 
+                                                        v-if="item.approval_status === 'approved'"
+                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                    >
+                                                        <CheckCircle2 class="w-3 h-3 text-emerald-600" />
+                                                        Disetujui
+                                                    </span>
+                                                    <span 
+                                                        v-else-if="item.approval_status === 'rejected'"
+                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                                                    >
+                                                        <XCircle class="w-3 h-3 text-rose-600" />
+                                                        Ditolak
+                                                    </span>
+                                                    <span 
+                                                        v-else
+                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                                                    >
+                                                        <Clock class="w-3 h-3 text-amber-600" />
+                                                        Menunggu
+                                                    </span>
+                                                </div>
+                                            </td>
                                         </tr>
                                     </tbody>
                                     <tfoot>
                                         <tr class="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
                                             <td colspan="5" class="py-2.5 px-3 text-right text-xs uppercase tracking-wider text-slate-600">
-                                                Total Estimasi Pengadaan:
+                                                Total Estimasi {{ totalRejectedItemsCount > 0 ? 'Disetujui' : 'Pengadaan' }}:
                                             </td>
                                             <td class="py-2.5 px-3 text-right text-xs font-mono font-bold text-slate-900">
-                                                {{ formatCurrency(effectiveDoc.total_amount) }}
+                                                {{ formatCurrency(dynamicEffectiveTotal) }}
                                             </td>
                                             <td></td>
+                                            <td v-if="isDocPurchaseRequisition"></td>
                                         </tr>
                                     </tfoot>
                                 </table>

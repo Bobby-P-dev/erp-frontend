@@ -368,4 +368,116 @@ describe('Direct Purchase Services & Business Logic Contract Tests', () => {
         ];
         assert.equal(isFullyReceived(testItems, fullGrn), true);
     });
+
+    it('enforces that only draft status Direct Purchases can be edited', () => {
+        const canEditDirectPurchase = (status) => status === 'draft';
+
+        assert.equal(canEditDirectPurchase('draft'), true);
+        assert.equal(canEditDirectPurchase('ready_for_payment'), false);
+        assert.equal(canEditDirectPurchase('paid'), false);
+        assert.equal(canEditDirectPurchase('partially_received'), false);
+        assert.equal(canEditDirectPurchase('completed'), false);
+        assert.equal(canEditDirectPurchase('cancelled'), false);
+    });
+
+    it('calculates self-excluded available quota when editing a draft Direct Purchase', () => {
+        const calculateEditQuota = (planRemainingQty, currentDraftQty) => {
+            return Number((Number(planRemainingQty) + Number(currentDraftQty)).toFixed(4));
+        };
+
+        // Example: Plan remaining is 2.0000, current draft item already uses 3.0000.
+        // During edit, the draft can be adjusted up to 5.0000 (its own 3 + remaining 2).
+        const maxQuota = calculateEditQuota(2.0000, 3.0000);
+        assert.equal(maxQuota, 5.0000);
+
+        const validateEditQuantity = (newQty, maxAllowed) => {
+            if (!newQty || Number(newQty) <= 0) return 'Kuantitas harus > 0';
+            if (Number(newQty) > maxAllowed) return `Maks. alokasi kuota ${maxAllowed}`;
+            return null;
+        };
+
+        // Valid: setting to 4 (within 5)
+        assert.equal(validateEditQuantity(4, maxQuota), null);
+        // Valid: setting to 5 (equal to max)
+        assert.equal(validateEditQuantity(5, maxQuota), null);
+        // Invalid: setting to 6 (exceeds max 5)
+        assert.equal(validateEditQuantity(6, maxQuota), 'Maks. alokasi kuota 5');
+        // Invalid: setting to 0
+        assert.equal(validateEditQuantity(0, maxQuota), 'Kuantitas harus > 0');
+    });
+
+    it('formats correct payload for updating draft Direct Purchases', () => {
+        const buildUpdatePayload = (form) => ({
+            purchase_channel: form.purchase_channel,
+            supplier_id: form.purchase_channel === 'direct_supplier' ? form.supplier_id : null,
+            marketplace_name: form.purchase_channel === 'marketplace' ? form.marketplace_name : null,
+            merchant_name: form.merchant_name || null,
+            store_url: form.store_url || null,
+            payment_method: form.payment_method || null,
+            recipient_type: form.recipient_type || null,
+            recipient_name: form.recipient_name || null,
+            bank_name: form.bank_name || null,
+            bank_account_number: form.bank_account_number || null,
+            bank_account_holder: form.bank_account_holder || null,
+            currency: 'IDR',
+            discount_amount: Number(form.discount_amount) || 0,
+            shipping_cost: Number(form.shipping_cost) || 0,
+            platform_fee: Number(form.platform_fee) || 0,
+            tax_amount: Number(form.tax_amount) || 0,
+            notes: form.notes || null,
+            items: form.items.map(item => ({
+                procurement_plan_item_id: item.procurement_plan_item_id,
+                item_id: item.item_id || null,
+                unit_id: item.unit_id || null,
+                description: item.item_name,
+                quantity: Number(item.quantity),
+                unit_price: Number(item.unit_price),
+                discount_amount: Number(item.discount_amount) || 0,
+                product_url: item.product_url || null,
+                notes: item.notes || null
+            }))
+        });
+
+        const formData = {
+            purchase_channel: 'marketplace',
+            supplier_id: null,
+            marketplace_name: 'Tokopedia',
+            merchant_name: 'Official Logitech Store',
+            store_url: 'https://tokopedia.com/logitech',
+            payment_method: 'marketplace_va',
+            recipient_type: 'marketplace_merchant',
+            recipient_name: 'Tokopedia - Official Logitech',
+            bank_name: 'BCA Virtual Account',
+            bank_account_number: '880123456789',
+            bank_account_holder: 'Tokopedia - Official Logitech',
+            discount_amount: 15000,
+            shipping_cost: 20000,
+            platform_fee: 1000,
+            tax_amount: 0,
+            notes: 'Revisi jumlah pesanan mouse dari 3 menjadi 4 unit',
+            items: [
+                {
+                    procurement_plan_item_id: 10,
+                    item_id: 5,
+                    unit_id: 2,
+                    item_name: 'Logitech MX Master 3S',
+                    quantity: 4,
+                    unit_price: 1500000,
+                    discount_amount: 50000,
+                    product_url: 'https://tokopedia.com/logitech/mx-master-3s',
+                    notes: 'Warna Hitam'
+                }
+            ]
+        };
+
+        const payload = buildUpdatePayload(formData);
+        assert.equal(payload.purchase_channel, 'marketplace');
+        assert.equal(payload.marketplace_name, 'Tokopedia');
+        assert.equal(payload.discount_amount, 15000);
+        assert.equal(payload.notes, 'Revisi jumlah pesanan mouse dari 3 menjadi 4 unit');
+        assert.equal(payload.items.length, 1);
+        assert.equal(payload.items[0].quantity, 4);
+        assert.equal(payload.items[0].unit_price, 1500000);
+        assert.equal(payload.items[0].discount_amount, 50000);
+    });
 });

@@ -453,7 +453,7 @@ onUnmounted(() => {
 
                                 <!-- Amount -->
                                 <td class="py-3.5 px-4 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
-                                    {{ task.total_amount ? formatCurrency(task.total_amount) : '-' }}
+                                    {{ task.total_amount ? formatCurrency(task.total_amount, task.currency || 'IDR') : '-' }}
                                 </td>
 
                                 <!-- Overall Status -->

@@ -133,9 +133,9 @@ const handleConfirm = async () => {
 <template>
     <Teleport to="body">
         <div v-if="isOpen" class="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
-            <!-- Backdrop (Tanpa backdrop-blur agar scroll ringan dan tidak patah-patah) -->
+            <!-- Invisible Click Catcher to Dismiss (No Dark Backdrop) -->
             <div 
-                class="fixed inset-0 bg-gray-900/40 transition-opacity"
+                class="fixed inset-0 transition-opacity"
                 @click="!isSubmitting && emit('close')"
             ></div>
 

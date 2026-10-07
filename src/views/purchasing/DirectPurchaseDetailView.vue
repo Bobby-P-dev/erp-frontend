@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { 
     showDirectPurchase, 
@@ -42,7 +42,8 @@ import {
     Coins,
     ClipboardCheck,
     AlertCircle,
-    X
+    X,
+    Pencil
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -118,16 +119,19 @@ const fetchBankAccounts = async () => {
 }
 
 // Table Columns for items
-const tableColumns = [
-    { key: 'no', label: 'No', class: 'w-14 text-center' },
-    { key: 'item', label: 'Item & Referensi', class: 'min-w-[240px]' },
-    { key: 'unit', label: 'Satuan', class: 'w-24 text-center' },
-    { key: 'qty', label: 'Kuantitas', class: 'w-28 text-right' },
-    { key: 'price', label: 'Harga Satuan (Rp)', class: 'w-36 text-right' },
-    { key: 'discount', label: 'Diskon (Rp)', class: 'w-32 text-right' },
-    { key: 'subtotal', label: 'Subtotal (Rp)', class: 'w-40 text-right' },
-    { key: 'notes', label: 'Catatan & Tautan', class: 'min-w-[180px]' }
-]
+const tableColumns = computed(() => {
+    const cur = dp.value?.currency ? `(${dp.value.currency})` : '(Rp)'
+    return [
+        { key: 'no', label: 'No', class: 'w-14 text-center' },
+        { key: 'item', label: 'Item & Referensi', class: 'min-w-[240px]' },
+        { key: 'unit', label: 'Satuan', class: 'w-24 text-center' },
+        { key: 'qty', label: 'Kuantitas', class: 'w-28 text-right' },
+        { key: 'price', label: `Harga Satuan ${cur}`, class: 'w-36 text-right' },
+        { key: 'discount', label: `Diskon ${cur}`, class: 'w-32 text-right' },
+        { key: 'subtotal', label: `Subtotal ${cur}`, class: 'w-40 text-right' },
+        { key: 'notes', label: 'Catatan & Tautan', class: 'min-w-[180px]' }
+    ]
+})
 
 const formatDate = (dateString) => {
     if (!dateString) return '-'
@@ -416,6 +420,16 @@ onMounted(() => {
 
                 <!-- Header Actions -->
                 <div class="flex items-center gap-2.5 flex-wrap">
+                    <!-- Action: Edit Draft (Draft only) -->
+                    <RouterLink 
+                        v-if="dp.status === 'draft'"
+                        :to="{ name: 'user.purchasing.direct.edit', params: { id: dp.id } }"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all"
+                    >
+                        <Pencil class="w-4 h-4" />
+                        <span>Edit Draft</span>
+                    </RouterLink>
+
                     <!-- Action: Submit for Payment (Draft only) -->
                     <button 
                         v-if="dp.status === 'draft'"
@@ -625,38 +639,56 @@ onMounted(() => {
 
                             <div class="flex justify-between items-center py-1 border-b border-gray-50">
                                 <span class="text-gray-500">Subtotal Barang:</span>
-                                <span class="font-bold font-mono text-gray-800">{{ formatCurrency(dp.subtotal) }}</span>
+                                <span class="font-bold font-mono text-gray-800">{{ formatCurrency(dp.subtotal, dp.currency) }}</span>
                             </div>
 
                             <div v-if="Number(dp.discount_amount) > 0" class="flex justify-between items-center py-1 border-b border-gray-50 text-emerald-700">
                                 <span>Diskon Transaksi:</span>
-                                <span class="font-bold font-mono">- {{ formatCurrency(dp.discount_amount) }}</span>
+                                <span class="font-bold font-mono">- {{ formatCurrency(dp.discount_amount, dp.currency) }}</span>
                             </div>
 
                             <div v-if="Number(dp.shipping_cost) > 0" class="flex justify-between items-center py-1 border-b border-gray-50">
                                 <span class="text-gray-500">Ongkos Kirim:</span>
-                                <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.shipping_cost) }}</span>
+                                <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.shipping_cost, dp.currency) }}</span>
                             </div>
 
                             <div v-if="Number(dp.platform_fee) > 0" class="flex justify-between items-center py-1 border-b border-gray-50">
                                 <span class="text-gray-500">Biaya Platform:</span>
-                                <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.platform_fee) }}</span>
+                                <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.platform_fee, dp.currency) }}</span>
                             </div>
 
                             <div v-if="Number(dp.tax_amount) > 0" class="flex justify-between items-center py-1 border-b border-gray-50">
                                 <span class="text-gray-500">Pajak / PPN:</span>
-                                <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.tax_amount) }}</span>
+                                <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.tax_amount, dp.currency) }}</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="pt-4 border-t-2 border-gray-200 mt-3 bg-emerald-50/70 p-4 rounded-xl border border-emerald-200">
-                        <span class="text-xs font-bold text-emerald-900 uppercase tracking-wider block">
-                            Grand Total Pembayaran:
-                        </span>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-emerald-900 uppercase tracking-wider block">
+                                Grand Total Pembayaran:
+                            </span>
+                            <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-200/80 text-emerald-900">
+                                {{ dp.currency || 'IDR' }}
+                            </span>
+                        </div>
                         <span class="text-2xl font-black text-emerald-800 font-mono block mt-1">
-                            {{ formatCurrency(dp.grand_total) }}
+                            {{ formatCurrency(dp.grand_total, dp.currency) }}
                         </span>
+
+                        <!-- Foreign Currency Conversion Display -->
+                        <div v-if="dp.currency && dp.currency !== 'IDR'" class="mt-3 pt-3 border-t border-emerald-200/80 text-xs">
+                            <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                                Setara Pembukuan Keuangan (IDR):
+                            </span>
+                            <span class="text-lg font-black text-emerald-950 font-mono block mt-0.5">
+                                {{ formatCurrency((Number(dp.grand_total) || 0) * (Number(dp.exchange_rate) || 1), 'IDR') }}
+                            </span>
+                            <span class="text-[10px] text-emerald-700 block mt-1">
+                                Kurs Terkunci Transaksi: 1 {{ dp.currency }} = {{ formatCurrency(dp.exchange_rate || 1, 'IDR') }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -707,7 +739,7 @@ onMounted(() => {
 
                     <div class="space-y-1">
                         <span class="text-gray-500 block">Nominal Permohonan:</span>
-                        <span class="font-mono text-base font-black text-gray-900 block">{{ formatCurrency(dp.payment_request.amount) }}</span>
+                        <span class="font-mono text-base font-black text-gray-900 block">{{ formatCurrency(dp.payment_request.amount, dp.payment_request.currency || dp.currency) }}</span>
                         <span class="text-gray-500 block mt-2">Diajukan Oleh:</span>
                         <span class="text-gray-700 block">{{ dp.payment_request.requester?.name || 'Staff' }}</span>
                     </div>
@@ -906,17 +938,17 @@ onMounted(() => {
 
                         <!-- Unit Price -->
                         <td class="px-6 py-4 text-right font-mono text-gray-800 text-xs">
-                            {{ formatCurrency(item.unit_price) }}
+                            {{ formatCurrency(item.unit_price, dp.currency) }}
                         </td>
 
                         <!-- Item Discount -->
                         <td class="px-6 py-4 text-right font-mono text-emerald-700 text-xs">
-                            {{ Number(item.discount_amount) > 0 ? formatCurrency(item.discount_amount) : '-' }}
+                            {{ Number(item.discount_amount) > 0 ? formatCurrency(item.discount_amount, dp.currency) : '-' }}
                         </td>
 
                         <!-- Subtotal -->
                         <td class="px-6 py-4 text-right font-black font-mono text-gray-900 text-sm">
-                            {{ formatCurrency(item.total || item.subtotal) }}
+                            {{ formatCurrency(item.total || item.subtotal, dp.currency) }}
                         </td>
 
                         <!-- Notes -->
@@ -930,7 +962,7 @@ onMounted(() => {
             <!-- MODAL 1: Submit Payment Request Modal -->
             <div 
                 v-if="showSubmitModal"
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
                 <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-200">
                     <div class="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -976,7 +1008,7 @@ onMounted(() => {
                         </div>
 
                         <div class="p-3 bg-blue-50 rounded-xl text-blue-800 text-xs">
-                            Nominal yang akan diajukan: <strong class="font-mono font-bold">{{ formatCurrency(dp.grand_total) }}</strong>
+                            Nominal yang akan diajukan: <strong class="font-mono font-bold">{{ formatCurrency(dp.grand_total, dp.currency) }}</strong>
                         </div>
                     </div>
 
@@ -994,7 +1026,7 @@ onMounted(() => {
             <!-- MODAL 2: Disburse Payment Modal (Finance) -->
             <div 
                 v-if="showDisburseModal"
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
                 <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-200">
                     <div class="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -1040,7 +1072,7 @@ onMounted(() => {
                         </div>
 
                         <div class="p-3 bg-emerald-50 rounded-xl text-emerald-800 text-xs">
-                            Total dana yang dicairkan: <strong class="font-mono font-bold">{{ formatCurrency(dp.grand_total) }}</strong>
+                            Total dana yang dicairkan: <strong class="font-mono font-bold">{{ formatCurrency(dp.grand_total, dp.currency) }}</strong>
                         </div>
                     </div>
 
@@ -1058,7 +1090,7 @@ onMounted(() => {
             <!-- MODAL 3: Goods Receipt Record Modal (Warehouse) -->
             <div 
                 v-if="showGoodsReceiptModal"
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
             >
                 <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-xl border border-gray-200 my-8">
                     <div class="flex items-center justify-between pb-3 border-b border-gray-100">

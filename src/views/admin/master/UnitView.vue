@@ -339,8 +339,7 @@ const formatDate = (dateStr) => {
         <!-- MODAL FORM (CREATE / EDIT) -->
         <Teleport to="body">
             <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
-                <!-- SOLID BACKDROP (NO BACKDROP-BLUR FOR SMOOTH PERFORMANCE) -->
-                <div class="fixed inset-0 bg-gray-900/40 transition-opacity" @click="closeModal"></div>
+                <div class="fixed inset-0 transition-opacity" @click="closeModal"></div>
 
                 <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
                     <!-- MODAL HEADER -->

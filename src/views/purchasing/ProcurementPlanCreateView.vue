@@ -125,6 +125,8 @@ const activePrInfo = computed(() => {
         notes: detail.notes || null,
         itemCount: meta.itemCount || (detail.items?.length || planItems.value.length || 0),
         totalEstimatedAmount: Number(detail.total_estimated_amount || 0) || itemsEstimatedSum,
+        currency: detail.currency || meta.currency || 'IDR',
+        exchange_rate: Number(detail.exchange_rate || meta.exchange_rate || 1),
         status: detail.status || 'approved'
     }
 })
@@ -199,6 +201,7 @@ watch(selectedPrId, async (newPrId) => {
         pr_item_id: i.purchase_requisition_item_id,
         item_id: i.item_id,
         item_name: i.item_name || i.item?.name || 'Item Tanpa Nama',
+        detail_name: i.detail_name || '',
         item_code: i.item?.code || null,
         is_custom_item: i.is_custom_item,
         reference_url: i.reference_url,
@@ -491,9 +494,14 @@ onMounted(() => {
                             </div>
                             <div class="col-span-2 bg-blue-50/70 p-2.5 rounded-xl border border-blue-200/70 flex items-center justify-between">
                                 <span class="text-blue-700 text-[11px] font-bold uppercase tracking-wider">Total Nilai Estimasi PR:</span>
-                                <span class="font-bold text-blue-900 font-mono text-sm">
-                                    {{ formatCurrency(activePrInfo.totalEstimatedAmount) }}
-                                </span>
+                                <div class="text-right">
+                                    <span class="font-bold text-blue-900 font-mono text-sm block">
+                                        {{ formatCurrency(activePrInfo.totalEstimatedAmount, activePrInfo.currency) }}
+                                    </span>
+                                    <span v-if="activePrInfo.currency && activePrInfo.currency !== 'IDR'" class="text-[10px] text-blue-600 font-mono block mt-0.5">
+                                        ≈ {{ formatCurrency((Number(activePrInfo.totalEstimatedAmount) || 0) * (Number(activePrInfo.exchange_rate) || 1), 'IDR') }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -697,9 +705,9 @@ onMounted(() => {
                                 <th class="px-4 py-3 min-w-[220px]">Item & Referensi</th>
                                 <th class="px-4 py-3 text-right w-20">Diminta</th>
                                 <th class="px-4 py-3 text-right w-24">Sisa Kuota</th>
-                                <th class="px-4 py-3 text-right w-36">Harga Satuan (PR)</th>
+                                <th class="px-4 py-3 text-right w-36">Harga Satuan ({{ activePrInfo?.currency || 'IDR' }})</th>
                                 <th class="px-4 py-3 min-w-[150px] w-44">Kuantitas Terencana</th>
-                                <th class="px-4 py-3 text-right w-36">Subtotal Estimasi</th>
+                                <th class="px-4 py-3 text-right w-36">Subtotal ({{ activePrInfo?.currency || 'IDR' }})</th>
                                 <th class="px-4 py-3 min-w-[180px]">Catatan Pengadaan</th>
                             </tr>
                         </thead>
@@ -740,6 +748,11 @@ onMounted(() => {
                                             </span>
                                         </div>
 
+                                        <!-- Detail / Specification Name -->
+                                        <div v-if="item.detail_name" class="text-xs text-slate-600 font-medium">
+                                            {{ item.detail_name }}
+                                        </div>
+
                                         <!-- Reference URL -->
                                         <a 
                                             v-if="item.reference_url" 
@@ -769,7 +782,7 @@ onMounted(() => {
                                 <!-- Item Estimated Price from PR -->
                                 <td class="px-4 py-4 text-right">
                                     <span class="text-xs font-bold font-mono block" :class="item.is_selected ? 'text-slate-900' : 'text-slate-400'">
-                                        {{ formatCurrency(item.estimated_price) }}
+                                        {{ formatCurrency(item.estimated_price, activePrInfo?.currency) }}
                                     </span>
                                     <span class="text-[10px] text-slate-400 block">Estimasi PR</span>
                                 </td>
@@ -805,7 +818,7 @@ onMounted(() => {
                                 <!-- Line Estimated Subtotal -->
                                 <td class="px-4 py-4 text-right">
                                     <span class="text-xs font-bold font-mono" :class="item.is_selected ? 'text-blue-700 font-semibold' : 'text-slate-400'">
-                                        {{ formatCurrency(Number(item.planned_qty || 0) * Number(item.estimated_price || 0)) }}
+                                        {{ formatCurrency(Number(item.planned_qty || 0) * Number(item.estimated_price || 0), activePrInfo?.currency) }}
                                     </span>
                                 </td>
 
@@ -833,9 +846,14 @@ onMounted(() => {
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-slate-500 font-medium">Total Estimasi Rencana:</span>
-                        <span class="text-sm font-bold text-blue-700 font-mono bg-blue-50 border border-blue-200/80 px-3 py-1 rounded-xl">
-                            {{ formatCurrency(totalEstimatedPlanAmount) }}
-                        </span>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-blue-700 font-mono bg-blue-50 border border-blue-200/80 px-3 py-1 rounded-xl block">
+                                {{ formatCurrency(totalEstimatedPlanAmount, activePrInfo?.currency) }}
+                            </span>
+                            <span v-if="activePrInfo?.currency && activePrInfo.currency !== 'IDR'" class="text-[10px] text-blue-600 font-mono block mt-0.5">
+                                ≈ {{ formatCurrency((Number(totalEstimatedPlanAmount) || 0) * (Number(activePrInfo.exchange_rate) || 1), 'IDR') }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

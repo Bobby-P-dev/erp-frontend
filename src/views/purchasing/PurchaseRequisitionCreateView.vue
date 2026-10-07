@@ -17,8 +17,9 @@ import {
 import { searchAccountingCategories } from '../../services/accountingCategoryServices.js'
 import { searchAccountingSubcategories } from '../../services/accountingSubcategoryServices.js'
 import { searchAccountingAccounts } from '../../services/accountingAccountServices.js'
+import { searchCurrencies } from '../../services/currencyServices.js'
 import { showLoading, showSuccess, showError, showConfirm, closeSwal } from '../../utils/swal.js'
-import { formatCurrency } from '../../utils/stringUtils.js'
+import { formatCurrency, formatNumber } from '../../composables/useFormatter.js'
 
 import BaseInput from '../../components/ui/BaseInput.vue'
 import BaseSelect from '../../components/ui/BaseSelect.vue'
@@ -48,6 +49,7 @@ import {
     ChevronDown,
     ChevronUp,
     DollarSign,
+    Coins,
     Check,
     GitBranch,
     RotateCcw
@@ -97,6 +99,8 @@ const form = ref({
     purpose: '',
     notes: '',
     approval_configuration_id: null,
+    currency: 'IDR',
+    exchange_rate: 1,
     items: [
         createEmptyItemRow()
     ]
@@ -109,6 +113,7 @@ function createEmptyItemRow() {
         entry_mode: 'catalog', // 'catalog' | 'custom'
         item_id: null,
         item_name: '',
+        detail_name: '',
         unit_id: defaultUnitId,
         quantity: 1,
         estimated_price: '',
@@ -260,6 +265,45 @@ const totalEstimatedAmount = computed(() => {
     }, 0)
 })
 
+const totalEstimatedAmountInBase = computed(() => {
+    const rate = Number(form.value.exchange_rate) || 1
+    return Math.round(totalEstimatedAmount.value * rate)
+})
+
+const currenciesList = ref([])
+const isLoadingCurrencies = ref(false)
+
+const fetchCurrenciesList = async () => {
+    try {
+        isLoadingCurrencies.value = true
+        const res = await searchCurrencies('', 100)
+        if (res.data && res.data.length > 0) {
+            currenciesList.value = res.data
+        } else {
+            currenciesList.value = [
+                { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', exchange_rate: 1, is_base: true },
+                { code: 'USD', name: 'US Dollar', symbol: '$', exchange_rate: 16250, is_base: false },
+                { code: 'EUR', name: 'Euro', symbol: '€', exchange_rate: 17500, is_base: false },
+                { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$', exchange_rate: 12100, is_base: false }
+            ]
+        }
+    } catch {
+        currenciesList.value = [
+            { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', exchange_rate: 1, is_base: true },
+            { code: 'USD', name: 'US Dollar', symbol: '$', exchange_rate: 16250, is_base: false }
+        ]
+    } finally {
+        isLoadingCurrencies.value = false
+    }
+}
+
+watch(() => form.value.currency, (newCode) => {
+    const found = currenciesList.value.find(c => c.code === newCode)
+    if (found) {
+        form.value.exchange_rate = found.exchange_rate || 1
+    }
+})
+
 const daysUntilRequired = computed(() => {
     if (!form.value.request_date || !form.value.required_date) return null
     const reqDate = new Date(form.value.request_date)
@@ -330,6 +374,8 @@ const fetchExistingPr = async (id) => {
         form.value.purpose = pr.purpose || ''
         form.value.notes = pr.notes || ''
         form.value.approval_configuration_id = pr.approval_request?.configuration_id || null
+        form.value.currency = pr.currency || 'IDR'
+        form.value.exchange_rate = Number(pr.exchange_rate) || 1
 
         // Fetch divisions based on this PR's company
         if (form.value.company_id) {
@@ -345,6 +391,7 @@ const fetchExistingPr = async (id) => {
                 entry_mode: item.item_id ? 'catalog' : 'custom',
                 item_id: item.item_id || null,
                 item_name: item.item_name || item.item?.name || '',
+                detail_name: item.detail_name || '',
                 unit_id: item.unit_id || item.unit?.id || null,
                 quantity: Number(item.quantity) || 1,
                 estimated_price: item.estimated_price !== null && item.estimated_price !== undefined ? item.estimated_price : '',
@@ -702,6 +749,8 @@ const handleSubmit = async (actionType = 'submit') => {
             required_date: form.value.required_date,
             purpose: form.value.purpose.trim(),
             notes: form.value.notes ? form.value.notes.trim() : null,
+            currency: form.value.currency || 'IDR',
+            exchange_rate: Number(form.value.exchange_rate) || 1,
             action: isSubmitAction ? 'submit' : 'draft',
             submit_immediately: isSubmitAction,
             is_submitted: isSubmitAction,
@@ -709,6 +758,7 @@ const handleSubmit = async (actionType = 'submit') => {
             items: form.value.items.map(row => ({
                 item_id: row.entry_mode === 'catalog' ? row.item_id : null,
                 item_name: row.entry_mode === 'custom' ? (row.item_name ? row.item_name.trim() : null) : null,
+                detail_name: row.detail_name ? row.detail_name.trim() : null,
                 unit_id: row.unit_id,
                 quantity: Number(row.quantity),
                 estimated_price: Number(row.estimated_price) || 0,
@@ -769,6 +819,7 @@ const handleSubmit = async (actionType = 'submit') => {
 
 onMounted(() => {
     fetchInitialMetadata()
+    fetchCurrenciesList()
 })
 </script>
 
@@ -1083,7 +1134,7 @@ onMounted(() => {
                                     {{ form.items.length }} Item
                                 </span>
                                 <span v-if="totalEstimatedAmount > 0" class="px-2 py-0.2 rounded text-[11px] font-mono font-bold bg-blue-600 text-white shadow-xs shadow-blue-200">
-                                    Total Est: {{ formatCurrency(totalEstimatedAmount) }}
+                                    Total Est: {{ formatCurrency(totalEstimatedAmount, form.currency) }}
                                 </span>
                             </div>
                             <p class="text-xs text-slate-500 mt-0.5">
@@ -1100,6 +1151,48 @@ onMounted(() => {
                         <Plus class="w-3.5 h-3.5 text-blue-600" />
                         <span>Tambah Item Baru</span>
                     </button>
+                </div>
+
+                <!-- MULTI-CURRENCY SETTINGS BAR -->
+                <div class="p-3.5 bg-blue-50/70 rounded-xl border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Coins class="w-4 h-4" />
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 block">Mata Uang Pengadaan (Multi-Currency)</span>
+                            <span class="text-[11px] text-slate-500">Pilih mata uang estimasi pengadaan (IDR, USD, EUR, SGD, dll.).</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-semibold text-slate-600">Valuta:</label>
+                            <select 
+                                v-model="form.currency"
+                                class="px-3 py-1 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+                            >
+                                <option 
+                                    v-for="c in currenciesList" 
+                                    :key="c.code" 
+                                    :value="c.code"
+                                >
+                                    {{ c.code }} - {{ c.name }} ({{ c.symbol }})
+                                </option>
+                            </select>
+                        </div>
+
+                        <div v-if="form.currency !== 'IDR'" class="flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                            <span class="text-xs font-semibold text-slate-600">1 {{ form.currency }} = Rp</span>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                min="0.01" 
+                                v-model.number="form.exchange_rate" 
+                                class="w-24 text-xs font-mono font-bold text-blue-700 text-right focus:outline-none"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Global items validation error banner -->
@@ -1228,15 +1321,25 @@ onMounted(() => {
                                     type="number"
                                     min="0"
                                     step="any"
-                                    label="Est. Harga Satuan (Rp)"
+                                    :label="`Est. Harga Satuan (${form.currency})`"
                                     placeholder="e.g. 150000"
                                     :error="getItemError(index, 'estimated_price')"
                                     required
                                 />
                                 <div v-if="row.estimated_price && row.quantity" class="text-[11px] text-slate-800 font-semibold mt-1 flex items-center justify-between bg-white px-2 py-0.5 rounded border border-slate-200">
                                     <span class="text-slate-500">Subtotal:</span>
-                                    <span class="font-mono font-bold">{{ formatCurrency((Number(row.quantity) || 0) * (Number(row.estimated_price) || 0)) }}</span>
+                                    <span class="font-mono font-bold">{{ formatCurrency((Number(row.quantity) || 0) * (Number(row.estimated_price) || 0), form.currency) }}</span>
                                 </div>
+                            </div>
+
+                            <!-- Detail Name (Spesifikasi Detail Barang) -->
+                            <div class="md:col-span-12">
+                                <BaseInput
+                                    v-model="row.detail_name"
+                                    label="Detail Nama Barang (Spesifikasi Lengkap / Tipe / Varian)"
+                                    placeholder="e.g. M8 x 40mm SS304 / Intel Core i7-13700H 16GB 512GB SSD / Biru Dongker Size L"
+                                    :error="getItemError(index, 'detail_name')"
+                                />
                             </div>
 
                             <!-- Reference URL -->
@@ -1392,7 +1495,10 @@ onMounted(() => {
 
                     <div class="text-center px-3 sm:px-4">
                         <p class="text-[10px] text-blue-200 uppercase tracking-wider font-semibold">Estimasi Total</p>
-                        <p class="text-base font-bold font-mono text-emerald-300 mt-0.5">{{ formatCurrency(totalEstimatedAmount) }}</p>
+                        <p class="text-base font-bold font-mono text-emerald-300 mt-0.5">{{ formatCurrency(totalEstimatedAmount, form.currency) }}</p>
+                        <p v-if="form.currency !== 'IDR'" class="text-[10px] text-blue-200 font-mono">
+                            ≈ {{ formatCurrency(totalEstimatedAmountInBase, 'IDR') }}
+                        </p>
                     </div>
 
                     <div class="text-center px-3 sm:px-4">

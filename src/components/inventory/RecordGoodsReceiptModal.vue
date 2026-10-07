@@ -288,7 +288,7 @@ onMounted(() => {
 <template>
     <div
         v-if="modelValue"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
         <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
             <!-- Modal Header -->

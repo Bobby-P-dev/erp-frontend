@@ -322,7 +322,7 @@ const deleteAccount = async (id) => {
         <Teleport to="body">
             <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
                 <div 
-                    class="fixed inset-0 bg-gray-900/40 transition-opacity"
+                    class="fixed inset-0 transition-opacity"
                     @click="closeModal"
                 ></div>
 

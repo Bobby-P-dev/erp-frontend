@@ -745,12 +745,16 @@ export const getApprovalTrackerByDocument = async (documentType, documentId) => 
  * 5. APPROVAL DECISIONS & MUTATIONS
  * ============================================================================
  */
-export const processApprovalDecision = async (requestId, { decision, notes = '', expected_step_order = null }) => {
+export const processApprovalDecision = async (requestId, { decision, notes = '', expected_step_order = null, item_decisions = [] }) => {
     const normalizedDecision = normalizeDecision(decision)
     const payload = {
         decision: normalizedDecision,
         notes,
         expected_step_order,
+    }
+
+    if (Array.isArray(item_decisions) && item_decisions.length > 0) {
+        payload.item_decisions = item_decisions
     }
 
     try {
@@ -785,11 +789,12 @@ export const processApprovalDecision = async (requestId, { decision, notes = '',
     }
 }
 
-export const approveDocument = (requestId, notes = '', expectedStepOrder = null) => {
+export const approveDocument = (requestId, notes = '', expectedStepOrder = null, itemDecisions = []) => {
     return processApprovalDecision(requestId, {
         decision: ApprovalActionType.APPROVE,
         notes,
         expected_step_order: expectedStepOrder,
+        item_decisions: itemDecisions,
     })
 }
 

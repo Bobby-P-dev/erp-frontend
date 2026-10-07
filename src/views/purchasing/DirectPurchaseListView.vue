@@ -34,7 +34,8 @@ import {
     Layers,
     FileText,
     DollarSign,
-    CreditCard
+    CreditCard,
+    Pencil
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -64,7 +65,7 @@ const stats = computed(() => {
         draft: list.filter(dp => dp.status === 'draft').length,
         readyForPayment: list.filter(dp => dp.status === 'ready_for_payment').length,
         completed: list.filter(dp => dp.status === 'completed').length,
-        totalGrandAmount: list.reduce((sum, dp) => sum + (Number(dp.grand_total) || 0), 0)
+        totalGrandAmount: list.reduce((sum, dp) => sum + ((Number(dp.grand_total) || 0) * (Number(dp.exchange_rate) || 1)), 0)
     }
 })
 
@@ -223,7 +224,7 @@ const getChannelInfo = (dp) => {
 const handleSubmitForPayment = async (dp) => {
     const confirmed = await showConfirm(
         'Ajukan Pembayaran?',
-        `Direct Purchase ${dp.dp_number} senilai ${formatCurrency(dp.grand_total)} akan diajukan ke bagian keuangan untuk proses pembayaran.`,
+        `Direct Purchase ${dp.dp_number} senilai ${formatCurrency(dp.grand_total, dp.currency)} akan diajukan ke bagian keuangan untuk proses pembayaran.`,
         'Ya, Ajukan Pembayaran',
         'Batal',
         '#2563eb'
@@ -490,7 +491,10 @@ onMounted(() => {
                     <!-- Grand Total -->
                     <td class="px-6 py-4 text-right">
                         <span class="text-sm font-black text-gray-900 font-mono">
-                            {{ formatCurrency(dp.grand_total) }}
+                            {{ formatCurrency(dp.grand_total, dp.currency) }}
+                        </span>
+                        <span v-if="dp.currency && dp.currency !== 'IDR'" class="block text-[10px] text-blue-600 font-mono">
+                            ≈ {{ formatCurrency((Number(dp.grand_total) || 0) * (Number(dp.exchange_rate) || 1), 'IDR') }}
                         </span>
                     </td>
 
@@ -515,6 +519,16 @@ onMounted(() => {
                                 title="Lihat Detail Transaksi"
                             >
                                 <Eye class="w-4 h-4" />
+                            </RouterLink>
+
+                            <!-- Edit (If Draft) -->
+                            <RouterLink 
+                                v-if="dp.status === 'draft'"
+                                :to="{ name: 'user.purchasing.direct.edit', params: { id: dp.id } }"
+                                class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Edit Transaksi Draft"
+                            >
+                                <Pencil class="w-4 h-4" />
                             </RouterLink>
 
                             <!-- Submit for Payment (If Draft) -->

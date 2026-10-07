@@ -4,9 +4,10 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getProcurementPlans, showProcurementPlan } from '../../services/procurementPlanServices.js'
 import { getSuppliers } from '../../services/supplierServices.js'
 import { createDirectPurchase, submitDirectPurchaseForPayment } from '../../services/directPurchaseServices.js'
+import { searchCurrencies } from '../../services/currencyServices.js'
 import { showLoading, showSuccess, showError, showConfirm, closeSwal } from '../../utils/swal.js'
 import Swal from 'sweetalert2'
-import { formatCurrency } from '../../utils/stringUtils.js'
+import { formatCurrency, formatNumber } from '../../composables/useFormatter.js'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -25,6 +26,7 @@ import {
     AlertCircle,
     Package,
     DollarSign,
+    Coins,
     Layers,
     FileText,
     Truck,
@@ -63,12 +65,47 @@ const form = ref({
     bank_account_number: '',
     bank_account_holder: '',
     currency: 'IDR',
+    exchange_rate: 1,
     discount_amount: 0,
     shipping_cost: 0,
     platform_fee: 0,
     tax_amount: 0,
     notes: '',
     items: []
+})
+
+const currenciesList = ref([])
+const isLoadingCurrencies = ref(false)
+
+const fetchCurrenciesList = async () => {
+    try {
+        isLoadingCurrencies.value = true
+        const res = await searchCurrencies('', 100)
+        if (res.data && res.data.length > 0) {
+            currenciesList.value = res.data
+        } else {
+            currenciesList.value = [
+                { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', exchange_rate: 1, is_base: true },
+                { code: 'USD', name: 'US Dollar', symbol: '$', exchange_rate: 16250, is_base: false },
+                { code: 'EUR', name: 'Euro', symbol: '€', exchange_rate: 17500, is_base: false },
+                { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$', exchange_rate: 12100, is_base: false }
+            ]
+        }
+    } catch {
+        currenciesList.value = [
+            { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', exchange_rate: 1, is_base: true },
+            { code: 'USD', name: 'US Dollar', symbol: '$', exchange_rate: 16250, is_base: false }
+        ]
+    } finally {
+        isLoadingCurrencies.value = false
+    }
+}
+
+watch(() => form.value.currency, (newCode) => {
+    const found = currenciesList.value.find(c => c.code === newCode)
+    if (found) {
+        form.value.exchange_rate = found.exchange_rate || 1
+    }
 })
 
 const popularMarketplaces = ['Tokopedia', 'Shopee', 'Blibli', 'Lazada', 'Bukalapak', 'Monotaro', 'Amazon']
@@ -96,20 +133,40 @@ const itemsSubtotal = computed(() => {
 
 const grandTotal = computed(() => {
     const subtotal = itemsSubtotal.value
-    const headerDiscount = Number(form.value.discount_amount) || 0
+    const discount = Number(form.value.discount_amount) || 0
     const shipping = Number(form.value.shipping_cost) || 0
     const fee = Number(form.value.platform_fee) || 0
     const tax = Number(form.value.tax_amount) || 0
-    return Math.max(0, subtotal - headerDiscount + shipping + fee + tax)
+    return Math.max(0, subtotal - discount + shipping + fee + tax)
+})
+
+const equivalentIdrGrandTotal = computed(() => {
+    const rate = Number(form.value.exchange_rate) || 1
+    return Math.round(grandTotal.value * rate)
 })
 
 // Searchable options for Procurement Plans
 const planOptions = computed(() => {
-    return activePlans.value.map(plan => ({
-        value: plan.id,
-        label: `${plan.pp_number} • PR: ${plan.purchase_requisition?.pr_number || '-'} (${plan.items?.length || 0} Item)`,
-        subtitle: `Perusahaan: ${plan.purchase_requisition?.company?.name || '-'} | Divisi: ${plan.purchase_requisition?.division?.name || '-'}`
-    }))
+    return activePlans.value.map(plan => {
+        const hasQuota = plan.has_remaining_quota !== false
+        const unallocatedCount = plan.unallocated_items_count !== undefined 
+            ? plan.unallocated_items_count 
+            : (plan.items?.length || 0)
+        return {
+            value: plan.id,
+            label: `${plan.pp_number} • PR: ${plan.purchase_requisition?.pr_number || '-'} (${plan.items?.length || 0} Item)${!hasQuota ? ' • [KUOTA HABIS]' : ''}`,
+            subtitle: `Perusahaan: ${plan.purchase_requisition?.company?.name || '-'} | Divisi: ${plan.purchase_requisition?.division?.name || '-'}${hasQuota ? ` | Sisa Kuota: ${unallocatedCount} Item` : ' | Seluruh item sudah dibeli'}`,
+            disabled: !hasQuota
+        }
+    })
+})
+
+const hasExhaustedItems = computed(() => {
+    return form.value.items.some(item => Number(item.allocated_qty) <= 0)
+})
+
+const isPlanFullyExhausted = computed(() => {
+    return form.value.items.length > 0 && form.value.items.every(item => Number(item.allocated_qty) <= 0)
 })
 
 // Searchable options for Registered Suppliers
@@ -177,26 +234,33 @@ const onPlanSelected = async () => {
         const planData = response.data || response
         selectedPlan.value = planData
 
-        // Populate items from plan
+        // Populate items from plan with accurate remaining quota
         if (planData?.items) {
             form.value.items = planData.items.map(item => {
                 const prItem = item.purchase_requisition_item || {}
                 const estPrice = Number(prItem.estimated_price) || 0
+                const remainingQty = item.remaining_quantity !== undefined 
+                    ? Number(item.remaining_quantity) 
+                    : Number(item.planned_quantity)
+                const plannedQty = Number(item.planned_quantity)
+
                 return {
                     procurement_plan_item_id: item.id,
                     item_id: prItem.item_id || null,
                     unit_id: prItem.unit_id || null,
                     item_name: prItem.item_name || prItem.item?.name || 'Item Pengadaan',
+                    detail_name: prItem.detail_name || '',
                     item_code: prItem.item_code || prItem.item?.code || '',
                     is_custom_item: prItem.is_custom_item || !prItem.item_id,
                     unit_name: prItem.unit?.code || prItem.unit_code || 'Unit',
-                    allocated_qty: Number(item.planned_quantity),
-                    quantity: Number(item.planned_quantity),
+                    planned_qty: plannedQty,
+                    allocated_qty: remainingQty, // Represents remaining unallocated quota
+                    quantity: remainingQty > 0 ? remainingQty : 0,
                     unit_price: estPrice > 0 ? estPrice : '',
                     discount_amount: 0,
                     product_url: prItem.reference_url || '',
                     notes: item.notes || '',
-                    error: ''
+                    error: remainingQty <= 0 ? 'Sisa kuota item ini sudah habis (0.0000)' : ''
                 }
             })
         }
@@ -293,13 +357,21 @@ const validateForm = (shouldSubmitForPayment = false) => {
         return false
     }
 
+    if (isPlanFullyExhausted.value) {
+        showError('Validasi Gagal', 'Seluruh kuota pada Rencana Pengadaan ini sudah dialokasikan ke Direct Purchase sebelumnya. Tidak ada kuota tersisa untuk membuat pembelian baru.')
+        return false
+    }
+
     let hasItemError = false
     form.value.items.forEach((item, idx) => {
-        if (!item.quantity || Number(item.quantity) <= 0) {
+        if (Number(item.allocated_qty) <= 0) {
+            item.error = 'Sisa kuota item ini sudah habis (0.0000)'
+            hasItemError = true
+        } else if (!item.quantity || Number(item.quantity) <= 0) {
             item.error = 'Kuantitas harus > 0'
             hasItemError = true
         } else if (Number(item.quantity) > Number(item.allocated_qty)) {
-            item.error = `Maks. alokasi ${item.allocated_qty}`
+            item.error = `Maks. sisa alokasi ${item.allocated_qty}`
             hasItemError = true
         } else if (item.unit_price === '' || Number(item.unit_price) < 0) {
             item.error = 'Harga satuan tidak boleh kosong'
@@ -344,8 +416,8 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
 
     const confirmTitle = shouldSubmitForPayment ? 'Simpan & Ajukan Pembayaran?' : 'Simpan Draft Pembelian?'
     const confirmText = shouldSubmitForPayment
-        ? `Direct Purchase senilai ${formatCurrency(grandTotal.value)} melalui ${channelTitle} akan langsung diajukan ke bagian keuangan untuk proses verifikasi pembayaran.`
-        : `Direct Purchase senilai ${formatCurrency(grandTotal.value)} akan disimpan sebagai draft.`
+        ? `Direct Purchase senilai ${formatCurrency(grandTotal.value, form.value.currency)}${form.value.currency !== 'IDR' ? ` (setara ${formatCurrency(equivalentIdrGrandTotal.value, 'IDR')})` : ''} melalui ${channelTitle} akan langsung diajukan ke bagian keuangan untuk proses verifikasi pembayaran.`
+        : `Direct Purchase senilai ${formatCurrency(grandTotal.value, form.value.currency)}${form.value.currency !== 'IDR' ? ` (setara ${formatCurrency(equivalentIdrGrandTotal.value, 'IDR')})` : ''} akan disimpan sebagai draft.`
     const confirmBtnText = shouldSubmitForPayment ? 'Ya, Ajukan Pembayaran' : 'Ya, Simpan Draft'
 
     const confirmed = await showConfirm(confirmTitle, confirmText, confirmBtnText, 'Batal', '#4f46e5')
@@ -368,7 +440,8 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
             bank_name: form.value.bank_name ? form.value.bank_name.trim() : null,
             bank_account_number: form.value.bank_account_number ? form.value.bank_account_number.trim() : null,
             bank_account_holder: form.value.bank_account_holder ? form.value.bank_account_holder.trim() : null,
-            currency: 'IDR',
+            currency: form.value.currency || 'IDR',
+            exchange_rate: Number(form.value.exchange_rate) || 1,
             discount_amount: Number(form.value.discount_amount) || 0,
             shipping_cost: Number(form.value.shipping_cost) || 0,
             platform_fee: Number(form.value.platform_fee) || 0,
@@ -418,6 +491,7 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
 onMounted(() => {
     fetchActivePlans()
     fetchSuppliers()
+    fetchCurrenciesList()
 })
 </script>
 
@@ -693,71 +767,101 @@ onMounted(() => {
                 </div>
 
                 <!-- Items Table -->
-                <div v-else class="overflow-x-auto border border-gray-100 rounded-xl">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead>
-                            <tr class="bg-gray-50/80 border-b border-gray-100 font-bold text-gray-700 uppercase tracking-wider">
-                                <th class="px-4 py-3 min-w-[240px]">Barang / Item</th>
-                                <th class="px-4 py-3 text-right w-24">Alokasi</th>
-                                <th class="px-4 py-3 w-36">Kuantitas Beli</th>
-                                <th class="px-4 py-3 w-44">Harga Satuan (Rp)</th>
-                                <th class="px-4 py-3 w-36">Diskon Item (Rp)</th>
-                                <th class="px-4 py-3 text-right w-36">Subtotal</th>
-                                <th class="px-4 py-3 min-w-[200px]">Link Produk & Catatan</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr v-for="(item, idx) in form.items" :key="item.procurement_plan_item_id" class="hover:bg-gray-50/50">
-                                <!-- Item name -->
-                                <td class="px-4 py-3">
-                                    <div class="font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
-                                        <span>{{ item.item_name }}</span>
-                                        <span v-if="item.is_custom_item" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                            Non-Katalog
-                                        </span>
-                                        <span v-else-if="item.item_code" class="text-[10px] text-gray-400 font-mono">
-                                            {{ item.item_code }}
-                                        </span>
-                                    </div>
-                                    <p v-if="item.error" class="text-[11px] text-rose-600 font-semibold mt-1">
-                                        {{ item.error }}
-                                    </p>
-                                </td>
+                <div v-else class="space-y-3">
+                    <!-- Alert if all or some items are exhausted -->
+                    <div v-if="isPlanFullyExhausted" class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
+                        <AlertCircle class="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                            <p class="font-bold text-sm text-rose-900">Seluruh Kuota Rencana Pengadaan Telah Terpakai</p>
+                            <p class="mt-0.5 text-rose-700">Semua item pada rencana pengadaan ini sudah dialokasikan sepenuhnya ke transaksi Direct Purchase sebelumnya. Anda tidak dapat membuat pembelian baru dari rencana ini.</p>
+                        </div>
+                    </div>
+                    <div v-else-if="hasExhaustedItems" class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2.5">
+                        <AlertCircle class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                            <p class="font-bold">Perhatian: Sebagian Kuota Item Telah Habis</p>
+                            <p class="mt-0.5 text-amber-700">Item dengan tanda kuota habis (0) tidak dapat dibeli lagi. Mohon hanya masukkan kuantitas untuk item yang masih memiliki sisa kuota.</p>
+                        </div>
+                    </div>
 
-                                <!-- Allocated Qty -->
-                                <td class="px-4 py-3 text-right font-semibold text-gray-500">
-                                    {{ item.allocated_qty }} {{ item.unit_name }}
-                                </td>
+                    <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-gray-50/80 border-b border-gray-100 font-bold text-gray-700 uppercase tracking-wider">
+                                    <th class="px-4 py-3 min-w-[240px]">Barang / Item</th>
+                                    <th class="px-4 py-3 text-right w-28">Sisa / Rencana</th>
+                                    <th class="px-4 py-3 w-36">Kuantitas Beli</th>
+                                    <th class="px-4 py-3 w-44">Harga Satuan (Rp)</th>
+                                    <th class="px-4 py-3 w-36">Diskon Item (Rp)</th>
+                                    <th class="px-4 py-3 text-right w-36">Subtotal</th>
+                                    <th class="px-4 py-3 min-w-[200px]">Link Produk & Catatan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr v-for="(item, idx) in form.items" :key="item.procurement_plan_item_id" class="hover:bg-gray-50/50" :class="{ 'bg-rose-50/20': Number(item.allocated_qty) <= 0 }">
+                                    <!-- Item name -->
+                                    <td class="px-4 py-3">
+                                        <div class="font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                                            <span>{{ item.item_name }}</span>
+                                            <span v-if="item.is_custom_item" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                Non-Katalog
+                                            </span>
+                                            <span v-else-if="item.item_code" class="text-[10px] text-gray-400 font-mono">
+                                                {{ item.item_code }}
+                                            </span>
+                                        </div>
+                                        <div v-if="item.detail_name" class="text-xs text-slate-500 font-medium mt-0.5">
+                                            {{ item.detail_name }}
+                                        </div>
+                                        <p v-if="item.error" class="text-[11px] text-rose-600 font-semibold mt-1">
+                                            {{ item.error }}
+                                        </p>
+                                    </td>
 
-                                <!-- Purchased Qty -->
-                                <td class="px-4 py-3">
-                                    <div class="relative flex items-center">
-                                        <input 
-                                            type="number" 
-                                            step="any" 
-                                            min="0.0001"
-                                            :max="item.allocated_qty"
-                                            v-model="item.quantity" 
-                                            class="w-full p-2 border rounded-lg font-bold text-right pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
-                                            :class="item.error ? 'border-rose-400' : 'border-gray-200'"
-                                        />
-                                        <span class="absolute right-2 text-[10px] font-semibold text-gray-400">
-                                            {{ item.unit_name }}
-                                        </span>
-                                    </div>
-                                </td>
+                                    <!-- Allocated Qty -->
+                                    <td class="px-4 py-3 text-right font-semibold">
+                                        <div v-if="Number(item.allocated_qty) <= 0" class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                                            Habis (0)
+                                        </div>
+                                        <div v-else class="text-gray-700">
+                                            <span class="font-bold text-indigo-700">{{ item.allocated_qty }}</span>
+                                            <span class="text-gray-400 text-[10px]"> / {{ item.planned_qty }}</span>
+                                            <span class="text-gray-500 text-[10px] ml-1">{{ item.unit_name }}</span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Purchased Qty -->
+                                    <td class="px-4 py-3">
+                                        <div class="relative flex items-center">
+                                            <input 
+                                                type="number" 
+                                                step="any" 
+                                                min="0"
+                                                :max="item.allocated_qty"
+                                                :disabled="Number(item.allocated_qty) <= 0"
+                                                v-model="item.quantity" 
+                                                class="w-full p-2 border rounded-lg font-bold text-right pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+                                                :class="[
+                                                    Number(item.allocated_qty) <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : (item.error ? 'border-rose-400' : 'border-gray-200')
+                                                ]"
+                                            />
+                                            <span class="absolute right-2 text-[10px] font-semibold text-gray-400">
+                                                {{ item.unit_name }}
+                                            </span>
+                                        </div>
+                                    </td>
 
                                 <!-- Unit Price -->
                                 <td class="px-4 py-3">
                                     <div class="relative flex items-center">
-                                        <span class="absolute left-2 text-[11px] font-bold text-gray-400">Rp</span>
+                                        <span class="absolute left-2 text-[10px] font-bold text-gray-500 font-mono">{{ form.currency }}</span>
                                         <input 
                                             type="number" 
                                             step="any"
                                             min="0"
                                             v-model="item.unit_price" 
                                             placeholder="0"
-                                            class="w-full p-2 border rounded-lg font-bold text-right pl-8 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+                                            class="w-full p-2 border rounded-lg font-bold text-right pl-12 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
                                             :class="item.error ? 'border-rose-400' : 'border-gray-200'"
                                         />
                                     </div>
@@ -766,21 +870,21 @@ onMounted(() => {
                                 <!-- Discount -->
                                 <td class="px-4 py-3">
                                     <div class="relative flex items-center">
-                                        <span class="absolute left-2 text-[11px] font-bold text-gray-400">Rp</span>
+                                        <span class="absolute left-2 text-[10px] font-bold text-gray-500 font-mono">{{ form.currency }}</span>
                                         <input 
                                             type="number" 
                                             step="any"
                                             min="0"
                                             v-model="item.discount_amount" 
                                             placeholder="0"
-                                            class="w-full p-2 border border-gray-200 rounded-lg text-right pl-8 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-gray-700"
+                                            class="w-full p-2 border border-gray-200 rounded-lg text-right pl-12 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-gray-700"
                                         />
                                     </div>
                                 </td>
 
                                 <!-- Row Subtotal -->
                                 <td class="px-4 py-3 text-right font-black text-gray-900 font-mono text-sm">
-                                    {{ formatCurrency(Math.max(0, ((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)) - (Number(item.discount_amount) || 0))) }}
+                                    {{ formatCurrency(Math.max(0, ((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)) - (Number(item.discount_amount) || 0)), form.currency) }}
                                 </td>
 
                                 <!-- Link & Notes -->
@@ -803,6 +907,7 @@ onMounted(() => {
                     </table>
                 </div>
             </div>
+        </div>
 
             <!-- SECTION 4: Informasi Pembayaran / Rekening Tujuan -->
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
@@ -973,8 +1078,52 @@ onMounted(() => {
                         5
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-gray-900">Biaya Tambahan & Ringkasan Transaksi</h3>
-                        <p class="text-xs text-gray-500">Masukkan komponen ongkos kirim, diskon voucher toko, dan pajak transaksi.</p>
+                        <h3 class="text-base font-bold text-gray-900">Mata Uang, Biaya Tambahan & Ringkasan Transaksi</h3>
+                        <p class="text-xs text-gray-500">Pilih mata uang transaksi valas, konfirmasi kurs IDR, dan masukkan rincian biaya.</p>
+                    </div>
+                </div>
+
+                <!-- MULTI-CURRENCY SETTINGS BAR -->
+                <div class="p-4 bg-blue-50/70 rounded-xl border border-blue-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Coins class="w-5 h-5" />
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 block">Mata Uang & Kurs Transaksi (Multi-Currency)</span>
+                            <span class="text-[11px] text-slate-500">Nilai transaksi akan dikonversi dan dikunci ke pembukuan Rupiah (IDR).</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Currency Select -->
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-semibold text-slate-600">Valuta:</label>
+                            <select 
+                                v-model="form.currency"
+                                class="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+                            >
+                                <option 
+                                    v-for="c in currenciesList" 
+                                    :key="c.code" 
+                                    :value="c.code"
+                                >
+                                    {{ c.code }} - {{ c.name }} ({{ c.symbol }})
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Exchange Rate Input (Editable for Foreign Currency) -->
+                        <div v-if="form.currency !== 'IDR'" class="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                            <span class="text-xs font-semibold text-slate-600">1 {{ form.currency }} = Rp</span>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                min="0.01" 
+                                v-model.number="form.exchange_rate" 
+                                class="w-24 text-xs font-mono font-bold text-blue-700 text-right focus:outline-none"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -985,7 +1134,7 @@ onMounted(() => {
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 flex items-center gap-1">
                                     <Truck class="w-3.5 h-3.5 text-gray-400" />
-                                    <span>Ongkos Kirim (Rp)</span>
+                                    <span>Ongkos Kirim ({{ form.currency }})</span>
                                 </label>
                                 <input 
                                     type="number" 
@@ -998,7 +1147,7 @@ onMounted(() => {
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 flex items-center gap-1">
                                     <Tag class="w-3.5 h-3.5 text-gray-400" />
-                                    <span>Diskon Header / Kupon (Rp)</span>
+                                    <span>Diskon / Kupon ({{ form.currency }})</span>
                                 </label>
                                 <input 
                                     type="number" 
@@ -1011,7 +1160,7 @@ onMounted(() => {
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block font-bold text-gray-700 mb-1">Biaya Layanan / Platform (Rp)</label>
+                                <label class="block font-bold text-gray-700 mb-1">Biaya Platform ({{ form.currency }})</label>
                                 <input 
                                     type="number" 
                                     min="0"
@@ -1023,7 +1172,7 @@ onMounted(() => {
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1 flex items-center gap-1">
                                     <Receipt class="w-3.5 h-3.5 text-gray-400" />
-                                    <span>Pajak Transaksi / PPN (Rp)</span>
+                                    <span>Pajak Transaksi ({{ form.currency }})</span>
                                 </label>
                                 <input 
                                     type="number" 
@@ -1048,43 +1197,57 @@ onMounted(() => {
                     <!-- Financial Summary Box -->
                     <div class="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-6 rounded-2xl border border-gray-200/80 flex flex-col justify-between shadow-2xs">
                         <div class="space-y-3 text-xs">
-                            <h4 class="font-bold text-gray-900 text-sm pb-2 border-b border-gray-200">
-                                Rekapitulasi Nilai Transaksi
+                            <h4 class="font-bold text-gray-900 text-sm pb-2 border-b border-gray-200 flex items-center justify-between">
+                                <span>Rekapitulasi Nilai Transaksi</span>
+                                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">{{ form.currency }}</span>
                             </h4>
 
                             <div class="flex justify-between items-center text-gray-600">
                                 <span>Subtotal Barang:</span>
-                                <span class="font-bold font-mono text-gray-800">{{ formatCurrency(itemsSubtotal) }}</span>
+                                <span class="font-bold font-mono text-gray-800">{{ formatCurrency(itemsSubtotal, form.currency) }}</span>
                             </div>
 
                             <div v-if="Number(form.discount_amount) > 0" class="flex justify-between items-center text-emerald-700">
                                 <span>Diskon Transaksi:</span>
-                                <span class="font-bold font-mono">- {{ formatCurrency(form.discount_amount) }}</span>
+                                <span class="font-bold font-mono">- {{ formatCurrency(form.discount_amount, form.currency) }}</span>
                             </div>
 
                             <div v-if="Number(form.shipping_cost) > 0" class="flex justify-between items-center text-gray-600">
                                 <span>Ongkos Kirim:</span>
-                                <span class="font-bold font-mono">+ {{ formatCurrency(form.shipping_cost) }}</span>
+                                <span class="font-bold font-mono">+ {{ formatCurrency(form.shipping_cost, form.currency) }}</span>
                             </div>
 
                             <div v-if="Number(form.platform_fee) > 0" class="flex justify-between items-center text-gray-600">
                                 <span>Biaya Layanan Platform:</span>
-                                <span class="font-bold font-mono">+ {{ formatCurrency(form.platform_fee) }}</span>
+                                <span class="font-bold font-mono">+ {{ formatCurrency(form.platform_fee, form.currency) }}</span>
                             </div>
 
                             <div v-if="Number(form.tax_amount) > 0" class="flex justify-between items-center text-gray-600">
                                 <span>Pajak / PPN:</span>
-                                <span class="font-bold font-mono">+ {{ formatCurrency(form.tax_amount) }}</span>
+                                <span class="font-bold font-mono">+ {{ formatCurrency(form.tax_amount, form.currency) }}</span>
                             </div>
                         </div>
 
                         <div class="pt-4 border-t-2 border-gray-200 mt-4">
                             <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-                                Grand Total Pembayaran:
+                                Grand Total Transaksi:
                             </span>
                             <span class="text-2xl font-black text-emerald-700 font-mono block mt-1">
-                                {{ formatCurrency(grandTotal) }}
+                                {{ formatCurrency(grandTotal, form.currency) }}
                             </span>
+
+                            <!-- CONVERTED EQUIVALENT TO BASE CURRENCY IDR -->
+                            <div v-if="form.currency !== 'IDR'" class="mt-3 p-3 bg-blue-50/90 rounded-xl border border-blue-200 text-xs">
+                                <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
+                                    Setara Pembukuan Keuangan (IDR):
+                                </span>
+                                <span class="text-lg font-black text-blue-900 font-mono block mt-0.5">
+                                    {{ formatCurrency(equivalentIdrGrandTotal, 'IDR') }}
+                                </span>
+                                <span class="text-[10px] text-blue-600 block mt-1">
+                                    Kurs Terkunci: 1 {{ form.currency }} = {{ formatCurrency(form.exchange_rate, 'IDR') }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>

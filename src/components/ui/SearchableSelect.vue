@@ -116,6 +116,7 @@ const toggleDropdown = () => {
 }
 
 const selectOption = (option) => {
+    if (option.disabled) return
     emit('update:modelValue', option.value)
     emit('change', option.value)
     isOpen.value = false
@@ -124,7 +125,7 @@ const selectOption = (option) => {
 const handleClear = (e) => {
     e.stopPropagation()
     emit('update:modelValue', '')
-    emit('change', '')
+    emit('change', '')  
 }
 
 const closeDropdown = (e) => {
@@ -222,8 +223,11 @@ onUnmounted(() => {
                     v-for="option in filteredOptions" 
                     :key="option.value"
                     @click="selectOption(option)"
-                    class="flex items-center justify-between px-4 py-3 rounded-xl text-base cursor-pointer transition-colors"
-                    :class="modelValue == option.value ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'"
+                    class="flex items-center justify-between px-4 py-3 rounded-xl text-base transition-colors"
+                    :class="[
+                        option.disabled ? 'opacity-50 cursor-not-allowed bg-slate-50 select-none' : 'cursor-pointer',
+                        modelValue == option.value ? 'bg-blue-50 text-blue-700 font-semibold' : (option.disabled ? '' : 'text-slate-700 hover:bg-slate-50')
+                    ]"
                 >
                     <div class="flex-1 min-w-0 pr-2">
                         <div class="truncate font-medium">{{ option.label }}</div>

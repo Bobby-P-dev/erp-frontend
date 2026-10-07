@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { getGoodsReceiptDetail, confirmGoodsReceiptHandover } from '../../services/inventoryServices.js'
-import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import GoodsReceiptHandoverModal from '../../components/inventory/GoodsReceiptHandoverModal.vue'
+import { getGoodsReceiptDetail } from '../../services/inventoryServices.js'
 import {
     Boxes,
     Package,
@@ -22,8 +24,7 @@ import {
     FileCheck,
     Clock,
     User,
-    Check,
-    X
+    Check
 } from '@lucide/vue'
 
 const route = useRoute()
@@ -34,8 +35,6 @@ const receipt = ref(null)
 
 // Handover Modal State
 const showHandoverModal = ref(false)
-const handoverNotes = ref('')
-const isSubmittingHandover = ref(false)
 
 // Summary metrics
 const metrics = computed(() => {
@@ -101,37 +100,7 @@ const fetchDetail = async () => {
 
 // Open Handover Dialog
 const openHandoverDialog = () => {
-    handoverNotes.value = ''
     showHandoverModal.value = true
-}
-
-// Submit Handover
-const submitHandover = async () => {
-    if (!receipt.value) return
-    const requesterName = receipt.value.purchase_requisition?.requester?.name || 'pemohon'
-    const isConfirmed = await showConfirm(
-        'Serahkan Barang ke Pemohon?',
-        `Konfirmasi bahwa barang dari penerimaan ${receipt.value.grn_number} telah diserahkan dan diambil oleh ${requesterName}. Status PR terkait akan berubah menjadi Selesai (Completed).`,
-        'Ya, Konfirmasi Penyerahan'
-    )
-
-    if (isConfirmed) {
-        isSubmittingHandover.value = true
-        try {
-            showLoading('Memproses serah terima...')
-            await confirmGoodsReceiptHandover(receipt.value.id, {
-                notes: handoverNotes.value
-            })
-            showSuccess('Berhasil!', `Barang berhasil diserahkan ke ${requesterName} dan status PR diselesaikan.`)
-            showHandoverModal.value = false
-            await fetchDetail()
-        } catch (err) {
-            const msg = err.response?.data?.message || 'Gagal memproses penyerahan barang.'
-            showError('Gagal!', msg, err)
-        } finally {
-            isSubmittingHandover.value = false
-        }
-    }
 }
 
 const printDocument = () => {
@@ -518,90 +487,12 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- Modal Serah Terima Barang -->
-            <div 
-                v-if="showHandoverModal" 
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
-                @click.self="showHandoverModal = false"
-            >
-                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                                <CheckCircle2 class="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h3 class="text-base font-bold text-slate-900">Serah Terima Barang ke Pemohon</h3>
-                                <p class="text-xs text-slate-500">Konfirmasi pengambilan barang fisik oleh pemohon PR</p>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            @click="showHandoverModal = false"
-                            class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-                        >
-                            <X class="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <div class="p-6 space-y-4">
-                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-500 font-medium">Nomor Penerimaan:</span>
-                                <span class="font-mono font-bold text-blue-600">{{ receipt.grn_number }}</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-500 font-medium">Surat Jalan Vendor:</span>
-                                <span class="font-mono font-semibold text-slate-800">{{ receipt.delivery_note_number || '-' }}</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-500 font-medium">PR Acuan:</span>
-                                <span class="font-mono font-semibold text-slate-800">{{ receipt.purchase_requisition?.pr_number || '-' }}</span>
-                            </div>
-                            <div class="flex items-center justify-between pt-1 border-t border-slate-200/80">
-                                <span class="text-slate-700 font-bold">Nama Pemohon:</span>
-                                <span class="font-bold text-slate-900">{{ receipt.purchase_requisition?.requester?.name || 'Pemohon Terkait' }}</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">
-                                Catatan Serah Terima / Pengambilan
-                            </label>
-                            <textarea
-                                v-model="handoverNotes"
-                                rows="3"
-                                placeholder="Contoh: Barang telah diambil langsung oleh pemohon di loket gudang dalam kondisi baik dan lengkap."
-                                class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
-                            ></textarea>
-                        </div>
-
-                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-start gap-2">
-                            <Package class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                            <span>Dengan mengonfirmasi, status serah terima barang menjadi <strong>Sudah Diambil</strong> dan status Purchase Requisition (PR) pemohon akan diselesaikan secara otomatis.</span>
-                        </div>
-                    </div>
-
-                    <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2.5">
-                        <button
-                            type="button"
-                            @click="showHandoverModal = false"
-                            class="px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200/60 rounded-lg border border-slate-200 bg-white cursor-pointer"
-                        >
-                            Batal
-                        </button>
-                        <button
-                            type="button"
-                            @click="submitHandover"
-                            :disabled="isSubmittingHandover"
-                            class="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                            <Check class="w-4 h-4" />
-                            <span>{{ isSubmittingHandover ? 'Memproses...' : 'Konfirmasi Penyerahan' }}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <!-- Modal Serah Terima Barang Component -->
+            <GoodsReceiptHandoverModal
+                v-model="showHandoverModal"
+                :target="receipt"
+                @saved="fetchDetail"
+            />
         </div>
     </div>
 </template>
