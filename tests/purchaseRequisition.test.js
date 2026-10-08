@@ -6,7 +6,8 @@ import {
     createPurchaseRequisition,
     updatePurchaseRequisition,
     submitPurchaseRequisition,
-    confirmPurchaseRequisitionReceipt
+    confirmPurchaseRequisitionReceipt,
+    getPurchaseRequisitionLifecycle
 } from '../src/services/purchaseRequisitionServices.js';
 
 describe('Purchase Requisition Services & Validation Contract Tests', () => {
@@ -17,6 +18,7 @@ describe('Purchase Requisition Services & Validation Contract Tests', () => {
         assert.equal(typeof updatePurchaseRequisition, 'function');
         assert.equal(typeof submitPurchaseRequisition, 'function');
         assert.equal(typeof confirmPurchaseRequisitionReceipt, 'function');
+        assert.equal(typeof getPurchaseRequisitionLifecycle, 'function');
     });
 
     it('validates client-side constraints for both Catalog and Non-Catalog (Direct Purchase) items', () => {

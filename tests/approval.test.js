@@ -22,6 +22,7 @@ import {
     getPendingApprovalCount,
     getApprovalTracker,
     getApprovalTrackerByDocument,
+    getApprovalLifecycle,
     processApprovalDecision,
     approveDocument,
     rejectDocument,
@@ -206,6 +207,8 @@ describe('3. Approval Service & Mock Fallback Layer', () => {
 
         const docTrackerRes = await getApprovalTrackerByDocument('purchase_requisition', 1);
         assert.ok(docTrackerRes.data);
+
+        assert.equal(typeof getApprovalLifecycle, 'function');
     });
 
     it('processes decisions: approve, revision (normalized), reject, and resubmit', async () => {

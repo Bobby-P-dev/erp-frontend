@@ -62,3 +62,10 @@ export const confirmPurchaseRequisitionReceipt = async (id, data = {}) => {
     return response.data
 }
 
+/**
+ * Get end-to-end lifecycle progress chain for a purchase requisition.
+ */
+export const getPurchaseRequisitionLifecycle = async (id) => {
+    const response = await api.get(`/api/v1/purchase-requisitions/${id}/lifecycle`)
+    return response.data
+}

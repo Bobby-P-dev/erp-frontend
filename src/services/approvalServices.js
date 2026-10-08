@@ -740,6 +740,16 @@ export const getApprovalTrackerByDocument = async (documentType, documentId) => 
     }
 }
 
+export const getApprovalLifecycle = async (requestId) => {
+    try {
+        const response = await api.get(`/api/v1/approvals/requests/${requestId}/lifecycle`)
+        return response.data
+    } catch (error) {
+        console.warn('Failed to load approval request lifecycle:', error)
+        return null
+    }
+}
+
 /**
  * ============================================================================
  * 5. APPROVAL DECISIONS & MUTATIONS

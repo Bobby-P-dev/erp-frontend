@@ -22,6 +22,7 @@ import ApprovalBadge from './ApprovalBadge.vue'
 import ApprovalStepper from './ApprovalStepper.vue'
 import ApprovalAuditTrail from './ApprovalAuditTrail.vue'
 import ApprovalActionDialog from './ApprovalActionDialog.vue'
+import DocumentLifecycleTimeline from './DocumentLifecycleTimeline.vue'
 import { formatCurrency } from '../../utils/stringUtils.js'
 import { 
     getApprovalTracker, 
@@ -56,6 +57,7 @@ const approvalStore = useApprovalStore()
 const authStore = useAuthStore()
 const isLoadingTracker = ref(false)
 const trackerData = ref(null)
+const activeWorkflowTab = ref('lifecycle') // 'lifecycle' | 'tiers'
 
 const effectiveDoc = computed(() => {
     return trackerData.value?.request || props.task || {}
@@ -323,8 +325,12 @@ const formatDate = (dateStr) => {
                             <div>
                                 <span class="text-slate-400 font-medium block text-[11px]">Pemohon (Requester):</span>
                                 <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
-                                    <User class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <User class="w-3.5 h-3.5 text-blue-600 shrink-0" />
                                     <span class="truncate">{{ effectiveDoc.requester?.name || effectiveDoc.requester_name || '-' }}</span>
+                                </div>
+                                <div v-if="effectiveDoc.requester?.nik || effectiveDoc.requester?.position" class="text-[11px] text-slate-600 ml-5 truncate font-medium">
+                                    <span v-if="effectiveDoc.requester?.nik" class="font-mono text-slate-500 mr-1.5">[{{ effectiveDoc.requester.nik }}]</span>
+                                    <span>{{ effectiveDoc.requester?.position || '' }}</span>
                                 </div>
                                 <div class="text-[11px] text-slate-500 ml-5 truncate">
                                     {{ effectiveDoc.requester?.division || effectiveDoc.division_name || effectiveDoc.requester?.email || '' }}
@@ -585,25 +591,64 @@ const formatDate = (dateStr) => {
                         </div>
                     </div>
 
-                    <!-- Stepper Section (Alur Persetujuan) -->
-                    <div class="space-y-2.5">
-                        <div class="flex items-center justify-between">
+                    <!-- Stepper & Lifecycle Section (Alur Persetujuan & Siklus Hidup) -->
+                    <div class="space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1">
                             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                                 <Clock class="w-4 h-4 text-slate-600" />
-                                Progres Alur Persetujuan (Workflow)
+                                Alur Persetujuan & Siklus Hidup Dokumen
                             </h4>
-                            <span class="text-xs text-slate-600 font-medium">
-                                Tahap {{ effectiveDoc.current_step_order || 1 }} dari {{ effectiveDoc.total_steps || trackerData?.levels?.length || 2 }}
-                            </span>
+
+                            <!-- Segmented View Toggle -->
+                            <div class="inline-flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+                                <button
+                                    type="button"
+                                    @click="activeWorkflowTab = 'lifecycle'"
+                                    :class="[
+                                        'px-3 py-1 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5',
+                                        activeWorkflowTab === 'lifecycle'
+                                            ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    ]"
+                                >
+                                    <Layers class="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Siklus Hidup Lengkap (End-to-End)</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="activeWorkflowTab = 'tiers'"
+                                    :class="[
+                                        'px-3 py-1 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5',
+                                        activeWorkflowTab === 'tiers'
+                                            ? 'bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    ]"
+                                >
+                                    <Clock class="w-3.5 h-3.5 text-slate-500" />
+                                    <span>Approval Bertingkat ({{ effectiveDoc.current_step_order || 1 }}/{{ effectiveDoc.total_steps || trackerData?.levels?.length || 2 }})</span>
+                                </button>
+                            </div>
                         </div>
 
-                        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                            <ApprovalStepper
-                                :levels="trackerData?.levels || effectiveDoc.levels || []"
-                                :currentStepOrder="trackerData?.request?.current_step_order || effectiveDoc.current_step_order || 1"
-                                :overallStatus="effectiveDoc.status || 'pending'"
-                                orientation="vertical"
+                        <!-- TAB 1: SIKLUS HIDUP LENGKAP (END-TO-END) -->
+                        <div v-if="activeWorkflowTab === 'lifecycle'">
+                            <DocumentLifecycleTimeline
+                                :approvalRequestId="props.task?.id || effectiveDoc.id"
+                                :documentId="effectiveDoc.approvable_id || effectiveDoc.id"
+                                :documentType="effectiveDoc.document_type || effectiveDoc.approvable_type || 'purchase_requisition'"
                             />
+                        </div>
+
+                        <!-- TAB 2: STEPPER INTERNAL TIERS -->
+                        <div v-else class="space-y-3">
+                            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                <ApprovalStepper
+                                    :levels="trackerData?.levels || effectiveDoc.levels || []"
+                                    :currentStepOrder="trackerData?.request?.current_step_order || effectiveDoc.current_step_order || 1"
+                                    :overallStatus="effectiveDoc.status || 'pending'"
+                                    orientation="vertical"
+                                />
+                            </div>
                         </div>
                     </div>
 
