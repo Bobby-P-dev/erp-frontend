@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getProcurementPlans, showProcurementPlan } from '../../services/procurementPlanServices.js'
 import { getSuppliers } from '../../services/supplierServices.js'
-import { createDirectPurchase, submitDirectPurchaseForPayment } from '../../services/directPurchaseServices.js'
+import { createDirectPurchase, createBulkDirectPurchase, submitDirectPurchaseForPayment } from '../../services/directPurchaseServices.js'
 import { searchCurrencies } from '../../services/currencyServices.js'
 import { showLoading, showSuccess, showError, showConfirm, closeSwal } from '../../utils/swal.js'
 import Swal from 'sweetalert2'
@@ -35,7 +35,8 @@ import {
     Tag,
     CreditCard,
     Landmark,
-    Wallet
+    Wallet,
+    Trash2
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -45,6 +46,9 @@ const route = useRoute()
 const isLoadingPlans = ref(false)
 const isLoadingSuppliers = ref(false)
 const isSubmitting = ref(false)
+
+const isBulkMode = ref(false)
+const bulkCompany = ref(null)
 
 const activePlans = ref([])
 const suppliers = ref([])
@@ -168,6 +172,27 @@ const hasExhaustedItems = computed(() => {
 const isPlanFullyExhausted = computed(() => {
     return form.value.items.length > 0 && form.value.items.every(item => Number(item.allocated_qty) <= 0)
 })
+
+const uniquePrNumbers = computed(() => {
+    const set = new Set()
+    form.value.items.forEach(i => {
+        if (i.pr_number) set.add(i.pr_number)
+    })
+    return Array.from(set)
+})
+
+const removeBulkItem = (index) => {
+    form.value.items.splice(index, 1)
+}
+
+const cancelBulkMode = () => {
+    sessionStorage.removeItem('bulk_direct_purchase_items')
+    sessionStorage.removeItem('bulk_direct_purchase_company')
+    isBulkMode.value = false
+    bulkCompany.value = null
+    form.value.items = []
+    router.replace({ name: 'user.purchasing.direct.create' })
+}
 
 // Searchable options for Registered Suppliers
 const supplierOptions = computed(() => {
@@ -326,7 +351,7 @@ watch(() => form.value.supplier_id, (newSupId) => {
 })
 
 const validateForm = (shouldSubmitForPayment = false) => {
-    if (!selectedPlanId.value) {
+    if (!isBulkMode.value && !selectedPlanId.value) {
         showError('Validasi Gagal', 'Silakan pilih Rencana Pengadaan terlebih dahulu.')
         return false
     }
@@ -427,6 +452,57 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
         isSubmitting.value = true
         showLoading(shouldSubmitForPayment ? 'Menyimpan & mengajukan pembayaran...' : 'Menyimpan draft pembelian...')
 
+        if (isBulkMode.value) {
+            const payload = {
+                company_id: bulkCompany.value?.id || null,
+                purchase_channel: form.value.purchase_channel,
+                supplier_id: form.value.purchase_channel === 'direct_supplier' ? Number(form.value.supplier_id) : null,
+                marketplace_name: form.value.purchase_channel === 'marketplace' ? form.value.marketplace_name?.trim() : null,
+                merchant_name: form.value.merchant_name ? form.value.merchant_name.trim() : null,
+                store_url: form.value.store_url ? form.value.store_url.trim() : null,
+                payment_method: form.value.payment_method,
+                recipient_type: form.value.recipient_type,
+                recipient_name: form.value.recipient_name ? form.value.recipient_name.trim() : null,
+                bank_name: form.value.bank_name ? form.value.bank_name.trim() : null,
+                bank_account_number: form.value.bank_account_number ? form.value.bank_account_number.trim() : null,
+                bank_account_holder: form.value.bank_account_holder ? form.value.bank_account_holder.trim() : null,
+                currency: form.value.currency || 'IDR',
+                exchange_rate: Number(form.value.exchange_rate) || 1,
+                discount_amount: Number(form.value.discount_amount) || 0,
+                shipping_cost: Number(form.value.shipping_cost) || 0,
+                platform_fee: Number(form.value.platform_fee) || 0,
+                tax_amount: Number(form.value.tax_amount) || 0,
+                notes: form.value.notes ? form.value.notes.trim() : null,
+                submit_for_payment: shouldSubmitForPayment,
+                items: form.value.items.map(item => ({
+                    purchase_requisition_item_id: Number(item.purchase_requisition_item_id),
+                    item_id: item.item_id ? Number(item.item_id) : null,
+                    unit_id: item.unit_id ? Number(item.unit_id) : null,
+                    description: item.item_name,
+                    quantity: Number(item.quantity),
+                    unit_price: Number(item.unit_price),
+                    discount_amount: Number(item.discount_amount) || 0,
+                    product_url: item.product_url ? item.product_url.trim() : null,
+                    notes: item.notes ? item.notes.trim() : null
+                }))
+            }
+
+            const createRes = await createBulkDirectPurchase(payload)
+            const dpNumber = createRes.data?.dp_number || createRes.dp_number || ''
+
+            sessionStorage.removeItem('bulk_direct_purchase_items')
+            sessionStorage.removeItem('bulk_direct_purchase_company')
+
+            if (shouldSubmitForPayment) {
+                showSuccess('Berhasil!', `Bulk Direct Purchase ${dpNumber} berhasil dibuat dan diajukan untuk pembayaran Finance.`)
+            } else {
+                showSuccess('Berhasil!', `Bulk Direct Purchase ${dpNumber} berhasil disimpan sebagai Draft.`)
+            }
+
+            router.push({ name: 'user.purchasing.direct' })
+            return
+        }
+
         const payload = {
             procurement_plan_id: Number(selectedPlanId.value),
             purchase_channel: form.value.purchase_channel,
@@ -489,9 +565,51 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
 }
 
 onMounted(() => {
-    fetchActivePlans()
     fetchSuppliers()
     fetchCurrenciesList()
+
+    if (route.query.bulk === '1') {
+        const rawItems = sessionStorage.getItem('bulk_direct_purchase_items')
+        const rawCompany = sessionStorage.getItem('bulk_direct_purchase_company')
+        if (rawItems) {
+            try {
+                const items = JSON.parse(rawItems)
+                if (Array.isArray(items) && items.length > 0) {
+                    isBulkMode.value = true
+                    bulkCompany.value = rawCompany ? JSON.parse(rawCompany) : null
+                    form.value.items = items.map(item => {
+                        const estPrice = Number(item.estimated_price) || 0
+                        const remQty = Number(item.remaining_quantity ?? item.requested_quantity ?? 0)
+                        return {
+                            purchase_requisition_item_id: item.purchase_requisition_item_id || item.id,
+                            pr_id: item.pr_id,
+                            pr_number: item.pr_number,
+                            item_id: item.item_id || null,
+                            unit_id: item.unit_id || item.unit?.id || null,
+                            item_name: item.item_name || item.name || 'Item Pengadaan',
+                            detail_name: item.detail_name || '',
+                            item_code: item.item_code || item.item?.code || '',
+                            is_custom_item: item.is_custom_item || !item.item_id,
+                            unit_name: item.unit?.code || item.unit_code || item.unit_name || 'Unit',
+                            planned_qty: remQty,
+                            allocated_qty: remQty,
+                            quantity: remQty > 0 ? remQty : 0,
+                            unit_price: estPrice > 0 ? estPrice : '',
+                            discount_amount: 0,
+                            product_url: item.reference_url || item.product_url || '',
+                            notes: item.notes || '',
+                            error: remQty <= 0 ? 'Sisa kuota item ini sudah habis (0.0000)' : ''
+                        }
+                    })
+                    return
+                }
+            } catch (err) {
+                console.error('Failed to parse bulk items:', err)
+            }
+        }
+    }
+
+    fetchActivePlans()
 })
 </script>
 
@@ -529,49 +647,100 @@ onMounted(() => {
                         1
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-gray-900">Pilih Rencana Pengadaan (Procurement Plan)</h3>
-                        <p class="text-xs text-gray-500">Pilih rencana pengadaan bertipe Direct Purchase yang sedang berstatus Aktif.</p>
+                        <h3 class="text-base font-bold text-gray-900">
+                            {{ isBulkMode ? 'Konsolidasi Pembelian (Fast-Track Multi-PR)' : 'Pilih Rencana Pengadaan (Procurement Plan)' }}
+                        </h3>
+                        <p class="text-xs text-gray-500">
+                            {{ isBulkMode ? 'Mode cepat: Menggabungkan beberapa PR sekaligus dalam 1 transaksi Direct Purchase.' : 'Pilih rencana pengadaan bertipe Direct Purchase yang sedang berstatus Aktif.' }}
+                        </p>
                     </div>
                 </div>
 
-                <div>
-                    <SearchableSelect
-                        v-model="selectedPlanId"
-                        label="Nomor Rencana Pengadaan"
-                        :options="planOptions"
-                        placeholder="-- Cari atau Pilih Rencana Pengadaan Aktif --"
-                        searchPlaceholder="Ketik nomor PP, nomor PR, atau nama divisi..."
-                        required
-                        :disabled="isLoadingPlans"
-                        :loading="isLoadingPlans"
-                        @change="onPlanSelected"
-                    />
-
-                    <p v-if="activePlans.length === 0 && !isLoadingPlans" class="text-xs text-amber-600 font-medium mt-2 flex items-center gap-1">
-                        <AlertCircle class="w-4 h-4 shrink-0" />
-                        <span>Tidak ada Rencana Pengadaan Direct Purchase yang aktif saat ini. Buat dan aktifkan rencana pengadaan terlebih dahulu.</span>
-                    </p>
+                <!-- If Bulk Mode Active Banner -->
+                <div v-if="isBulkMode" class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white shadow-md relative overflow-hidden">
+                    <div class="flex items-start justify-between relative z-10 gap-4">
+                        <div class="flex items-start gap-3.5">
+                            <div class="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-white shrink-0">
+                                <ShoppingCart class="w-5 h-5 text-blue-300" />
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                                        ⚡ Fast-Track Bulk Direct Purchase
+                                    </span>
+                                    <span class="text-xs font-semibold text-blue-200">
+                                        {{ form.items.length }} Item Terpilih
+                                    </span>
+                                </div>
+                                <h4 class="text-base font-bold text-white mt-1">Pembelian Sekaligus Lintas PR</h4>
+                                <p class="text-xs text-blue-200/80 mt-0.5 leading-relaxed">
+                                    Rencana pengadaan konsolidasi akan otomatis dibentuk di background. Transaksi ini akan menghasilkan 1 Payment Request di Finance sehingga kasir cukup mentransfer 1 kali.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            @click="cancelBulkMode"
+                            class="text-xs text-slate-300 hover:text-white underline cursor-pointer shrink-0"
+                        >
+                            Batal Mode Bulk
+                        </button>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                        <div v-if="bulkCompany" class="flex items-center gap-1.5">
+                            <Building2 class="w-3.5 h-3.5 text-blue-400" />
+                            <span class="text-slate-400">Perusahaan:</span>
+                            <strong class="text-white">{{ bulkCompany.name }}</strong>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <FileText class="w-3.5 h-3.5 text-blue-400" />
+                            <span class="text-slate-400">Dokumen PR Terlibat:</span>
+                            <strong class="text-white">{{ uniquePrNumbers.join(', ') || '-' }}</strong>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Preview Selected Plan Info -->
-                <div v-if="selectedPlan" class="bg-gray-50/70 p-4 rounded-xl border border-gray-200/80 grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+                <!-- If Normal Mode: SearchableSelect -->
+                <template v-else>
                     <div>
-                        <span class="text-gray-400 font-medium block">Nomor PR:</span>
-                        <span class="font-bold text-gray-900">{{ selectedPlan.purchase_requisition?.pr_number || '-' }}</span>
+                        <SearchableSelect
+                            v-model="selectedPlanId"
+                            label="Nomor Rencana Pengadaan"
+                            :options="planOptions"
+                            placeholder="-- Cari atau Pilih Rencana Pengadaan Aktif --"
+                            searchPlaceholder="Ketik nomor PP, nomor PR, atau nama divisi..."
+                            required
+                            :disabled="isLoadingPlans"
+                            :loading="isLoadingPlans"
+                            @change="onPlanSelected"
+                        />
+
+                        <p v-if="activePlans.length === 0 && !isLoadingPlans" class="text-xs text-amber-600 font-medium mt-2 flex items-center gap-1">
+                            <AlertCircle class="w-4 h-4 shrink-0" />
+                            <span>Tidak ada Rencana Pengadaan Direct Purchase yang aktif saat ini. Buat dan aktifkan rencana pengadaan terlebih dahulu.</span>
+                        </p>
                     </div>
-                    <div>
-                        <span class="text-gray-400 font-medium block">Perusahaan:</span>
-                        <span class="font-semibold text-gray-800">{{ selectedPlan.purchase_requisition?.company?.name || '-' }}</span>
+
+                    <!-- Preview Selected Plan Info -->
+                    <div v-if="selectedPlan" class="bg-gray-50/70 p-4 rounded-xl border border-gray-200/80 grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+                        <div>
+                            <span class="text-gray-400 font-medium block">Nomor PR:</span>
+                            <span class="font-bold text-gray-900">{{ selectedPlan.purchase_requisition?.pr_number || '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400 font-medium block">Perusahaan:</span>
+                            <span class="font-semibold text-gray-800">{{ selectedPlan.purchase_requisition?.company?.name || '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400 font-medium block">Divisi:</span>
+                            <span class="font-semibold text-gray-800">{{ selectedPlan.purchase_requisition?.division?.name || '-' }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400 font-medium block">Target Kebutuhan:</span>
+                            <span class="font-bold text-amber-700">{{ selectedPlan.purchase_requisition?.required_date || '-' }}</span>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-gray-400 font-medium block">Divisi:</span>
-                        <span class="font-semibold text-gray-800">{{ selectedPlan.purchase_requisition?.division?.name || '-' }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-400 font-medium block">Target Kebutuhan:</span>
-                        <span class="font-bold text-amber-700">{{ selectedPlan.purchase_requisition?.required_date || '-' }}</span>
-                    </div>
-                </div>
+                </template>
             </div>
 
             <!-- SECTION 2: Saluran & Informasi Toko (Channel) -->
@@ -788,6 +957,7 @@ onMounted(() => {
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-gray-50/80 border-b border-gray-100 font-bold text-gray-700 uppercase tracking-wider">
+                                    <th v-if="isBulkMode" class="px-3 py-3 text-center w-12">Aksi</th>
                                     <th class="px-4 py-3 min-w-[240px]">Barang / Item</th>
                                     <th class="px-4 py-3 text-right w-28">Sisa / Rencana</th>
                                     <th class="px-4 py-3 w-36">Kuantitas Beli</th>
@@ -798,10 +968,25 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                                <tr v-for="(item, idx) in form.items" :key="item.procurement_plan_item_id" class="hover:bg-gray-50/50" :class="{ 'bg-rose-50/20': Number(item.allocated_qty) <= 0 }">
+                                <tr v-for="(item, idx) in form.items" :key="item.purchase_requisition_item_id || item.procurement_plan_item_id || idx" class="hover:bg-gray-50/50" :class="{ 'bg-rose-50/20': Number(item.allocated_qty) <= 0 }">
+                                    <!-- Bulk Action Delete -->
+                                    <td v-if="isBulkMode" class="px-3 py-3 text-center">
+                                        <button 
+                                            type="button" 
+                                            @click="removeBulkItem(idx)"
+                                            class="text-gray-400 hover:text-rose-600 transition-colors p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer"
+                                            title="Hapus dari daftar pembelian sekaligus"
+                                        >
+                                            <Trash2 class="w-4 h-4" />
+                                        </button>
+                                    </td>
+
                                     <!-- Item name -->
                                     <td class="px-4 py-3">
                                         <div class="font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                                            <span v-if="item.pr_number" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                {{ item.pr_number }}
+                                            </span>
                                             <span>{{ item.item_name }}</span>
                                             <span v-if="item.is_custom_item" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                 Non-Katalog
@@ -857,7 +1042,7 @@ onMounted(() => {
                                         <span class="absolute left-2 text-[10px] font-bold text-gray-500 font-mono">{{ form.currency }}</span>
                                         <input 
                                             type="number" 
-                                            step="any"
+                                            step="any" 
                                             min="0"
                                             v-model="item.unit_price" 
                                             placeholder="0"
@@ -873,7 +1058,7 @@ onMounted(() => {
                                         <span class="absolute left-2 text-[10px] font-bold text-gray-500 font-mono">{{ form.currency }}</span>
                                         <input 
                                             type="number" 
-                                            step="any"
+                                            step="any" 
                                             min="0"
                                             v-model="item.discount_amount" 
                                             placeholder="0"

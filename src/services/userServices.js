@@ -54,4 +54,25 @@ export const getAvailableUserCandidates = async ({ type = 'employee', search = '
     return response.data
 }
 
+export const uploadUserSignature = async (payload) => {
+    if (payload.signature_file) {
+        const formData = new FormData()
+        formData.append('signature_file', payload.signature_file)
+        const response = await api.post('/api/v1/user/signature', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        return response.data
+    }
+
+    const response = await api.post('/api/v1/user/signature', {
+        signature_base64: payload.signature_base64,
+    })
+    return response.data
+}
+
+export const deleteUserSignature = async () => {
+    const response = await api.delete('/api/v1/user/signature')
+    return response.data
+}
+
 

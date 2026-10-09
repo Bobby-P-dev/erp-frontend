@@ -26,7 +26,7 @@ const handleLogout = async () => {
 
 const goToProfile = () => {
     closeDropdown()
-    router.push({ name: 'user.dashboard' })
+    router.push({ name: 'user.profile' })
 }
 
 const goToAdmin = () => {
@@ -77,10 +77,24 @@ const goToAdmin = () => {
 
                 <button 
                     @click="goToProfile"
-                    class="w-full flex items-center gap-3 px-4 py-3 text-base font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                    class="w-full flex items-center justify-between px-4 py-3 text-base font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
                 >
-                    <User class="w-5 h-5 text-slate-500" />
-                    <span>Profil Saya</span>
+                    <div class="flex items-center gap-3">
+                        <User class="w-5 h-5 text-slate-500" />
+                        <span>Profil Saya</span>
+                    </div>
+                    <span
+                        v-if="authStore.user?.has_signature"
+                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    >
+                        TTD Aktif
+                    </span>
+                    <span
+                        v-else
+                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                    >
+                        TTD Kosong
+                    </span>
                 </button>
                 
                 <button 

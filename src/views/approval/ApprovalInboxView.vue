@@ -26,9 +26,15 @@ import {
     Search,
     ShieldAlert,
     X,
-    ArrowUpRight
+    ArrowUpRight,
+    Download,
+    Loader2
 } from '@lucide/vue'
+import { generatePurchaseRequisitionPdf } from '../../utils/pdf/purchaseRequisitionPdfGenerator.js'
+import { useAuthStore } from '../../stores/auth.js'
 
+const authStore = useAuthStore()
+const downloadingTaskId = ref(null)
 const approvalStore = useApprovalStore()
 
 // Tab state: 'pending' | 'history'
@@ -163,6 +169,33 @@ const handleDrawerClose = () => {
 const handleActionSuccess = () => {
     fetchTasks(pagination.value.current_page)
     approvalStore.fetchPendingCount()
+}
+
+const canDownloadPdf = (task) => {
+    if (!task) return false
+    const docType = task.document_type || task.approvable_type
+    if (docType && docType !== 'purchase_requisition' && docType !== 'pr') return false
+    const approvedStatuses = ['approved', 'in_procurement', 'ready_for_pickup', 'completed']
+    return approvedStatuses.includes(task.status)
+}
+
+const handleDownloadPdf = async (task) => {
+    const docId = task.approvable_id || task.id
+    if (!docId || downloadingTaskId.value === task.id) return
+    downloadingTaskId.value = task.id
+    try {
+        await generatePurchaseRequisitionPdf({
+            id: docId,
+            pr_number: task.document_number,
+            status: task.status,
+            company: task.company,
+            requester: task.requester,
+        }, {
+            currentUser: authStore.user?.name || 'Petugas ERP'
+        })
+    } finally {
+        downloadingTaskId.value = null
+    }
 }
 
 // SLA status computation
@@ -486,15 +519,30 @@ onUnmounted(() => {
 
                                 <!-- Actions -->
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap" @click.stop>
-                                    <button
-                                        type="button"
-                                        @click="openReviewDrawer(task)"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs"
-                                        title="Tinjau Detail Dokumen"
-                                    >
-                                        <Eye class="w-3.5 h-3.5 text-slate-600" />
-                                        <span>Tinjau</span>
-                                    </button>
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            @click="openReviewDrawer(task)"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs cursor-pointer"
+                                            title="Tinjau Detail Dokumen"
+                                        >
+                                            <Eye class="w-3.5 h-3.5 text-slate-600" />
+                                            <span>Tinjau</span>
+                                        </button>
+
+                                        <!-- Unduh Lembar Persetujuan (PDF) Langsung di Tabel -->
+                                        <button
+                                            v-if="canDownloadPdf(task)"
+                                            type="button"
+                                            :disabled="downloadingTaskId === task.id"
+                                            @click="handleDownloadPdf(task)"
+                                            class="p-1 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                                            title="Unduh Lembar Persetujuan (PDF)"
+                                        >
+                                            <Loader2 v-if="downloadingTaskId === task.id" class="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                                            <Download v-else class="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

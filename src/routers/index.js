@@ -53,6 +53,11 @@ const router = createRouter({
                     name: 'user.approvals.inbox',
                     redirect: { name: 'user.purchasing.approvals' }
                 },
+                {
+                    path: 'profile',
+                    name: 'user.profile',
+                    component: () => import('../views/profile/UserProfileView.vue'),
+                },
             ],
         },
         {

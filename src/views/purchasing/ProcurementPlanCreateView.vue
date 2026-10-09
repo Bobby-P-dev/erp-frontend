@@ -60,11 +60,32 @@ const prTrackerData = ref(null)
 const isLoadingTracker = ref(false)
 const showPrAuditTrail = ref(false)
 
+const isBulkMode = ref(false)
+const bulkCompany = ref(null)
+
 // Form State
 const selectedPrId = ref(null)
 const procurementMethod = ref('direct_purchase') // 'direct_purchase' | 'rfq'
 const planNotes = ref('')
 const planItems = ref([]) // array of { pr_item_id, item_name, is_custom_item, reference_url, unit, requested_qty, remaining_qty, planned_qty, estimated_price, notes, is_selected }
+
+const uniquePrNumbers = computed(() => {
+    const set = new Set()
+    planItems.value.forEach(i => {
+        if (i.pr_number) set.add(i.pr_number)
+    })
+    return Array.from(set)
+})
+
+const cancelBulkMode = () => {
+    sessionStorage.removeItem('bulk_procurement_items')
+    sessionStorage.removeItem('bulk_procurement_company')
+    isBulkMode.value = false
+    bulkCompany.value = null
+    planItems.value = []
+    router.replace({ name: 'user.purchasing.plans.create' })
+    loadQueueData()
+}
 
 // Grouped PR options for selector
 const prOptions = computed(() => {
@@ -297,7 +318,7 @@ const formatDate = (dateString) => {
 
 // Submit Plan (Draft or Immediate Activation)
 const handleSubmit = async (shouldActivate = false) => {
-    if (!selectedPrId.value) {
+    if (!isBulkMode.value && !selectedPrId.value) {
         showError('Validasi Gagal', 'Silakan pilih Purchase Requisition terlebih dahulu.')
         return
     }
@@ -339,19 +360,36 @@ const handleSubmit = async (shouldActivate = false) => {
         isSubmitting.value = true
         showLoading(shouldActivate ? 'Menyimpan & mengaktifkan rencana...' : 'Menyimpan draft rencana...')
 
-        const payload = {
-            purchase_requisition_id: selectedPrId.value,
-            procurement_method: procurementMethod.value,
-            notes: planNotes.value || null,
-            items: selectedItems.map(i => ({
-                purchase_requisition_item_id: i.pr_item_id,
-                planned_quantity: Number(i.planned_qty),
-                notes: i.notes || null
-            }))
-        }
+        const payload = isBulkMode.value
+            ? {
+                is_consolidated: true,
+                company_id: bulkCompany.value?.id || null,
+                procurement_method: procurementMethod.value,
+                notes: planNotes.value || null,
+                items: selectedItems.map(i => ({
+                    purchase_requisition_item_id: i.pr_item_id,
+                    planned_quantity: Number(i.planned_qty),
+                    notes: i.notes || null
+                }))
+            }
+            : {
+                purchase_requisition_id: selectedPrId.value,
+                procurement_method: procurementMethod.value,
+                notes: planNotes.value || null,
+                items: selectedItems.map(i => ({
+                    purchase_requisition_item_id: i.pr_item_id,
+                    planned_quantity: Number(i.planned_qty),
+                    notes: i.notes || null
+                }))
+            }
 
         const createRes = await createProcurementPlan(payload)
         const planId = createRes.data?.id
+
+        if (isBulkMode.value) {
+            sessionStorage.removeItem('bulk_procurement_items')
+            sessionStorage.removeItem('bulk_procurement_company')
+        }
 
         if (shouldActivate && planId) {
             await activateProcurementPlan(planId)
@@ -370,6 +408,45 @@ const handleSubmit = async (shouldActivate = false) => {
 }
 
 onMounted(() => {
+    if (route.query.bulk === '1') {
+        const rawItems = sessionStorage.getItem('bulk_procurement_items')
+        const rawCompany = sessionStorage.getItem('bulk_procurement_company')
+        if (rawItems) {
+            try {
+                const items = JSON.parse(rawItems)
+                if (Array.isArray(items) && items.length > 0) {
+                    isBulkMode.value = true
+                    bulkCompany.value = rawCompany ? JSON.parse(rawCompany) : null
+                    planItems.value = items.map(i => ({
+                        pr_item_id: i.purchase_requisition_item_id || i.id,
+                        pr_id: i.pr_id,
+                        pr_number: i.pr_number,
+                        company_name: i.company?.name,
+                        division_name: i.division?.name,
+                        item_id: i.item_id,
+                        item_name: i.item_name || i.item?.name || 'Item Tanpa Nama',
+                        detail_name: i.detail_name || '',
+                        item_code: i.item_code || i.item?.code || null,
+                        is_custom_item: i.is_custom_item,
+                        reference_url: i.reference_url,
+                        unit: i.unit?.code || i.unit_code || i.unit?.name || 'Unit',
+                        requested_qty: Number(i.requested_quantity || 0),
+                        allocated_qty: Number(i.allocated_quantity || 0),
+                        remaining_qty: Number(i.remaining_quantity),
+                        planned_qty: Number(i.remaining_quantity),
+                        estimated_price: Number(i.estimated_price || 0),
+                        notes: '',
+                        is_selected: true,
+                        error: ''
+                    }))
+                    return
+                }
+            } catch (e) {
+                console.error('Failed to parse bulk procurement items:', e)
+            }
+        }
+    }
+
     loadQueueData()
 })
 </script>
@@ -406,11 +483,16 @@ onMounted(() => {
                             1
                         </div>
                         <div>
-                            <h3 class="text-base font-bold text-slate-900">Pilih Purchase Requisition (PR) Disetujui</h3>
-                            <p class="text-xs text-slate-500">Pilih dokumen PR approved yang itemnya ingin dialokasikan ke dalam paket rencana pengadaan ini.</p>
+                            <h3 class="text-base font-bold text-slate-900">
+                                {{ isBulkMode ? 'Sumber Kebutuhan Pengadaan Konsolidasi' : 'Pilih Purchase Requisition (PR) Disetujui' }}
+                            </h3>
+                            <p class="text-xs text-slate-500">
+                                {{ isBulkMode ? 'Mengonsolidasikan item pengadaan dari beberapa dokumen Purchase Requisition ke dalam 1 paket rencana.' : 'Pilih dokumen PR approved yang itemnya ingin dialokasikan ke dalam paket rencana pengadaan ini.' }}
+                            </p>
                         </div>
                     </div>
                     <RouterLink 
+                        v-if="!isBulkMode"
                         :to="{ name: 'user.purchasing.plans', query: { tab: 'pending' } }"
                         class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"
                     >
@@ -419,30 +501,76 @@ onMounted(() => {
                     </RouterLink>
                 </div>
 
-                <!-- PR Selector Bar (Full Width) -->
-                <div class="bg-slate-50/70 p-4.5 rounded-xl border border-slate-200/80 space-y-2">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                            Nomor Purchase Requisition (Approved) <span class="text-rose-500">*</span>
-                        </label>
-                        <span v-if="activePrInfo" class="text-[11px] text-slate-500 font-medium">
-                            Ganti dokumen PR untuk mengubah paket rencana pengadaan
-                        </span>
+                <!-- If Bulk Mode Active Banner -->
+                <div v-if="isBulkMode" class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white shadow-md relative overflow-hidden">
+                    <div class="flex items-start justify-between relative z-10 gap-4">
+                        <div class="flex items-start gap-3.5">
+                            <div class="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-white shrink-0">
+                                <Layers class="w-5 h-5 text-blue-300" />
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                                        Rencana Pengadaan Konsolidasi
+                                    </span>
+                                    <span class="text-xs font-semibold text-blue-200">
+                                        {{ planItems.length }} Item Terpilih
+                                    </span>
+                                </div>
+                                <h4 class="text-base font-bold text-white mt-1">Konsolidasi Kebutuhan Lintas Purchase Requisition</h4>
+                                <p class="text-xs text-blue-200/80 mt-0.5 leading-relaxed">
+                                    Item-item dari berbagai PR digabungkan ke dalam 1 paket rencana pengadaan konsolidasi (Procurement Plan) untuk efisiensi sourcing dan pengadaan terpadu.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            @click="cancelBulkMode"
+                            class="text-xs text-slate-300 hover:text-white underline cursor-pointer shrink-0"
+                        >
+                            Batal Mode Konsolidasi
+                        </button>
                     </div>
-                    <SearchableSelect 
-                        v-model="selectedPrId"
-                        :options="prOptions"
-                        placeholder="-- Cari atau Pilih Dokumen PR (Approved) --"
-                        searchPlaceholder="Ketik nomor PR, nama divisi, atau perusahaan..."
-                        :disabled="isLoadingQueue"
-                        :loading="isLoadingQueue"
-                        required
-                    />
-                    <p v-if="prOptions.length === 0 && !isLoadingQueue" class="text-xs text-amber-600 flex items-center gap-1 mt-1 font-medium">
-                        <AlertCircle class="w-3.5 h-3.5 shrink-0" />
-                        Tidak ada Purchase Requisition (PR) approved yang perlu dialokasikan.
-                    </p>
+                    <div class="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                        <div v-if="bulkCompany" class="flex items-center gap-1.5">
+                            <Building2 class="w-3.5 h-3.5 text-blue-400" />
+                            <span class="text-slate-400">Perusahaan:</span>
+                            <strong class="text-white">{{ bulkCompany.name }}</strong>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <FileText class="w-3.5 h-3.5 text-blue-400" />
+                            <span class="text-slate-400">Dokumen PR Terlibat:</span>
+                            <strong class="text-white">{{ uniquePrNumbers.join(', ') || '-' }}</strong>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- If Normal Mode -->
+                <template v-else>
+                    <!-- PR Selector Bar (Full Width) -->
+                    <div class="bg-slate-50/70 p-4.5 rounded-xl border border-slate-200/80 space-y-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                            <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                Nomor Purchase Requisition (Approved) <span class="text-rose-500">*</span>
+                            </label>
+                            <span v-if="activePrInfo" class="text-[11px] text-slate-500 font-medium">
+                                Ganti dokumen PR untuk mengubah paket rencana pengadaan
+                            </span>
+                        </div>
+                        <SearchableSelect 
+                            v-model="selectedPrId"
+                            :options="prOptions"
+                            placeholder="-- Cari atau Pilih Dokumen PR (Approved) --"
+                            searchPlaceholder="Ketik nomor PR, nama divisi, atau perusahaan..."
+                            :disabled="isLoadingQueue"
+                            :loading="isLoadingQueue"
+                            required
+                        />
+                        <p v-if="prOptions.length === 0 && !isLoadingQueue" class="text-xs text-amber-600 flex items-center gap-1 mt-1 font-medium">
+                            <AlertCircle class="w-3.5 h-3.5 shrink-0" />
+                            Tidak ada Purchase Requisition (PR) approved yang perlu dialokasikan.
+                        </p>
+                    </div>
 
                 <!-- When PR is Selected: Balanced 2-Column Bento Grid (Detail & Workflow side-by-side) -->
                 <div v-if="activePrInfo" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pt-1">
@@ -537,6 +665,7 @@ onMounted(() => {
                     <p class="text-xs font-semibold text-slate-600">Pilih Dokumen Purchase Requisition</p>
                     <p class="text-[11px] text-slate-400 mt-0.5">Pilih salah satu dokumen PR approved pada opsi di atas untuk melihat rincian dokumen dan alur persetujuan.</p>
                 </div>
+                </template>
             </div>
 
             <!-- SECTION 2: Penentuan Metode Pengadaan (Direct Purchase vs Tender RFQ) -->
@@ -731,6 +860,9 @@ onMounted(() => {
                                 <td class="px-4 py-4">
                                     <div class="space-y-1">
                                         <div class="flex items-center gap-2 flex-wrap">
+                                            <span v-if="item.pr_number" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                {{ item.pr_number }}
+                                            </span>
                                             <span class="font-bold text-sm" :class="item.is_selected ? 'text-slate-900' : 'text-slate-400'">
                                                 {{ item.item_name }}
                                             </span>

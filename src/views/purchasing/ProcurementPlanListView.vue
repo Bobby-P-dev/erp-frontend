@@ -151,6 +151,7 @@ const methodOptions = [
 
 // Table Columns for Tab 1 (Pending PRs)
 const queueTableColumns = [
+    { key: 'select', label: '', class: 'w-10 text-center' },
     { key: 'no', label: 'No', class: 'w-12 text-center' },
     { key: 'pr_number', label: 'Dokumen PR & Target Kebutuhan', class: 'min-w-[220px]' },
     { key: 'requester', label: 'Pemohon & Unit Kerja', class: 'min-w-[190px]' },
@@ -158,6 +159,130 @@ const queueTableColumns = [
     { key: 'total_remaining', label: 'Sisa Kuota', class: 'w-32 text-right' },
     { key: 'actions', label: 'Aksi', class: 'w-44 text-center' }
 ]
+
+// Bulk Selection State for Tab 1
+const selectedItems = ref({})
+
+const selectedItemList = computed(() => {
+    return Object.values(selectedItems.value)
+})
+
+const selectedCompany = computed(() => {
+    if (selectedItemList.value.length === 0) return null
+    return selectedItemList.value[0]?.company || null
+})
+
+const selectedPrCount = computed(() => {
+    const prIds = new Set(selectedItemList.value.map(i => i.pr_id))
+    return prIds.size
+})
+
+const isItemChecked = (item) => {
+    return !!selectedItems.value[item.purchase_requisition_item_id]
+}
+
+const isPrFullyChecked = (pr) => {
+    if (!pr.items || pr.items.length === 0) return false
+    return pr.items.every(i => !!selectedItems.value[i.purchase_requisition_item_id])
+}
+
+const isPrPartiallyChecked = (pr) => {
+    if (!pr.items || pr.items.length === 0) return false
+    const checkedCount = pr.items.filter(i => !!selectedItems.value[i.purchase_requisition_item_id]).length
+    return checkedCount > 0 && checkedCount < pr.items.length
+}
+
+const toggleSelectItem = (item, pr) => {
+    const itemId = item.purchase_requisition_item_id
+    if (selectedItems.value[itemId]) {
+        const next = { ...selectedItems.value }
+        delete next[itemId]
+        selectedItems.value = next
+        return
+    }
+
+    // Company scope validation: strictly single company
+    if (selectedCompany.value && selectedCompany.value.id !== pr.company?.id) {
+        showError(
+            'Perusahaan Berbeda',
+            `Seluruh item yang dipilih harus berasal dari Perusahaan yang sama (${selectedCompany.value.name || 'Perusahaan sebelumnya'}).`
+        )
+        return
+    }
+
+    selectedItems.value = {
+        ...selectedItems.value,
+        [itemId]: {
+            ...item,
+            pr_id: pr.pr_id,
+            pr_number: pr.pr_number,
+            company: pr.company,
+            division: pr.division,
+            requester: pr.requester,
+            purpose: pr.purpose
+        }
+    }
+}
+
+const toggleSelectPr = (pr) => {
+    if (isPrFullyChecked(pr)) {
+        // Deselect all items of this PR
+        const next = { ...selectedItems.value }
+        pr.items.forEach(i => {
+            delete next[i.purchase_requisition_item_id]
+        })
+        selectedItems.value = next
+        return
+    }
+
+    // Check company scope
+    if (selectedCompany.value && selectedCompany.value.id !== pr.company?.id) {
+        showError(
+            'Perusahaan Berbeda',
+            `Seluruh item yang dipilih harus berasal dari Perusahaan yang sama (${selectedCompany.value.name || 'Perusahaan sebelumnya'}).`
+        )
+        return
+    }
+
+    // Select all items of this PR
+    const next = { ...selectedItems.value }
+    pr.items.forEach(i => {
+        next[i.purchase_requisition_item_id] = {
+            ...i,
+            pr_id: pr.pr_id,
+            pr_number: pr.pr_number,
+            company: pr.company,
+            division: pr.division,
+            requester: pr.requester,
+            purpose: pr.purpose
+        }
+    })
+    selectedItems.value = next
+}
+
+const clearSelection = () => {
+    selectedItems.value = {}
+}
+
+const handleCreateConsolidatedPlan = () => {
+    if (selectedItemList.value.length === 0) return
+    sessionStorage.setItem('bulk_procurement_items', JSON.stringify(selectedItemList.value))
+    sessionStorage.setItem('bulk_procurement_company', JSON.stringify(selectedCompany.value))
+    router.push({
+        name: 'user.purchasing.plans.create',
+        query: { bulk: '1' }
+    })
+}
+
+const handleFastTrackBulkDirectPurchase = () => {
+    if (selectedItemList.value.length === 0) return
+    sessionStorage.setItem('bulk_direct_purchase_items', JSON.stringify(selectedItemList.value))
+    sessionStorage.setItem('bulk_direct_purchase_company', JSON.stringify(selectedCompany.value))
+    router.push({
+        name: 'user.purchasing.direct.create',
+        query: { bulk: '1' }
+    })
+}
 
 // Table Columns for Tab 2 (Plans)
 const tableColumns = [
@@ -446,7 +571,7 @@ onMounted(async () => {
                 <BaseTable :columns="queueTableColumns">
                     <!-- Loading State -->
                     <tr v-if="isLoadingQueue">
-                        <td colspan="6" class="py-16 text-center text-slate-500">
+                        <td colspan="7" class="py-16 text-center text-slate-500">
                             <div class="flex flex-col items-center justify-center gap-3">
                                 <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                                 <span class="text-sm font-medium text-slate-600">Memuat daftar Purchase Requisition approved...</span>
@@ -456,7 +581,7 @@ onMounted(async () => {
 
                     <!-- Empty State -->
                     <tr v-else-if="groupedPurchaseRequisitions.length === 0">
-                        <td colspan="6" class="py-16 text-center text-slate-500">
+                        <td colspan="7" class="py-16 text-center text-slate-500">
                             <div class="flex flex-col items-center justify-center max-w-md mx-auto">
                                 <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 text-emerald-600 border border-emerald-100">
                                     <CheckCheck class="w-8 h-8" />
@@ -479,9 +604,21 @@ onMounted(async () => {
 
                     <!-- PR Rows -->
                     <template v-else v-for="(pr, index) in groupedPurchaseRequisitions" :key="pr.pr_id">
-                        <tr class="hover:bg-slate-50/80 transition-colors">
+                        <tr class="hover:bg-slate-50/80 transition-colors" :class="{ 'bg-blue-50/40': isPrFullyChecked(pr) || isPrPartiallyChecked(pr) }">
+                            <!-- Select PR -->
+                            <td class="px-3 py-4 text-center">
+                                <input 
+                                    type="checkbox"
+                                    :checked="isPrFullyChecked(pr)"
+                                    :indeterminate.prop="isPrPartiallyChecked(pr)"
+                                    @change="toggleSelectPr(pr)"
+                                    class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                                    title="Pilih seluruh item pada PR ini"
+                                />
+                            </td>
+
                             <!-- No -->
-                            <td class="px-6 py-4 text-sm text-slate-500 text-center font-medium font-mono">
+                            <td class="px-4 py-4 text-sm text-slate-500 text-center font-medium font-mono">
                                 {{ index + 1 }}
                             </td>
 
@@ -532,7 +669,7 @@ onMounted(async () => {
                                         </span>
                                         <span 
                                             v-if="pr.has_custom_item" 
-                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
+                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
                                         >
                                             Non-Katalog (Direct)
                                         </span>
@@ -573,7 +710,7 @@ onMounted(async () => {
 
                         <!-- Accordion Sub-Table for Items -->
                         <tr v-if="expandedPrs[pr.pr_id]" class="bg-blue-50/20 border-b border-slate-200">
-                            <td colspan="6" class="p-4 sm:p-5">
+                            <td colspan="7" class="p-4 sm:p-5">
                                 <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-2xs space-y-3">
                                     <div class="flex items-center justify-between">
                                         <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -594,6 +731,7 @@ onMounted(async () => {
                                         <table class="w-full text-left text-xs border-collapse">
                                             <thead>
                                                 <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-100">
+                                                    <th class="py-2 px-3 text-center w-8">Pilih</th>
                                                     <th class="py-2 px-3">Item / Deskripsi</th>
                                                     <th class="py-2 px-3 text-center">Tipe</th>
                                                     <th class="py-2 px-3 text-right">Diminta</th>
@@ -602,7 +740,20 @@ onMounted(async () => {
                                                 </tr>
                                             </thead>
                                             <tbody class="divide-y divide-slate-100">
-                                                <tr v-for="item in pr.items" :key="item.purchase_requisition_item_id" class="hover:bg-slate-50/50">
+                                                <tr 
+                                                    v-for="item in pr.items" 
+                                                    :key="item.purchase_requisition_item_id" 
+                                                    class="hover:bg-slate-50/50 transition-colors"
+                                                    :class="{ 'bg-blue-50/50': isItemChecked(item) }"
+                                                >
+                                                    <td class="py-2.5 px-3 text-center">
+                                                        <input 
+                                                            type="checkbox"
+                                                            :checked="isItemChecked(item)"
+                                                            @change="toggleSelectItem(item, pr)"
+                                                            class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                                                        />
+                                                    </td>
                                                     <td class="py-2.5 px-3">
                                                         <span class="font-bold text-slate-800">{{ item.item_name }}</span>
                                                         <span v-if="item.item?.code" class="block text-[11px] font-mono text-slate-400">{{ item.item.code }}</span>
@@ -644,6 +795,62 @@ onMounted(async () => {
                         </tr>
                     </template>
                 </BaseTable>
+
+                <!-- Floating Bulk Selection Action Bar -->
+                <div 
+                    v-if="selectedItemList.length > 0"
+                    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-4xl w-[92%] bg-slate-900/95 backdrop-blur-md text-white px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl shadow-2xl border border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
+                >
+                    <!-- Left Info -->
+                    <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shadow-blue-500">
+                                {{ selectedItemList.length }}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <span>{{ selectedItemList.length }} Item Terpilih</span>
+                                    <span class="text-slate-400 font-normal">({{ selectedPrCount }} Dokumen PR)</span>
+                                </span>
+                                <span v-if="selectedCompany" class="text-[11px] text-slate-400 flex items-center gap-1">
+                                    <Building2 class="w-3 h-3 text-slate-400" />
+                                    <span>{{ selectedCompany.name }}</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <button 
+                            type="button"
+                            @click="clearSelection"
+                            class="text-xs text-slate-400 hover:text-white underline cursor-pointer ml-2"
+                        >
+                            Batal
+                        </button>
+                    </div>
+
+                    <!-- Right Actions -->
+                    <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                        <button
+                            type="button"
+                            @click="handleCreateConsolidatedPlan"
+                            class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+                            title="Kelompokkan item ke dalam Rencana Pengadaan Konsolidasi"
+                        >
+                            <Layers class="w-3.5 h-3.5 text-blue-400" />
+                            <span>Buat Rencana Konsolidasi</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="handleFastTrackBulkDirectPurchase"
+                            class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-900/40 transition-all hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5"
+                            title="Beli seluruh item terpilih dalam 1 kali Direct Purchase & 1 kali pembayaran Finance"
+                        >
+                            <ShoppingCart class="w-3.5 h-3.5" />
+                            <span>⚡ Beli Langsung Sekaligus (Bulk DP)</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 

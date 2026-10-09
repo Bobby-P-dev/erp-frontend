@@ -121,5 +121,13 @@ export const useAuthStore = defineStore('auth', {
                 this.clearAuth()
             }
         },
+
+        updateUserSignature(hasSignature, signatureUrl = null, signatureFileId = null) {
+            if (this.user) {
+                this.user.has_signature = hasSignature
+                this.user.signature_url = signatureUrl
+                this.user.signature_file_id = signatureFileId
+            }
+        },
     },
 })

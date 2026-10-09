@@ -6,9 +6,16 @@ import {
     XCircle, 
     AlertTriangle,
     Loader2,
-    X
+    X,
+    FileSignature,
+    ShieldCheck
 } from '@lucide/vue'
 import BaseButton from '../ui/BaseButton.vue'
+import { useAuthStore } from '../../stores/auth.js'
+import SignaturePadModal from '../profile/SignaturePadModal.vue'
+
+const authStore = useAuthStore()
+const isSignatureModalOpen = ref(false)
 
 const props = defineProps({
     isOpen: {
@@ -39,6 +46,16 @@ const emit = defineEmits(['close', 'confirm'])
 const notes = ref('')
 const validationError = ref('')
 const isSubmitting = ref(false)
+
+const userHasSignature = computed(() => {
+    return Boolean(authStore.user?.has_signature)
+})
+
+const isConfirmDisabled = computed(() => {
+    if (isSubmitting.value) return true
+    if (props.actionType === 'approve' && !userHasSignature.value) return true
+    return false
+})
 
 const actionConfig = computed(() => {
     switch (props.actionType) {
@@ -112,6 +129,11 @@ const handleConfirm = async () => {
         return
     }
 
+    if (props.actionType === 'approve' && !userHasSignature.value) {
+        validationError.value = 'Anda wajib memiliki spesimen tanda tangan digital sebelum menyetujui dokumen ini.'
+        return
+    }
+
     validationError.value = ''
     isSubmitting.value = true
 
@@ -174,6 +196,63 @@ const handleConfirm = async () => {
                         <span class="font-bold text-gray-800">{{ documentNumber }}:</span> {{ documentTitle }}
                     </div>
 
+                    <!-- Digital Signature Verification Box (Only for Approve Action) -->
+                    <div v-if="actionType === 'approve'" class="space-y-2">
+                        <!-- State 1: User does not have a signature -->
+                        <div 
+                            v-if="!userHasSignature" 
+                            class="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 space-y-3"
+                        >
+                            <div class="flex items-start gap-3">
+                                <AlertTriangle class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                <div class="space-y-1">
+                                    <h4 class="text-xs font-bold text-amber-900">
+                                        Spesimen Tanda Tangan Digital Wajib Dilampirkan
+                                    </h4>
+                                    <p class="text-xs text-amber-700 leading-relaxed">
+                                        Sesuai kepatuhan alur persetujuan, Anda wajib memiliki spesimen tanda tangan digital untuk menyetujui pengajuan ini. Tanda tangan akan dibubuhkan secara permanen pada dokumen audit.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="pt-1">
+                                <button
+                                    type="button"
+                                    @click="isSignatureModalOpen = true"
+                                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                                >
+                                    <FileSignature class="w-4 h-4" />
+                                    <span>Buat / Unggah Tanda Tangan Sekarang</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- State 2: User has active signature -->
+                        <div 
+                            v-else 
+                            class="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/70 text-xs text-emerald-900"
+                        >
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <ShieldCheck class="w-4 h-4 text-emerald-600 shrink-0" />
+                                <div class="min-w-0">
+                                    <div class="font-bold text-emerald-950 flex items-center gap-1.5">
+                                        <span>Tanda Tangan Digital Siap</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-200/70 text-emerald-800">Aktif</span>
+                                    </div>
+                                    <p class="text-[11px] text-emerald-700 truncate">
+                                        Spesimen Anda akan otomatis disematkan pada lembar persetujuan.
+                                    </p>
+                                </div>
+                            </div>
+                            <div v-if="authStore.user?.signature_url" class="shrink-0 bg-white border border-emerald-200 rounded-lg p-1 shadow-xs">
+                                <img 
+                                    :src="authStore.user.signature_url" 
+                                    alt="Specimen" 
+                                    class="h-6 max-w-[70px] object-contain"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Textarea Form -->
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
@@ -207,10 +286,10 @@ const handleConfirm = async () => {
 
                         <button
                             type="button"
-                            :disabled="isSubmitting"
+                            :disabled="isConfirmDisabled"
                             @click="handleConfirm"
                             :class="[
-                                'px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md disabled:opacity-50',
+                                'px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed',
                                 actionConfig.btnClass
                             ]"
                         >
@@ -220,5 +299,12 @@ const handleConfirm = async () => {
                     </div>
                 </div>
             </div>
+
+            <!-- In-place Signature Pad Modal -->
+            <SignaturePadModal 
+                :is-open="isSignatureModalOpen" 
+                @close="isSignatureModalOpen = false" 
+                @saved="isSignatureModalOpen = false" 
+            />
     </Teleport>
 </template>

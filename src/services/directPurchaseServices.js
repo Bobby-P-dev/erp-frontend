@@ -47,6 +47,17 @@ export const createDirectPurchase = async (data) => {
 }
 
 /**
+ * Menyimpan Bulk Direct Purchase sekaligus (fast-track multi-PR).
+ *
+ * @param {object} data
+ * @returns {Promise<object>}
+ */
+export const createBulkDirectPurchase = async (data) => {
+    const response = await api.post('/api/v1/direct-purchases/bulk', data)
+    return response.data
+}
+
+/**
  * Memperbarui data draft Direct Purchase.
  *
  * @param {number|string} id

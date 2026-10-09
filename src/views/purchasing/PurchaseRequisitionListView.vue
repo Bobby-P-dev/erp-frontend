@@ -31,9 +31,15 @@ import {
     FileEdit,
     CheckCircle2,
     RefreshCw,
-    ArrowUpRight
+    ArrowUpRight,
+    Download,
+    Loader2
 } from '@lucide/vue'
+import { generatePurchaseRequisitionPdf } from '../../utils/pdf/purchaseRequisitionPdfGenerator.js'
+import { useAuthStore } from '../../stores/auth.js'
 
+const authStore = useAuthStore()
+const downloadingPrId = ref(null)
 const { formatDate, formatCurrency } = useFormatter()
 
 // 1. Data Table Composable
@@ -77,6 +83,24 @@ const openDetail = async (pr) => {
         showError('Gagal Memuat Detail', 'Tidak dapat memuat rincian Purchase Requisition.', error)
     } finally {
         isLoadingDetail.value = false
+    }
+}
+
+const canDownloadPdf = (pr) => {
+    if (!pr) return false
+    const approvedStatuses = ['approved', 'in_procurement', 'ready_for_pickup', 'completed']
+    return approvedStatuses.includes(pr.status)
+}
+
+const handleDownloadPdf = async (pr) => {
+    if (!pr || downloadingPrId.value === pr.id) return
+    downloadingPrId.value = pr.id
+    try {
+        await generatePurchaseRequisitionPdf(pr, {
+            currentUser: authStore.user?.name || 'Petugas ERP'
+        })
+    } finally {
+        downloadingPrId.value = null
     }
 }
 
@@ -364,6 +388,19 @@ const getActiveStepName = (pr) => {
                                 title="Lihat Rincian PR"
                             >
                                 <Eye class="w-4 h-4" />
+                            </button>
+
+                            <!-- Unduh Lembar Persetujuan (PDF) Langsung di Tabel -->
+                            <button
+                                v-if="canDownloadPdf(pr)"
+                                type="button"
+                                :disabled="downloadingPrId === pr.id"
+                                @click="handleDownloadPdf(pr)"
+                                class="p-1.5 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                                title="Unduh Lembar Persetujuan (PDF)"
+                            >
+                                <Loader2 v-if="downloadingPrId === pr.id" class="w-4 h-4 animate-spin text-indigo-600" />
+                                <Download v-else class="w-4 h-4 text-slate-700 hover:text-indigo-600" />
                             </button>
 
                             <RouterLink
