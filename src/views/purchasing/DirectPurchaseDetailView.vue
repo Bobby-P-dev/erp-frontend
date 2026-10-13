@@ -271,15 +271,27 @@ const openGoodsReceiptModal = () => {
     grForm.delivery_note_number = ''
     grForm.shipping_carrier = ''
     grForm.notes = ''
-    grForm.items = dp.value.items.map(item => ({
-        direct_purchase_item_id: item.id,
-        item_description: item.description || item.item?.name || 'Item',
-        ordered_qty: Number(item.quantity),
-        quantity_received: Number(item.quantity),
-        quantity_accepted: Number(item.quantity),
-        quantity_rejected: 0,
-        rejection_reason: ''
-    }))
+    grForm.items = dp.value.items.map(item => {
+        const orderedQty = Number(item.quantity) || 1
+        const alreadyAccepted = Number(item.already_accepted_quantity) || 0
+        const remainingReceivable = typeof item.remaining_receivable_quantity !== 'undefined'
+            ? Number(item.remaining_receivable_quantity)
+            : Math.max(0, orderedQty - alreadyAccepted)
+        const isFullyReceived = remainingReceivable <= 0
+        return {
+            direct_purchase_item_id: item.id,
+            item_description: item.description || item.item?.name || 'Item',
+            ordered_qty: orderedQty,
+            already_accepted: alreadyAccepted,
+            remaining_receivable: remainingReceivable,
+            is_fully_received: isFullyReceived,
+            isSelected: !isFullyReceived,
+            quantity_received: remainingReceivable,
+            quantity_accepted: remainingReceivable,
+            quantity_rejected: 0,
+            rejection_reason: ''
+        }
+    })
     showGoodsReceiptModal.value = true
 }
 
@@ -291,6 +303,12 @@ const confirmGoodsReceipt = async () => {
         return
     }
 
+    const selectedItems = grForm.items.filter(it => it.isSelected)
+    if (selectedItems.length === 0) {
+        showError('Validasi Gagal', 'Pilih minimal 1 item barang yang diterima hari ini.')
+        return
+    }
+
     try {
         showLoading('Mencatat penerimaan barang fisik...')
         await recordGoodsReceipt({
@@ -299,7 +317,7 @@ const confirmGoodsReceipt = async () => {
             delivery_note_number: grForm.delivery_note_number,
             shipping_carrier: grForm.shipping_carrier,
             notes: grForm.notes,
-            items: grForm.items.map(it => ({
+            items: selectedItems.map(it => ({
                 direct_purchase_item_id: it.direct_purchase_item_id,
                 quantity_received: it.quantity_received,
                 quantity_accepted: it.quantity_accepted,
@@ -657,8 +675,8 @@ onMounted(() => {
                                 <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.platform_fee, dp.currency) }}</span>
                             </div>
 
-                            <div v-if="Number(dp.tax_amount) > 0" class="flex justify-between items-center py-1 border-b border-gray-50">
-                                <span class="text-gray-500">Pajak / PPN:</span>
+                            <div v-if="Number(dp.tax_amount) > 0 || dp.tax" class="flex justify-between items-center py-1 border-b border-gray-50">
+                                <span class="text-gray-500">Pajak ({{ dp.tax ? `${dp.tax.name} ${dp.tax.rate}%` : 'Pajak Transaksi' }}):</span>
                                 <span class="font-bold font-mono text-gray-800">+ {{ formatCurrency(dp.tax_amount, dp.currency) }}</span>
                             </div>
                         </div>
@@ -1121,34 +1139,52 @@ onMounted(() => {
 
                         <!-- Items Inspection Table -->
                         <div class="border border-gray-200 rounded-xl overflow-hidden">
-                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700">
-                                Verifikasi & Pemeriksaan Kuantitas Barang
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700 flex justify-between items-center text-xs">
+                                <span>Verifikasi & Pemeriksaan Kuantitas Barang</span>
+                                <span class="text-[11px] text-gray-500 font-normal">Centang item yang tiba hari ini</span>
                             </div>
                             <div class="p-3 space-y-3">
                                 <div 
                                     v-for="(item, idx) in grForm.items" 
                                     :key="item.direct_purchase_item_id"
-                                    class="p-3 rounded-lg border border-gray-100 bg-gray-50/50 space-y-2"
+                                    :class="[
+                                        'p-3 rounded-lg border space-y-2 transition-colors',
+                                        item.isSelected ? 'border-blue-200 bg-blue-50/20' : (item.is_fully_received ? 'border-gray-100 bg-gray-50 opacity-60' : 'border-gray-100 bg-gray-50/50')
+                                    ]"
                                 >
                                     <div class="flex justify-between items-center font-semibold text-gray-800">
-                                        <span>{{ idx + 1 }}. {{ item.item_description }}</span>
-                                        <span class="text-gray-500 font-mono">Dipesan: {{ item.ordered_qty }}</span>
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                v-model="item.isSelected" 
+                                                :disabled="item.is_fully_received" 
+                                                class="rounded text-blue-600 border-gray-300 focus:ring-blue-500 disabled:opacity-40"
+                                            />
+                                            <span :class="{'line-through text-gray-400': item.is_fully_received}">{{ idx + 1 }}. {{ item.item_description }}</span>
+                                        </label>
+                                        <div class="text-right text-[11px] font-mono">
+                                            <span class="text-gray-500">Dipesan: {{ item.ordered_qty }}</span>
+                                            <span class="text-gray-400 mx-1">|</span>
+                                            <span class="text-emerald-700">Diterima: {{ item.already_accepted }}</span>
+                                            <span class="text-gray-400 mx-1">|</span>
+                                            <span class="text-blue-700 font-bold">Sisa: {{ item.remaining_receivable }}</span>
+                                        </div>
                                     </div>
-                                    <div class="grid grid-cols-3 gap-2">
+                                    <div v-if="item.isSelected" class="grid grid-cols-3 gap-2 pt-1">
                                         <div>
                                             <label class="block text-[11px] text-gray-500 mb-0.5">Qty Diterima Fisik</label>
-                                            <input v-model.number="item.quantity_received" type="number" min="0" step="any" class="w-full rounded-lg border-gray-300 text-xs p-1.5" />
+                                            <input v-model.number="item.quantity_received" type="number" min="0" :max="item.remaining_receivable" step="any" class="w-full rounded-lg border-gray-300 text-xs p-1.5" />
                                         </div>
                                         <div>
                                             <label class="block text-[11px] text-emerald-700 font-semibold mb-0.5">Qty Diterima Baik</label>
-                                            <input v-model.number="item.quantity_accepted" type="number" min="0" step="any" class="w-full rounded-lg border-gray-300 text-xs p-1.5" />
+                                            <input v-model.number="item.quantity_accepted" type="number" min="0" :max="item.quantity_received" step="any" class="w-full rounded-lg border-gray-300 text-xs p-1.5" />
                                         </div>
                                         <div>
                                             <label class="block text-[11px] text-rose-700 font-semibold mb-0.5">Qty Ditolak (Cacat)</label>
                                             <input v-model.number="item.quantity_rejected" type="number" min="0" step="any" class="w-full rounded-lg border-gray-300 text-xs p-1.5" />
                                         </div>
                                     </div>
-                                    <div v-if="item.quantity_rejected > 0">
+                                    <div v-if="item.isSelected && item.quantity_rejected > 0">
                                         <label class="block text-[11px] text-rose-700 mb-0.5">Alasan Penolakan</label>
                                         <input v-model="item.rejection_reason" type="text" placeholder="Pecah / tidak sesuai spek..." class="w-full rounded-lg border-gray-300 text-xs p-1.5" />
                                     </div>

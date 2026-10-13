@@ -88,13 +88,23 @@ watch(selectedOrderId, async (newId) => {
         const rawItems = orderData.items || []
         form.value.items = rawItems.map(item => {
             const orderedQty = parseFloat(item.quantity) || 1
+            const alreadyAccepted = parseFloat(item.already_accepted_quantity) || 0
+            const remainingReceivable = typeof item.remaining_receivable_quantity !== 'undefined'
+                ? parseFloat(item.remaining_receivable_quantity)
+                : Math.max(0, orderedQty - alreadyAccepted)
+            const isFullyReceived = remainingReceivable <= 0
+
             return {
                 direct_purchase_item_id: item.id,
                 description: item.description || item.item?.name || 'Barang Pesanan',
                 unit: item.unit?.code || item.unit?.name || 'Unit',
                 quantity_ordered: orderedQty,
-                quantity_received: orderedQty,
-                quantity_accepted: orderedQty,
+                already_accepted: alreadyAccepted,
+                remaining_receivable: remainingReceivable,
+                is_fully_received: isFullyReceived,
+                isSelected: !isFullyReceived,
+                quantity_received: remainingReceivable,
+                quantity_accepted: remainingReceivable,
                 quantity_rejected: 0,
                 rejection_reason: '',
                 notes: ''
@@ -108,13 +118,29 @@ watch(selectedOrderId, async (newId) => {
     }
 })
 
+// Quick helpers for selection
+const selectAll = () => {
+    form.value.items.forEach(item => {
+        if (!item.is_fully_received) item.isSelected = true
+    })
+}
+
+const deselectAll = () => {
+    form.value.items.forEach(item => {
+        item.isSelected = false
+    })
+}
+
 // Quick helper: Set all accepted
 const acceptAll = () => {
     form.value.items.forEach(item => {
-        item.quantity_received = item.quantity_ordered
-        item.quantity_accepted = item.quantity_ordered
-        item.quantity_rejected = 0
-        item.rejection_reason = ''
+        if (!item.is_fully_received) {
+            item.isSelected = true
+            item.quantity_received = item.remaining_receivable
+            item.quantity_accepted = item.remaining_receivable
+            item.quantity_rejected = 0
+            item.rejection_reason = ''
+        }
     })
 }
 
@@ -153,14 +179,23 @@ const validationError = computed(() => {
     if (!selectedOrderId.value) return 'Silakan pilih dokumen Direct Purchase yang diterima.'
     if (form.value.items.length === 0) return 'Pesanan tidak memiliki item untuk diterima.'
 
-    for (let i = 0; i < form.value.items.length; i++) {
-        const item = form.value.items[i]
+    const selectedItems = form.value.items.filter(item => item.isSelected)
+    if (selectedItems.length === 0) {
+        return 'Pilih minimal 1 item barang yang dicatat penerimaannya hari ini.'
+    }
+
+    for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i]
         const rec = parseFloat(item.quantity_received) || 0
         const acc = parseFloat(item.quantity_accepted) || 0
         const rej = parseFloat(item.quantity_rejected) || 0
+        const rem = item.remaining_receivable
 
         if (rec <= 0) {
             return `Kuantitas fisik diterima untuk item "${item.description}" harus lebih dari 0.`
+        }
+        if (acc > rem) {
+            return `Kuantitas diterima (${acc}) melebihi sisa pesanan yang belum tiba (${rem}) untuk item "${item.description}".`
         }
         if (acc + rej !== rec) {
             return `Jumlah kuantitas diterima (${acc}) + ditolak (${rej}) harus sama dengan kuantitas fisik (${rec}) untuk item "${item.description}".`
@@ -227,6 +262,7 @@ const handleSubmit = async () => {
 
     isSubmitting.value = true
     try {
+        const selectedItems = form.value.items.filter(item => item.isSelected)
         const payload = {
             direct_purchase_id: parseInt(selectedOrderId.value, 10),
             delivery_note_number: form.value.delivery_note_number || null,
@@ -234,7 +270,7 @@ const handleSubmit = async () => {
             delivery_proof_file_id: form.value.delivery_proof_file_id || null,
             receipt_date: form.value.receipt_date,
             notes: form.value.notes || null,
-            items: form.value.items.map(item => ({
+            items: selectedItems.map(item => ({
                 direct_purchase_item_id: item.direct_purchase_item_id,
                 quantity_received: parseFloat(item.quantity_received),
                 quantity_accepted: parseFloat(item.quantity_accepted),
@@ -339,7 +375,7 @@ onMounted(() => {
                                 :key="order.id"
                                 :value="order.id"
                             >
-                                {{ order.dp_number }} - {{ order.merchant_name || order.supplier?.name || 'Toko' }} ({{ order.items?.length || 0 }} Item)
+                                {{ order.dp_number }} - {{ order.merchant_name || order.supplier?.name || 'Toko' }} ({{ order.items?.length || 0 }} Item){{ order.status === 'partially_received' ? ' • [Diterima Sebagian]' : '' }}
                             </option>
                         </select>
                         <p class="text-[11px] text-slate-400 mt-1">
@@ -479,26 +515,43 @@ onMounted(() => {
 
                 <!-- 4. Tabel Pemeriksaan Fisik Item -->
                 <div v-if="selectedOrder" class="space-y-2">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
                         <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                             <Package class="w-4 h-4 text-blue-600" />
-                            Pemeriksaan Fisik Barang (Item Inspection)
+                            Pemeriksaan Fisik Barang (Centang Item yang Tiba Hari Ini)
                         </h4>
-                        <button
-                            type="button"
-                            @click="acceptAll"
-                            class="px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
-                        >
-                            ✓ Terima Semua Sesuai Pesanan
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                @click="selectAll"
+                                class="px-2 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 transition-colors cursor-pointer"
+                            >
+                                Pilih Semua
+                            </button>
+                            <button
+                                type="button"
+                                @click="deselectAll"
+                                class="px-2 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 transition-colors cursor-pointer"
+                            >
+                                Batal Pilih
+                            </button>
+                            <button
+                                type="button"
+                                @click="acceptAll"
+                                class="px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                            >
+                                ✓ Terima Sisa Pesanan
+                            </button>
+                        </div>
                     </div>
 
                     <div class="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase">
-                                    <th class="py-2.5 px-3">Nama Barang</th>
-                                    <th class="py-2.5 px-3 text-center">Dipesan</th>
+                                    <th class="py-2.5 px-3 text-center w-10">Pilih</th>
+                                    <th class="py-2.5 px-3">Nama Barang & Status</th>
+                                    <th class="py-2.5 px-3 text-center">Status Pesanan</th>
                                     <th class="py-2.5 px-3 text-center">Fisik Datang</th>
                                     <th class="py-2.5 px-3 text-center text-emerald-700">Diterima Baik</th>
                                     <th class="py-2.5 px-3 text-center text-rose-700">Ditolak / Cacat</th>
@@ -509,15 +562,43 @@ onMounted(() => {
                                 <tr
                                     v-for="(item, idx) in form.items"
                                     :key="item.direct_purchase_item_id"
-                                    class="hover:bg-slate-50/50"
+                                    :class="[
+                                        'transition-colors',
+                                        item.isSelected ? 'bg-blue-50/20 hover:bg-blue-50/40' : (item.is_fully_received ? 'bg-slate-50/80 opacity-60' : 'hover:bg-slate-50/50')
+                                    ]"
                                 >
-                                    <td class="py-3 px-3">
-                                        <p class="font-semibold text-slate-800">{{ item.description }}</p>
-                                        <span class="text-[10px] text-slate-400">Satuan: {{ item.unit }}</span>
+                                    <!-- Checkbox Seleksi -->
+                                    <td class="py-3 px-3 text-center">
+                                        <input
+                                            type="checkbox"
+                                            v-model="item.isSelected"
+                                            :disabled="item.is_fully_received"
+                                            class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 disabled:opacity-40 cursor-pointer"
+                                        />
                                     </td>
 
-                                    <td class="py-3 px-3 text-center font-mono font-medium text-slate-700">
-                                        {{ item.quantity_ordered }} {{ item.unit }}
+                                    <!-- Nama Barang & Keterangan -->
+                                    <td class="py-3 px-3">
+                                        <p class="font-semibold text-slate-800">{{ item.description }}</p>
+                                        <div class="flex items-center gap-2 mt-0.5 text-[10px]">
+                                            <span class="text-slate-400">Satuan: {{ item.unit }}</span>
+                                            <span v-if="item.is_fully_received" class="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                                                Lengkap Diterima
+                                            </span>
+                                            <span v-else-if="item.already_accepted > 0" class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-medium">
+                                                Diterima Sebagian
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Status Pesanan (Dipesan, Diterima, Sisa) -->
+                                    <td class="py-3 px-3 text-center font-mono text-[11px]">
+                                        <div class="text-slate-700 font-medium">
+                                            Dipesan: {{ item.quantity_ordered }}
+                                        </div>
+                                        <div class="text-slate-400 text-[10px]">
+                                            Sudah: {{ item.already_accepted }} | Sisa: <strong class="text-blue-600">{{ item.remaining_receivable }}</strong>
+                                        </div>
                                     </td>
 
                                     <!-- Kuantitas Fisik Datang -->
@@ -525,10 +606,12 @@ onMounted(() => {
                                         <input
                                             v-model.number="item.quantity_received"
                                             @input="onReceivedChange(item)"
+                                            :disabled="!item.isSelected || item.is_fully_received"
                                             type="number"
                                             min="0"
+                                            :max="item.remaining_receivable"
                                             step="1"
-                                            class="w-20 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                                            class="w-20 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
                                         />
                                     </td>
 
@@ -537,10 +620,12 @@ onMounted(() => {
                                         <input
                                             v-model.number="item.quantity_accepted"
                                             @input="onAcceptedChange(item)"
+                                            :disabled="!item.isSelected || item.is_fully_received"
                                             type="number"
                                             min="0"
+                                            :max="item.quantity_received"
                                             step="1"
-                                            class="w-20 px-2 py-1 text-center bg-emerald-50 border border-emerald-200 rounded font-mono font-bold text-emerald-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white"
+                                            class="w-20 px-2 py-1 text-center bg-emerald-50 border border-emerald-200 rounded font-mono font-bold text-emerald-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
                                         />
                                     </td>
 
@@ -549,17 +634,18 @@ onMounted(() => {
                                         <input
                                             v-model.number="item.quantity_rejected"
                                             @input="onRejectedChange(item)"
+                                            :disabled="!item.isSelected || item.is_fully_received"
                                             type="number"
                                             min="0"
                                             step="1"
-                                            class="w-20 px-2 py-1 text-center bg-rose-50 border border-rose-200 rounded font-mono font-bold text-rose-800 focus:outline-none focus:ring-1 focus:ring-rose-500 focus:bg-white"
+                                            class="w-20 px-2 py-1 text-center bg-rose-50 border border-rose-200 rounded font-mono font-bold text-rose-800 focus:outline-none focus:ring-1 focus:ring-rose-500 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400"
                                         />
                                     </td>
 
                                     <!-- Alasan Penolakan -->
                                     <td class="py-3 px-3">
                                         <input
-                                            v-if="item.quantity_rejected > 0"
+                                            v-if="item.isSelected && item.quantity_rejected > 0"
                                             v-model="item.rejection_reason"
                                             type="text"
                                             placeholder="e.g. Layar retak, segel rusak"

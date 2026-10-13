@@ -71,7 +71,12 @@ export const useAuthStore = defineStore('auth', {
 
     actions: {
         setAuth(user, profile) {
-            this.user = user
+            this.user = user ? {
+                ...user,
+                has_signature: Boolean(user.has_signature),
+                signature_url: user.signature_url || null,
+                signature_file_id: user.signature_file_id || null,
+            } : null
             this.profile = profile
             this.isAuthenticated = true
         },
@@ -98,8 +103,16 @@ export const useAuthStore = defineStore('auth', {
                     getProfile(),
                 ])
 
-                this.user = userResponse.user
-                this.profile = profileResponse.data
+                const userData = userResponse?.user || userResponse?.data || userResponse
+                const profileData = profileResponse?.data || profileResponse
+
+                this.user = userData ? {
+                    ...userData,
+                    has_signature: Boolean(userData.has_signature),
+                    signature_url: userData.signature_url || null,
+                    signature_file_id: userData.signature_file_id || null,
+                } : null
+                this.profile = profileData
                 this.isAuthenticated = true
 
                 return true
@@ -124,7 +137,7 @@ export const useAuthStore = defineStore('auth', {
 
         updateUserSignature(hasSignature, signatureUrl = null, signatureFileId = null) {
             if (this.user) {
-                this.user.has_signature = hasSignature
+                this.user.has_signature = Boolean(hasSignature)
                 this.user.signature_url = signatureUrl
                 this.user.signature_file_id = signatureFileId
             }

@@ -20,7 +20,7 @@ onMounted(() => {
         
         <AppHeader isSticky fullWidth>
             <template #left>
-                <RouterLink :to="{ name: 'admin.dashboard' }" class="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer">
+                <RouterLink :to="{ name: 'user.dashboard' }" class="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer">
                     <img 
                         src="/pses_transparent.png" 
                         alt="Padma Soode ERP Sistem" 

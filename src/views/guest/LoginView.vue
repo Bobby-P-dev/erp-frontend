@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { login, getProfile } from '../../services/authServices'
 import { 
@@ -100,11 +100,13 @@ const handleLogin = async () => {
 
             <!-- Bagian Atas / Header: Ringkas, Jelas, & Humanis -->
             <div class="mb-7 text-center flex flex-col items-center">
-                <img 
-                    src="/pses_transparent.png" 
-                    alt="Padma Soode ERP Sistem" 
-                    class="h-7 sm:h-8 w-auto object-contain mb-2.5" 
-                />
+                <RouterLink :to="{ name: 'user.dashboard' }" class="inline-block transition-transform duration-200 hover:scale-105" title="Padma Soode ERP Sistem">
+                    <img 
+                        src="/pses_transparent.png" 
+                        alt="Padma Soode ERP Sistem" 
+                        class="h-7 sm:h-8 w-auto object-contain mb-2.5" 
+                    />
+                </RouterLink>
                 <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                     Padma Soode ERP Sistem
                 </h1>

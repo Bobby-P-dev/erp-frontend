@@ -169,6 +169,16 @@ const ROUTE_BREADCRUMBS = {
         { label: 'Core' },
         { label: 'Akun Akuntansi (COA)' }
     ],
+    'admin.master.currency': [
+        { label: 'Master Data' },
+        { label: 'Core' },
+        { label: 'Mata Uang (Currencies)' }
+    ],
+    'admin.master.tax': [
+        { label: 'Master Data' },
+        { label: 'Core' },
+        { label: 'Pajak (Taxes)' }
+    ],
 
     // Admin Master Data - Purchasing
     'admin.master.supplier': [

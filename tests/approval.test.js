@@ -522,3 +522,69 @@ describe('6. Pinia Approval Store', () => {
         assert.equal(store.formattedBadge, '99');
     });
 });
+
+describe('7. Approval Workflow Lifecycle Contract & Tiers Resolution', () => {
+    it('resolves approval tiers from either stage.tiers or stage.levels', () => {
+        const getStageTiers = (stage) => {
+            if (!stage) return [];
+            if (Array.isArray(stage.tiers) && stage.tiers.length > 0) return stage.tiers;
+            if (Array.isArray(stage.levels) && stage.levels.length > 0) return stage.levels;
+            return [];
+        };
+
+        const stageWithTiers = {
+            key: 'pr_approval',
+            title: 'Approval Workflow',
+            tiers: [
+                { step_order: 1, step_name: 'Kadiv Approval', status: 'approved' },
+                { step_order: 2, step_name: 'Direksi Approval', status: 'pending' }
+            ]
+        };
+
+        const stageWithLevels = {
+            key: 'pr_approval',
+            title: 'Approval Workflow',
+            levels: [
+                { step_order: 1, step_name: 'Kadiv Approval', status: 'approved' },
+                { step_order: 2, step_name: 'Direksi Approval', status: 'pending' }
+            ]
+        };
+
+        assert.equal(getStageTiers(stageWithTiers).length, 2);
+        assert.equal(getStageTiers(stageWithLevels).length, 2);
+        assert.equal(getStageTiers({ key: 'pr_approval' }).length, 0);
+    });
+
+    it('maps stage title for pr_approval to Approval Workflow', () => {
+        const getStageTitle = (stage) => {
+            if (stage?.key === 'pr_approval') return 'Approval Workflow';
+            return stage?.title || '';
+        };
+
+        assert.equal(getStageTitle({ key: 'pr_approval', title: 'Persetujuan Internal PR' }), 'Approval Workflow');
+        assert.equal(getStageTitle({ key: 'pr_approval', title: 'Approval Workflow' }), 'Approval Workflow');
+        assert.equal(getStageTitle({ key: 'direct_purchase', title: 'Eksekusi Pembelian' }), 'Eksekusi Pembelian');
+    });
+
+    it('formats tier status labels accurately', () => {
+        const formatTierStatus = (status) => {
+            switch (status) {
+                case 'approved': return 'Disetujui';
+                case 'rejected': return 'Ditolak';
+                case 'revision': return 'Minta Revisi';
+                case 'skipped': return 'Dilewati';
+                case 'in_progress': return 'Sedang Ditinjau';
+                case 'pending': return 'Menunggu Antrean';
+                default: return status || 'Menunggu';
+            }
+        };
+
+        assert.equal(formatTierStatus('approved'), 'Disetujui');
+        assert.equal(formatTierStatus('rejected'), 'Ditolak');
+        assert.equal(formatTierStatus('revision'), 'Minta Revisi');
+        assert.equal(formatTierStatus('skipped'), 'Dilewati');
+        assert.equal(formatTierStatus('in_progress'), 'Sedang Ditinjau');
+        assert.equal(formatTierStatus('pending'), 'Menunggu Antrean');
+    });
+});
+

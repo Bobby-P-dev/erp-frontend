@@ -83,11 +83,11 @@ const handleDeleteSignature = async () => {
         <div class="bg-white rounded-xl border border-slate-200 shadow-xs p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div class="flex items-center gap-5">
                 <div class="w-16 h-16 rounded-xl bg-blue-600 text-white flex items-center justify-center text-2xl font-bold shadow-sm">
-                    {{ user.name?.charAt(0)?.toUpperCase() || 'U' }}
+                    {{ (employee.name || user.name)?.charAt(0)?.toUpperCase() || 'U' }}
                 </div>
                 <div>
                     <div class="flex items-center gap-2.5">
-                        <h2 class="text-xl font-bold text-slate-900">{{ user.name || 'Nama Pengguna' }}</h2>
+                        <h2 class="text-xl font-bold text-slate-900">{{ employee.name || user.name || 'Nama Pengguna' }}</h2>
                         <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                             <Shield class="w-3 h-3" />
                             {{ rolesList }}
@@ -96,7 +96,7 @@ const handleDeleteSignature = async () => {
                     <div class="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500 mt-1.5 font-medium">
                         <span class="inline-flex items-center gap-1.5">
                             <Mail class="w-3.5 h-3.5 text-slate-400" />
-                            {{ user.email || '-' }}
+                            {{ employee.email || user.email || '-' }}
                         </span>
                         <span v-if="employee.nik" class="inline-flex items-center gap-1.5">
                             <Hash class="w-3.5 h-3.5 text-slate-400" />
@@ -198,7 +198,7 @@ const handleDeleteSignature = async () => {
                         />
 
                         <div class="absolute bottom-2 right-3 text-[10px] text-slate-400 font-mono z-10">
-                            Valid Specimen • {{ user.name }}
+                            Valid Specimen • {{ employee.name || user.name || 'User' }}
                         </div>
                     </div>
 

@@ -8,6 +8,7 @@ import KpiCard from '../../components/ui/KpiCard.vue'
 import TabNavigation from '../../components/ui/TabNavigation.vue'
 import RecordGoodsReceiptModal from '../../components/inventory/RecordGoodsReceiptModal.vue'
 import GoodsReceiptHandoverModal from '../../components/inventory/GoodsReceiptHandoverModal.vue'
+import GoodsBulkHandoverModal from '../../components/inventory/GoodsBulkHandoverModal.vue'
 
 import { useDataTable } from '../../composables/useDataTable.js'
 import { useFormatter } from '../../composables/useFormatter.js'
@@ -15,6 +16,7 @@ import { getGoodsReceipts } from '../../services/inventoryServices.js'
 import {
     Boxes,
     Package,
+    PackageCheck,
     Plus,
     Search,
     X,
@@ -61,6 +63,7 @@ const {
 const showHandoverModal = ref(false)
 const handoverTarget = ref(null)
 const showRecordModal = ref(false)
+const showBulkHandoverModal = ref(false)
 
 const openHandoverDialog = (item) => {
     handoverTarget.value = item
@@ -132,6 +135,15 @@ const getItemSummary = (item) => {
             </div>
 
             <div class="flex items-center gap-2.5">
+                <button
+                    type="button"
+                    @click="showBulkHandoverModal = true"
+                    class="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg shadow-2xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                    <PackageCheck class="w-4 h-4 text-emerald-600" />
+                    <span>Serah Terima Borongan (BAST)</span>
+                </button>
+
                 <BaseButton
                     variant="primary"
                     size="md"
@@ -228,6 +240,22 @@ const getItemSummary = (item) => {
                         class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
                     />
                 </div>
+            </div>
+
+            <!-- Info Callout for Pending Pickup Tab -->
+            <div v-if="filters.handover_status === 'pending_pickup'" class="mx-4 mb-4 p-3 bg-amber-50 border border-amber-200/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-2.5 text-amber-900">
+                    <Clock class="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Ada barang yang tersimpan di gudang menunggu serah terima ke pemohon. Anda dapat melakukan penyerahan borongan lintas PR sekaligus melalui menu BAST.</span>
+                </div>
+                <button
+                    type="button"
+                    @click="showBulkHandoverModal = true"
+                    class="px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-300 rounded-lg transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                >
+                    <PackageCheck class="w-3.5 h-3.5 text-amber-800" />
+                    <span>Buka Serah Terima Borongan</span>
+                </button>
             </div>
 
             <!-- 4. Data Table -->
@@ -399,6 +427,12 @@ const getItemSummary = (item) => {
         <GoodsReceiptHandoverModal
             v-model="showHandoverModal"
             :target="handoverTarget"
+            @saved="fetchData(pagination.current_page)"
+        />
+
+        <!-- 7. Modal Serah Terima Borongan (Bulk Handover / BAST) -->
+        <GoodsBulkHandoverModal
+            v-model="showBulkHandoverModal"
             @saved="fetchData(pagination.current_page)"
         />
     </div>

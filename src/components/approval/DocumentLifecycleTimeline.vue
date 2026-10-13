@@ -154,6 +154,7 @@ const getStageIcon = (key) => {
 const getStatusBadgeClass = (status) => {
     switch (status) {
         case 'completed':
+        case 'approved':
             return 'bg-emerald-50 text-emerald-800 border-emerald-200'
         case 'in_progress':
             return 'bg-blue-50 text-blue-800 border-blue-200 ring-1 ring-blue-400/30 font-bold'
@@ -163,8 +164,43 @@ const getStatusBadgeClass = (status) => {
             return 'bg-amber-50 text-amber-800 border-amber-200'
         case 'ready_to_start':
             return 'bg-indigo-50 text-indigo-800 border-indigo-200'
+        case 'pending':
+            return 'bg-amber-50/70 text-amber-700 border-amber-200'
+        case 'skipped':
+            return 'bg-slate-100 text-slate-600 border-slate-200'
         default:
             return 'bg-slate-50 text-slate-500 border-slate-200'
+    }
+}
+
+const getStageTiers = (stage) => {
+    if (!stage) return []
+    if (Array.isArray(stage.tiers) && stage.tiers.length > 0) return stage.tiers
+    if (Array.isArray(stage.levels) && stage.levels.length > 0) return stage.levels
+    return []
+}
+
+const getStageTitle = (stage) => {
+    if (stage?.key === 'pr_approval') return 'Approval Workflow'
+    return stage?.title || ''
+}
+
+const getStageSubtitle = (stage) => {
+    if (stage?.key === 'pr_approval' && (stage.subtitle === 'Persetujuan Berjenjang (Kadiv & Direksi)' || !stage.subtitle)) {
+        return 'Alur Persetujuan Berjenjang Dokumen'
+    }
+    return stage?.subtitle || ''
+}
+
+const formatTierStatus = (status) => {
+    switch (status) {
+        case 'approved': return 'Disetujui'
+        case 'rejected': return 'Ditolak'
+        case 'revision': return 'Minta Revisi'
+        case 'skipped': return 'Dilewati'
+        case 'in_progress': return 'Sedang Ditinjau'
+        case 'pending': return 'Menunggu Antrean'
+        default: return status || 'Menunggu'
     }
 }
 
@@ -288,7 +324,7 @@ const getRailIconColor = (status) => {
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h5 class="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
-                                        {{ stage.title }}
+                                        {{ getStageTitle(stage) }}
                                     </h5>
                                     <span 
                                         class="px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold border"
@@ -298,7 +334,7 @@ const getRailIconColor = (status) => {
                                     </span>
                                 </div>
                                 <p class="text-[11px] text-slate-500 mt-0.5">
-                                    {{ stage.subtitle }}
+                                    {{ getStageSubtitle(stage) }}
                                 </p>
                             </div>
                         </div>
@@ -373,60 +409,80 @@ const getRailIconColor = (status) => {
 
                         <!-- 2. STAGE SPECIFIC: PR APPROVAL TIERS -->
                         <div v-else-if="stage.key === 'pr_approval'" class="space-y-3">
-                            <div class="text-[11px] text-slate-500 font-medium">
-                                Persetujuan berjenjang internal dengan {{ stage.tiers?.length || 0 }} tingkat peninjau:
+                            <div class="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+                                <span>Alur persetujuan berjenjang dengan {{ getStageTiers(stage).length }} tingkat peninjau:</span>
+                                <span v-if="stage.status === 'completed'" class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                    Disetujui Penuh
+                                </span>
                             </div>
 
                             <!-- Approver Tiers Cards -->
-                            <div class="space-y-2">
+                            <div v-if="getStageTiers(stage).length" class="space-y-2">
                                 <div 
-                                    v-for="tier in stage.tiers" 
-                                    :key="tier.step_order"
-                                    class="p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                                    v-for="tier in getStageTiers(stage)" 
+                                    :key="tier.id || tier.step_order"
+                                    class="p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors"
                                     :class="[
                                         tier.status === 'approved' ? 'bg-emerald-50/40 border-emerald-200' : 
                                         tier.status === 'rejected' ? 'bg-rose-50/40 border-rose-200' : 
+                                        tier.status === 'revision' ? 'bg-amber-50/40 border-amber-200' : 
                                         tier.status === 'skipped' ? 'bg-slate-50 border-slate-200 opacity-60' : 
-                                        'bg-blue-50/30 border-blue-200'
+                                        tier.status === 'in_progress' ? 'bg-blue-50/40 border-blue-200 ring-1 ring-blue-300/40' : 
+                                        'bg-slate-50/60 border-slate-200'
                                     ]"
                                 >
                                     <div class="flex items-center gap-3">
                                         <div 
-                                            class="w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-[11px]"
+                                            class="w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-[11px] shrink-0"
                                             :class="[
                                                 tier.status === 'approved' ? 'bg-emerald-600 text-white' : 
                                                 tier.status === 'rejected' ? 'bg-rose-600 text-white' : 
-                                                'bg-blue-600 text-white'
+                                                tier.status === 'revision' ? 'bg-amber-600 text-white' : 
+                                                tier.status === 'in_progress' ? 'bg-blue-600 text-white animate-pulse' : 
+                                                'bg-slate-400 text-white'
                                             ]"
                                         >
                                             {{ tier.step_order }}
                                         </div>
                                         <div>
-                                            <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                                            <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
                                                 <span>{{ tier.step_name || 'Tier ' + tier.step_order }}</span>
-                                                <span class="text-[11px] text-slate-500 font-normal">({{ tier.role_name }})</span>
+                                                <span v-if="tier.role_name || tier.assignee_label" class="text-[11px] text-slate-500 font-normal">
+                                                    ({{ tier.role_name || tier.assignee_label }})
+                                                </span>
+                                                <span v-if="tier.approval_mode === 'all'" class="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded">
+                                                    Konsensus (Semua)
+                                                </span>
                                             </div>
-                                            <div class="text-[11px] text-slate-600 mt-0.5 flex items-center gap-1.5">
-                                                <span class="font-medium text-slate-800">{{ tier.specific_user?.name || 'Pejabat Peninjau' }}</span>
-                                                <span v-if="tier.specific_user?.nik" class="font-mono text-[10px] text-slate-500">
-                                                    [{{ tier.specific_user.nik }}]
+                                            <div class="text-[11px] text-slate-600 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-medium text-slate-800">
+                                                    {{ tier.specific_user?.name || tier.assignee?.name || tier.user?.name || tier.assignee_label || 'Pejabat Peninjau' }}
+                                                </span>
+                                                <span v-if="tier.specific_user?.nik || tier.assignee?.nik" class="font-mono text-[10px] text-slate-500">
+                                                    [{{ tier.specific_user?.nik || tier.assignee?.nik }}]
+                                                </span>
+                                                <span v-if="tier.approver_scope && !tier.role_name" class="text-[10px] text-slate-400">
+                                                    &bull; {{ tier.approver_scope }}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1">
+                                    <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0">
                                         <span 
                                             class="px-2 py-0.5 rounded text-[10px] font-bold border"
                                             :class="getStatusBadgeClass(tier.status)"
                                         >
-                                            {{ tier.status_label || tier.status }}
+                                            {{ tier.status_label || formatTierStatus(tier.status) }}
                                         </span>
-                                        <span v-if="tier.completed_at" class="text-[10px] text-slate-500 font-medium">
-                                            {{ formatDate(tier.completed_at) }}
+                                        <span v-if="tier.completed_at || tier.acted_at" class="text-[10px] text-slate-500 font-medium">
+                                            {{ formatDate(tier.completed_at || tier.acted_at) }}
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+                            <div v-else class="p-3 text-center bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500">
+                                Belum ada daftar peninjau yang ditugaskan untuk dokumen ini.
                             </div>
 
                             <!-- Audit actions notes if any -->
@@ -438,7 +494,7 @@ const getRailIconColor = (status) => {
                                     class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-[11px] text-slate-700"
                                 >
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="font-bold text-slate-900">{{ act.actor?.name }}</span>
+                                        <span class="font-bold text-slate-900">{{ act.user?.name || act.actor?.name || 'Peninjau' }}</span>
                                         <span class="text-[10px] text-slate-500">{{ formatDate(act.acted_at) }}</span>
                                     </div>
                                     <p v-if="act.notes" class="italic bg-white p-2 rounded border border-slate-200/60 text-slate-800">

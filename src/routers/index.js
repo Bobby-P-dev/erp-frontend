@@ -312,6 +312,11 @@ const router = createRouter({
                     component: () => import('../views/admin/master/CurrencyView.vue'),
                 },
                 {
+                    path: 'master/taxes',
+                    name: 'admin.master.tax',
+                    component: () => import('../views/admin/master/TaxView.vue'),
+                },
+                {
                     path: 'master/suppliers/create',
                     name: 'admin.master.supplier.create',
                     component: () => import('../views/admin/master/supplier/SupplierCreateView.vue'),

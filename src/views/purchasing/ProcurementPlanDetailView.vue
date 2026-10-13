@@ -123,6 +123,44 @@ const totalPlannedQty = computed(() => {
     return plan.value.items.reduce((sum, item) => sum + Number(item.planned_quantity || 0), 0)
 })
 
+// Source PRs Computations (Single vs Consolidated Multi-PR)
+const sourcePrs = computed(() => {
+    if (plan.value?.source_prs && plan.value.source_prs.length > 0) {
+        return plan.value.source_prs
+    }
+    if (plan.value?.items && plan.value.items.length > 0) {
+        const unique = {}
+        plan.value.items.forEach(item => {
+            const pr = item.purchase_requisition_item?.purchase_requisition
+            if (pr && !unique[pr.id]) {
+                unique[pr.id] = {
+                    id: pr.id,
+                    pr_number: pr.pr_number,
+                    purpose: pr.purpose,
+                    division_name: pr.division?.name,
+                    company_name: pr.company?.name,
+                    requester_name: pr.requester?.name || pr.requester?.employee?.name,
+                    request_date: pr.request_date,
+                    required_date: pr.required_date,
+                    items_count: 0
+                }
+            }
+            if (pr) unique[pr.id].items_count++
+        })
+        return Object.values(unique)
+    }
+    return []
+})
+
+const isMultiPr = computed(() => {
+    if (plan.value?.is_consolidated) return true
+    return sourcePrs.value.length > 1
+})
+
+const sourcePrsCount = computed(() => {
+    return sourcePrs.value.length || plan.value?.pr_numbers?.length || 0
+})
+
 // Table Columns for items
 const tableColumns = computed(() => {
     const cur = plan.value?.purchase_requisition?.currency ? `(${plan.value.purchase_requisition.currency})` : '(IDR)'
@@ -362,68 +400,107 @@ onMounted(() => {
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <div class="flex items-center gap-2">
                             <FileText class="w-4 h-4 text-blue-600" />
-                            <h3 class="text-sm font-bold text-slate-900">Sumber Purchase Requisition</h3>
+                            <h3 class="text-sm font-bold text-slate-900">
+                                {{ isMultiPr ? `Sumber Dokumen PR (${sourcePrsCount} Dokumen)` : 'Sumber Purchase Requisition' }}
+                            </h3>
                         </div>
-                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span v-if="!isMultiPr" class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <CheckCircle2 class="w-3.5 h-3.5" /> Approved
+                        </span>
+                        <span v-else class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <Layers class="w-3.5 h-3.5" /> Multi-PR
                         </span>
                     </div>
 
-                    <!-- Requester Card (Diajukan Oleh) -->
-                    <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
-                        <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs ring-2 ring-blue-50 shrink-0">
-                            <User class="w-4.5 h-4.5 text-blue-600" />
+                    <!-- MULTI-PR MODE -->
+                    <div v-if="isMultiPr" class="space-y-3">
+                        <div class="text-xs text-slate-500 leading-relaxed">
+                            Rencana ini mengkonsolidasikan alokasi item dari <strong class="text-slate-700 font-semibold">{{ sourcePrsCount }} dokumen Purchase Requisition</strong>:
                         </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diajukan Oleh (Pemohon)</div>
-                            <div class="text-sm font-bold text-slate-900 truncate">
-                                {{ plan.purchase_requisition?.requester?.name || plan.purchase_requisition?.requester?.employee?.name || 'Pemohon Tidak Tercatat' }}
-                            </div>
-                            <div v-if="plan.purchase_requisition?.requester?.email || plan.purchase_requisition?.requester?.employee?.email" class="text-xs text-slate-500 truncate font-mono">
-                                {{ plan.purchase_requisition?.requester?.email || plan.purchase_requisition?.requester?.employee?.email }}
+                        <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                            <div 
+                                v-for="(pr, pIdx) in sourcePrs" 
+                                :key="pr.id || pIdx"
+                                class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/70 hover:border-blue-300 transition-all space-y-1.5"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <span class="font-mono font-bold text-blue-700 text-xs flex items-center gap-1.5">
+                                        <FileText class="w-3.5 h-3.5 text-blue-500" />
+                                        {{ pr.pr_number }}
+                                    </span>
+                                    <span v-if="pr.items_count" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                        {{ pr.items_count }} Item Dialokasikan
+                                    </span>
+                                </div>
+                                <div class="text-xs text-slate-800 font-semibold truncate">
+                                    {{ pr.division_name || pr.company_name || 'Divisi Tidak Tercatat' }}
+                                </div>
+                                <div class="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                                    <span class="truncate max-w-[140px]">Pemohon: {{ pr.requester_name || '-' }}</span>
+                                    <span v-if="pr.request_date" class="text-[10px] text-slate-400 font-mono">{{ formatDate(pr.request_date) }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="space-y-2.5 text-xs">
-                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
-                            <span class="text-slate-500">Nomor PR:</span>
-                            <span class="font-bold text-slate-900 font-mono">{{ plan.purchase_requisition?.pr_number || '-' }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
-                            <span class="text-slate-500">Perusahaan:</span>
-                            <span class="font-semibold text-slate-800">{{ plan.purchase_requisition?.company?.name || '-' }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
-                            <span class="text-slate-500">Divisi:</span>
-                            <span class="font-semibold text-slate-800">{{ plan.purchase_requisition?.division?.name || '-' }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
-                            <span class="text-slate-500">Tanggal Pengajuan:</span>
-                            <span class="font-semibold text-slate-800">{{ formatDate(plan.purchase_requisition?.request_date) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1 border-b border-slate-50">
-                            <span class="text-slate-500">Tanggal Target Kebutuhan:</span>
-                            <span class="font-semibold text-slate-800">{{ formatDate(plan.purchase_requisition?.required_date) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center py-2 px-3 bg-blue-50/70 border border-blue-200/70 rounded-xl">
-                            <span class="text-blue-700 font-bold uppercase tracking-wider text-[11px]">Total Nilai Estimasi PR:</span>
-                            <div class="text-right">
-                                <span class="font-bold text-blue-900 font-mono text-sm block">
-                                    {{ formatCurrency(plan.purchase_requisition?.total_estimated_amount, plan.purchase_requisition?.currency) }}
-                                </span>
-                                <span v-if="plan.purchase_requisition?.currency && plan.purchase_requisition.currency !== 'IDR'" class="text-[10px] text-blue-600 font-mono block mt-0.5">
-                                    ≈ {{ formatCurrency((Number(plan.purchase_requisition?.total_estimated_amount) || 0) * (Number(plan.purchase_requisition?.exchange_rate) || 1), 'IDR') }}
-                                </span>
+                    <!-- SINGLE-PR MODE -->
+                    <template v-else>
+                        <!-- Requester Card (Diajukan Oleh) -->
+                        <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
+                            <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs ring-2 ring-blue-50 shrink-0">
+                                <User class="w-4.5 h-4.5 text-blue-600" />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diajukan Oleh (Pemohon)</div>
+                                <div class="text-sm font-bold text-slate-900 truncate">
+                                    {{ plan.purchase_requisition?.requester?.name || plan.purchase_requisition?.requester?.employee?.name || 'Pemohon Tidak Tercatat' }}
+                                </div>
+                                <div v-if="plan.purchase_requisition?.requester?.email || plan.purchase_requisition?.requester?.employee?.email" class="text-xs text-slate-500 truncate font-mono">
+                                    {{ plan.purchase_requisition?.requester?.email || plan.purchase_requisition?.requester?.employee?.email }}
+                                </div>
                             </div>
                         </div>
-                        <div class="pt-1" v-if="plan.purchase_requisition?.purpose">
-                            <span class="text-slate-500 block mb-1">Keperluan Pengajuan:</span>
-                            <p class="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 italic">
-                                {{ plan.purchase_requisition?.purpose }}
-                            </p>
+
+                        <div class="space-y-2.5 text-xs">
+                            <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                                <span class="text-slate-500">Nomor PR:</span>
+                                <span class="font-bold text-slate-900 font-mono">{{ plan.purchase_requisition?.pr_number || '-' }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                                <span class="text-slate-500">Perusahaan:</span>
+                                <span class="font-semibold text-slate-800">{{ plan.purchase_requisition?.company?.name || '-' }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                                <span class="text-slate-500">Divisi:</span>
+                                <span class="font-semibold text-slate-800">{{ plan.purchase_requisition?.division?.name || '-' }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                                <span class="text-slate-500">Tanggal Pengajuan:</span>
+                                <span class="font-semibold text-slate-800">{{ formatDate(plan.purchase_requisition?.request_date) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                                <span class="text-slate-500">Tanggal Target Kebutuhan:</span>
+                                <span class="font-semibold text-slate-800">{{ formatDate(plan.purchase_requisition?.required_date) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2 px-3 bg-blue-50/70 border border-blue-200/70 rounded-xl">
+                                <span class="text-blue-700 font-bold uppercase tracking-wider text-[11px]">Total Nilai Estimasi PR:</span>
+                                <div class="text-right">
+                                    <span class="font-bold text-blue-900 font-mono text-sm block">
+                                        {{ formatCurrency(plan.purchase_requisition?.total_estimated_amount, plan.purchase_requisition?.currency) }}
+                                    </span>
+                                    <span v-if="plan.purchase_requisition?.currency && plan.purchase_requisition.currency !== 'IDR'" class="text-[10px] text-blue-600 font-mono block mt-0.5">
+                                        ≈ {{ formatCurrency((Number(plan.purchase_requisition?.total_estimated_amount) || 0) * (Number(plan.purchase_requisition?.exchange_rate) || 1), 'IDR') }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="pt-1" v-if="plan.purchase_requisition?.purpose">
+                                <span class="text-slate-500 block mb-1">Keperluan Pengajuan:</span>
+                                <p class="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 italic">
+                                    {{ plan.purchase_requisition?.purpose }}
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    </template>
                 </div>
 
                 <!-- Lifecycle & Strategy Card -->
@@ -528,6 +605,18 @@ onMounted(() => {
                                     <ExternalLink class="w-3 h-3" />
                                     <span class="truncate max-w-xs">{{ item.purchase_requisition_item?.reference_url }}</span>
                                 </a>
+
+                                <!-- PR Reference Tag for Multi-PR Plan -->
+                                <div 
+                                    v-if="isMultiPr && (item.purchase_requisition_item?.purchase_requisition?.pr_number || item.purchase_requisition_item?.purchase_requisition_id)"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 mt-0.5"
+                                >
+                                    <FileText class="w-3 h-3 text-indigo-500 shrink-0" />
+                                    <span>{{ item.purchase_requisition_item?.purchase_requisition?.pr_number || 'PR #' + item.purchase_requisition_item?.purchase_requisition_id }}</span>
+                                    <span v-if="item.purchase_requisition_item?.purchase_requisition?.division?.name" class="font-sans text-indigo-500 font-normal">
+                                        • {{ item.purchase_requisition_item.purchase_requisition.division.name }}
+                                    </span>
+                                </div>
                             </div>
                         </td>
 

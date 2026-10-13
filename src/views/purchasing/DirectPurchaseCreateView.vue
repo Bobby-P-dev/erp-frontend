@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getProcurementPlans, showProcurementPlan } from '../../services/procurementPlanServices.js'
 import { getSuppliers } from '../../services/supplierServices.js'
+import { searchTaxes } from '../../services/taxServices.js'
 import { createDirectPurchase, createBulkDirectPurchase, submitDirectPurchaseForPayment } from '../../services/directPurchaseServices.js'
 import { searchCurrencies } from '../../services/currencyServices.js'
 import { showLoading, showSuccess, showError, showConfirm, closeSwal } from '../../utils/swal.js'
@@ -73,10 +74,54 @@ const form = ref({
     discount_amount: 0,
     shipping_cost: 0,
     platform_fee: 0,
+    tax_id: null,
     tax_amount: 0,
     notes: '',
     items: []
 })
+
+// Master Pajak State
+const taxesList = ref([])
+const isLoadingTaxes = ref(false)
+
+const fetchTaxesList = async () => {
+    try {
+        isLoadingTaxes.value = true
+        const res = await searchTaxes('', null, 100)
+        taxesList.value = res.data || []
+    } catch (err) {
+        console.error('Failed to load taxes:', err)
+        taxesList.value = []
+    } finally {
+        isLoadingTaxes.value = false
+    }
+}
+
+const selectedTax = computed(() => {
+    if (!form.value.tax_id) return null
+    return taxesList.value.find(t => t.id === Number(form.value.tax_id)) || null
+})
+
+const selectedTaxName = computed(() => {
+    if (!selectedTax.value) return ''
+    return `${selectedTax.value.code || selectedTax.value.name} (${selectedTax.value.rate}%)`
+})
+
+const selectedTaxRate = computed(() => {
+    return selectedTax.value ? selectedTax.value.rate : null
+})
+
+const onTaxChange = () => {
+    if (!form.value.tax_id) {
+        form.value.tax_amount = 0
+        return
+    }
+    const sel = taxesList.value.find(t => t.id === Number(form.value.tax_id))
+    if (sel) {
+        const netBase = Math.max(0, itemsSubtotal.value - (Number(form.value.discount_amount) || 0))
+        form.value.tax_amount = Math.round((netBase * Number(sel.rate)) / 100)
+    }
+}
 
 const currenciesList = ref([])
 const isLoadingCurrencies = ref(false)
@@ -147,6 +192,17 @@ const grandTotal = computed(() => {
 const equivalentIdrGrandTotal = computed(() => {
     const rate = Number(form.value.exchange_rate) || 1
     return Math.round(grandTotal.value * rate)
+})
+
+// Auto-recalculate tax amount if tax_id is selected and items/discount change
+watch([itemsSubtotal, () => form.value.discount_amount], () => {
+    if (form.value.tax_id) {
+        const sel = taxesList.value.find(t => t.id === Number(form.value.tax_id))
+        if (sel) {
+            const netBase = Math.max(0, itemsSubtotal.value - (Number(form.value.discount_amount) || 0))
+            form.value.tax_amount = Math.round((netBase * Number(sel.rate)) / 100)
+        }
+    }
 })
 
 // Searchable options for Procurement Plans
@@ -471,6 +527,7 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
                 discount_amount: Number(form.value.discount_amount) || 0,
                 shipping_cost: Number(form.value.shipping_cost) || 0,
                 platform_fee: Number(form.value.platform_fee) || 0,
+                tax_id: form.value.tax_id ? Number(form.value.tax_id) : null,
                 tax_amount: Number(form.value.tax_amount) || 0,
                 notes: form.value.notes ? form.value.notes.trim() : null,
                 submit_for_payment: shouldSubmitForPayment,
@@ -521,6 +578,7 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
             discount_amount: Number(form.value.discount_amount) || 0,
             shipping_cost: Number(form.value.shipping_cost) || 0,
             platform_fee: Number(form.value.platform_fee) || 0,
+            tax_id: form.value.tax_id ? Number(form.value.tax_id) : null,
             tax_amount: Number(form.value.tax_amount) || 0,
             notes: form.value.notes ? form.value.notes.trim() : null,
             items: form.value.items.map(item => ({
@@ -567,6 +625,7 @@ const handleSubmit = async (shouldSubmitForPayment = false) => {
 onMounted(() => {
     fetchSuppliers()
     fetchCurrenciesList()
+    fetchTaxesList()
 
     if (route.query.bulk === '1') {
         const rawItems = sessionStorage.getItem('bulk_direct_purchase_items')
@@ -1355,17 +1414,44 @@ onMounted(() => {
                             </div>
 
                             <div>
-                                <label class="block font-bold text-gray-700 mb-1 flex items-center gap-1">
+                                <label class="block font-bold text-gray-700 mb-1 flex items-center justify-between">
+                                    <span class="flex items-center gap-1">
+                                        <Receipt class="w-3.5 h-3.5 text-gray-400" />
+                                        <span>Master Pajak</span>
+                                    </span>
+                                    <span v-if="selectedTaxRate !== null" class="text-[11px] text-indigo-600 font-mono font-semibold">
+                                        Tarif: {{ selectedTaxRate }}%
+                                    </span>
+                                </label>
+                                <select 
+                                    v-model="form.tax_id"
+                                    @change="onTaxChange"
+                                    class="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+                                >
+                                    <option :value="null">Bebas Pajak / Non-Pajak (0%)</option>
+                                    <option v-for="tax in taxesList" :key="tax.id" :value="tax.id">
+                                        {{ tax.code }} - {{ tax.name }} ({{ tax.rate }}%)
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-gray-700 mb-1 flex items-center justify-between">
+                                <span class="flex items-center gap-1">
                                     <Receipt class="w-3.5 h-3.5 text-gray-400" />
                                     <span>Pajak Transaksi ({{ form.currency }})</span>
-                                </label>
-                                <input 
-                                    type="number" 
-                                    min="0"
-                                    v-model="form.tax_amount" 
-                                    class="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-mono text-right font-bold focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
-                                />
-                            </div>
+                                </span>
+                                <span class="text-[10px] text-gray-400 font-normal">
+                                    Otomatis dihitung • Dapat disesuaikan bila ada selisih pembulatan struk
+                                </span>
+                            </label>
+                            <input 
+                                type="number" 
+                                min="0"
+                                v-model="form.tax_amount" 
+                                class="w-full p-2.5 bg-white border border-gray-200 rounded-lg font-mono text-right font-bold focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+                            />
                         </div>
 
                         <div>
@@ -1407,8 +1493,8 @@ onMounted(() => {
                                 <span class="font-bold font-mono">+ {{ formatCurrency(form.platform_fee, form.currency) }}</span>
                             </div>
 
-                            <div v-if="Number(form.tax_amount) > 0" class="flex justify-between items-center text-gray-600">
-                                <span>Pajak / PPN:</span>
+                            <div v-if="Number(form.tax_amount) > 0 || form.tax_id" class="flex justify-between items-center text-gray-600">
+                                <span>Pajak ({{ selectedTaxName || 'Pajak Transaksi' }}):</span>
                                 <span class="font-bold font-mono">+ {{ formatCurrency(form.tax_amount, form.currency) }}</span>
                             </div>
                         </div>

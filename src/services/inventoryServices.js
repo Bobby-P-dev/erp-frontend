@@ -67,8 +67,9 @@ export const getDirectPurchasesReadyForReceipt = async (search = '') => {
         const response = await api.get('/api/v1/direct-purchases', {
             params: {
                 search,
-                status: 'paid', // Utama: yang sudah dibayar kasir
-                per_page: 50
+                status: 'paid,partially_received',
+                ready_for_receipt: true,
+                per_page: 100
             }
         })
         const items = response.data?.data || response.data || []
@@ -80,7 +81,7 @@ export const getDirectPurchasesReadyForReceipt = async (search = '') => {
 }
 
 /**
- * Konfirmasi serah terima barang gudang ke pemohon (Handover).
+ * Konfirmasi serah terima barang gudang ke pemohon (Handover tunggal).
  *
  * @param {number|string} id
  * @param {object} payload { received_by_requester_id, notes, handover_proof_file_id }
@@ -88,6 +89,68 @@ export const getDirectPurchasesReadyForReceipt = async (search = '') => {
  */
 export const confirmGoodsReceiptHandover = async (id, payload = {}) => {
     const response = await api.post(`/api/v1/inventory/goods-receipts/${id}/handover`, payload)
+    return response.data
+}
+
+/**
+ * Mengambil daftar item barang yang ada di gudang dan siap diserahterimakan ke pemohon.
+ *
+ * @param {object} filters (company_id, search)
+ * @returns {Promise<Array>}
+ */
+export const getPendingHandoverItems = async (filters = {}) => {
+    const params = new URLSearchParams()
+    for (const key in filters) {
+        if (filters[key] !== null && filters[key] !== undefined && filters[key] !== '') {
+            params.append(key, filters[key])
+        }
+    }
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    const response = await api.get(`/api/v1/inventory/goods-handovers/pending-items${queryString}`)
+    return response.data?.data || response.data || []
+}
+
+/**
+ * Membuat catatan Serah Terima Barang Borongan (Bulk Handover / BAST) lintas PR.
+ *
+ * @param {object} payload { recipient_user_id, recipient_name, recipient_identity_number, recipient_division_name, handover_date, proof_file_id, notes, items: [...] }
+ * @returns {Promise<object>}
+ */
+export const createBulkGoodsHandover = async (payload) => {
+    const response = await api.post('/api/v1/inventory/goods-handovers', payload)
+    return response.data
+}
+
+/**
+ * Mengambil daftar Berita Acara Serah Terima Barang (BAST) dengan paginasi.
+ *
+ * @param {string} search
+ * @param {number} page
+ * @param {object} filters
+ * @returns {Promise<object>}
+ */
+export const getGoodsHandovers = async (search = '', page = 1, filters = {}) => {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (page) params.append('page', page)
+    for (const key in filters) {
+        if (filters[key] !== null && filters[key] !== undefined && filters[key] !== '') {
+            params.append(key, filters[key])
+        }
+    }
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    const response = await api.get(`/api/v1/inventory/goods-handovers${queryString}`)
+    return response.data
+}
+
+/**
+ * Mengambil detail Berita Acara Serah Terima Barang (BAST) berdasarkan ID.
+ *
+ * @param {number|string} id
+ * @returns {Promise<object>}
+ */
+export const showGoodsHandover = async (id) => {
+    const response = await api.get(`/api/v1/inventory/goods-handovers/${id}`)
     return response.data
 }
 

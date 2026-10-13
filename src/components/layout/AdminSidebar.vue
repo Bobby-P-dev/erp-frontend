@@ -40,7 +40,8 @@ const navigation = [
                     { name: 'Accounting Categories', to: 'admin.master.accounting-category' },
                     { name: 'Accounting Subcategories', to: 'admin.master.accounting-subcategory' },
                     { name: 'Accounting Accounts', to: 'admin.master.accounting-account' },
-                    { name: 'Currencies', to: 'admin.master.currency' }
+                    { name: 'Currencies', to: 'admin.master.currency' },
+                    { name: 'Taxes', to: 'admin.master.tax' }
                 ]
             },
             {

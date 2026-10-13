@@ -1,12 +1,14 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth.js'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import { LogIn, ArrowLeft } from '@lucide/vue'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 const activeSection = ref('beranda')
 
@@ -81,8 +83,8 @@ onUnmounted(() => {
         <AppHeader isSticky>
             <template #left>
                 <RouterLink 
-                    :to="{ name: 'welcome' }" 
-                    @click="navigateToSection('beranda')"
+                    :to="authStore.isAuthenticated ? { name: 'user.dashboard' } : { name: 'welcome' }" 
+                    @click="!authStore.isAuthenticated && navigateToSection('beranda')"
                     class="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer"
                 >
                     <img 

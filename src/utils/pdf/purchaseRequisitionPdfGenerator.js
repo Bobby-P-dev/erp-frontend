@@ -42,7 +42,8 @@ export const urlToBase64 = async (url) => {
 const formatDatePdf = (dateStr) => {
     if (!dateStr) return '-'
     try {
-        const d = new Date(dateStr)
+        const cleanStr = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
+        const d = new Date(cleanStr)
         if (isNaN(d.getTime())) return String(dateStr)
         return d.toLocaleDateString('id-ID', {
             day: '2-digit',
@@ -166,8 +167,8 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 stepName: level.step_name || `Penyetuju Tahap ${i + 1}`,
                 name: approverUser.name || 'Pejabat Berwenang',
                 position: approverUser.position || level.assignee?.position || 'Peninjau Dokumen',
-                actedAt: approveAction?.acted_at || null,
-                notes: approveAction?.notes || null,
+                actedAt: approveAction?.acted_at || level.completed_at || level.acted_at || null,
+                notes: approveAction?.notes || level.notes || null,
                 signatureBase64: signBase64,
             })
         }
@@ -229,7 +230,7 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
         for (const app of approverColumns) {
             const appStack = [
                 { text: `DISETUJUI OLEH (${app.stepName.toUpperCase()})`, style: 'signRoleHeader' },
-                { text: `Tgl: ${formatDateTimePdf(app.actedAt)}`, style: 'signDate' },
+                { text: `Tgl: ${formatDatePdf(app.actedAt)}`, style: 'signDate' },
             ]
 
             if (app.signatureBase64) {
@@ -251,16 +252,28 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             appStack.push({ text: `( ${app.name} )`, style: 'signerName' })
             appStack.push({ text: `${app.position}`, style: 'signerTitle' })
 
-            if (app.notes) {
-                appStack.push({
-                    text: `Catatan: "${app.notes}"`,
-                    style: 'signNotes',
-                    margin: [0, 2, 0, 0]
-                })
-            }
-
             signatureCells.push(appStack)
         }
+
+        // 5b. Construct Approval & Submission Comments Rows (Separated from Signature columns)
+        const requesterNotes = stage1.document?.notes || stage1.notes || stage1.actions?.[0]?.notes || pr.notes || pr.remarks || null
+        const formatNoteText = (n) => (n && typeof n === 'string' && n.trim() ? `"${n.trim()}"` : (n ? `"${n}"` : '-'))
+        const hasNote = (n) => Boolean(n && typeof n === 'string' ? n.trim() : n)
+
+        const commentsRows = [
+            [
+                { text: 'DIAJUKAN (PEMOHON)', style: 'tableCellBold' },
+                { text: `${requester.name}\n${requester.position || 'Staff'}`, style: 'tableCell' },
+                { text: formatDatePdf(requestDate), alignment: 'center', style: 'tableCell' },
+                { text: formatNoteText(requesterNotes), style: hasNote(requesterNotes) ? 'tableCellItalic' : 'tableCell' }
+            ],
+            ...approverColumns.map(app => [
+                { text: `DISETUJUI (${app.stepName.toUpperCase()})`, style: 'tableCellBold' },
+                { text: `${app.name}\n${app.position}`, style: 'tableCell' },
+                { text: formatDatePdf(app.actedAt), alignment: 'center', style: 'tableCell' },
+                { text: formatNoteText(app.notes), style: hasNote(app.notes) ? 'tableCellItalic' : 'tableCell' }
+            ])
+        ]
 
         // Verification URL for QR code
         const origin = window?.location?.origin || ''
@@ -426,6 +439,42 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                         paddingTop: () => 6,
                         paddingBottom: () => 6,
                     },
+                    margin: [0, 0, 0, 12]
+                },
+                // Section Catatan Pengajuan & Evaluasi Persetujuan (Dipisahkan dari kolom TTD)
+                {
+                    text: 'CATATAN PENGAJUAN & EVALUASI PERSETUJUAN',
+                    style: 'sectionHeading',
+                    margin: [0, 0, 0, 5]
+                },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['22%', '26%', '16%', '*'],
+                        body: [
+                            [
+                                { text: 'PERAN / TAHAP', style: 'tableHeader' },
+                                { text: 'NAMA & JABATAN', style: 'tableHeader' },
+                                { text: 'TANGGAL', style: 'tableHeader', alignment: 'center' },
+                                { text: 'CATATAN / KOMENTAR', style: 'tableHeader' }
+                            ],
+                            ...commentsRows
+                        ]
+                    },
+                    layout: {
+                        fillColor: (rowIndex) => {
+                            if (rowIndex === 0) return '#f1f5f9'
+                            return rowIndex % 2 === 0 ? '#f8fafc' : null
+                        },
+                        hLineWidth: () => 0.5,
+                        vLineWidth: () => 0.5,
+                        hLineColor: () => '#cbd5e1',
+                        vLineColor: () => '#cbd5e1',
+                        paddingLeft: () => 6,
+                        paddingRight: () => 6,
+                        paddingTop: () => 3.5,
+                        paddingBottom: () => 3.5,
+                    },
                     margin: [0, 0, 0, 14]
                 },
                 // Footer / QR Code & Legal Verification
@@ -500,6 +549,7 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 tableHeader: { fontSize: 7.5, bold: true, color: '#334155' },
                 tableCell: { fontSize: 7.5, color: '#1e293b' },
                 tableCellBold: { fontSize: 7.5, bold: true, color: '#0f172a' },
+                tableCellItalic: { fontSize: 7.5, italic: true, color: '#334155' },
                 tableTotalLabel: { fontSize: 8, bold: true, color: '#334155' },
                 tableTotalValue: { fontSize: 8.5, bold: true, color: '#0f172a' },
                 signRoleHeader: { fontSize: 7, bold: true, color: '#334155', alignment: 'center' },

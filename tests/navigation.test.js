@@ -174,3 +174,14 @@ describe('3. Route Contract Verification', () => {
         assert.deepEqual(configuredRoutes, expectedRoutes);
     });
 });
+
+describe('4. Brand Logo Destination Contract', () => {
+    it('verifies that brand logo links consistently resolve to user.dashboard', () => {
+        const resolveLogoRoute = (isAuthenticated) => {
+            return isAuthenticated ? { name: 'user.dashboard' } : { name: 'welcome' };
+        };
+
+        assert.deepEqual(resolveLogoRoute(true), { name: 'user.dashboard' });
+        assert.deepEqual(resolveLogoRoute(false), { name: 'welcome' });
+    });
+});

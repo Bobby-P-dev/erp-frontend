@@ -15,6 +15,7 @@ import BaseButton from '../../components/ui/BaseButton.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
 import Pagination from '../../components/ui/Pagination.vue'
+import BaseModal from '../../components/ui/BaseModal.vue'
 
 import {
     Home,
@@ -381,6 +382,70 @@ const formatDate = (dateString) => {
         month: 'short',
         year: 'numeric'
     }).format(date)
+}
+
+// State & Helpers for Source PRs
+const isPrModalOpen = ref(false)
+const selectedPlanForPrModal = ref(null)
+
+const openPrModal = (plan) => {
+    selectedPlanForPrModal.value = plan
+    isPrModalOpen.value = true
+}
+
+const isMultiPrPlan = (plan) => {
+    if (!plan) return false
+    if (plan.is_consolidated) return true
+    if (plan.source_prs && plan.source_prs.length > 1) return true
+    if (plan.pr_numbers && plan.pr_numbers.length > 1) return true
+    return false
+}
+
+const getSinglePrNumber = (plan) => {
+    if (!plan) return '-'
+    if (plan.source_prs && plan.source_prs.length > 0) {
+        return plan.source_prs[0].pr_number || '-'
+    }
+    if (plan.purchase_requisition?.pr_number) {
+        return plan.purchase_requisition.pr_number
+    }
+    if (plan.pr_numbers && plan.pr_numbers.length > 0) {
+        return plan.pr_numbers[0]
+    }
+    return '-'
+}
+
+const getSinglePrSubtitle = (plan) => {
+    if (!plan) return '-'
+    if (plan.source_prs && plan.source_prs.length > 0) {
+        return plan.source_prs[0].division_name || plan.source_prs[0].company_name || '-'
+    }
+    return plan.purchase_requisition?.division?.name || plan.purchase_requisition?.company?.name || '-'
+}
+
+const getMultiPrCount = (plan) => {
+    if (!plan) return 0
+    if (plan.source_prs && plan.source_prs.length > 0) {
+        return plan.source_prs.length
+    }
+    if (plan.pr_numbers && plan.pr_numbers.length > 0) {
+        return plan.pr_numbers.length
+    }
+    return 0
+}
+
+const getMultiPrSubtitle = (plan) => {
+    if (!plan) return 'Multi-Dokumen'
+    if (plan.source_prs && plan.source_prs.length > 0) {
+        const divisions = [...new Set(plan.source_prs.map(p => p.division_name).filter(Boolean))]
+        if (divisions.length === 1) {
+            return `Divisi ${divisions[0]}`
+        }
+        if (divisions.length > 1) {
+            return `${divisions.length} Divisi (${divisions.slice(0, 2).join(', ')}${divisions.length > 2 ? '...' : ''})`
+        }
+    }
+    return `${getMultiPrCount(plan)} Dokumen PR`
 }
 
 // Actions
@@ -847,7 +912,7 @@ onMounted(async () => {
                             title="Beli seluruh item terpilih dalam 1 kali Direct Purchase & 1 kali pembayaran Finance"
                         >
                             <ShoppingCart class="w-3.5 h-3.5" />
-                            <span>⚡ Beli Langsung Sekaligus (Bulk DP)</span>
+                            <span>Beli Langsung Sekaligus (Bulk DP)</span>
                         </button>
                     </div>
                 </div>
@@ -1047,13 +1112,41 @@ onMounted(async () => {
 
                         <!-- PR Info -->
                         <td class="px-6 py-4">
-                            <div class="flex flex-col gap-1">
-                                <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                            <!-- Multi-PR Consolidated Plan -->
+                            <div v-if="isMultiPrPlan(plan)" class="flex flex-col gap-1.5">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <button
+                                        type="button"
+                                        @click.stop="openPrModal(plan)"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/90 shadow-2xs transition-all cursor-pointer group"
+                                        title="Klik untuk melihat rincian dokumen PR asal"
+                                    >
+                                        <Layers class="w-3.5 h-3.5 text-indigo-500 group-hover:scale-110 transition-transform" />
+                                        <span>{{ getMultiPrCount(plan) }} PR Terkonsolidasi</span>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between gap-1.5">
+                                    <span class="text-xs text-slate-500 truncate max-w-[130px]" :title="getMultiPrSubtitle(plan)">
+                                        {{ getMultiPrSubtitle(plan) }}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        @click.stop="openPrModal(plan)"
+                                        class="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5 shrink-0 cursor-pointer"
+                                    >
+                                        Rincian <ChevronRight class="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Single PR Plan -->
+                            <div v-else class="flex flex-col gap-1">
+                                <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5 font-mono">
                                     <FileText class="w-3.5 h-3.5 text-slate-400" />
-                                    {{ plan.purchase_requisition?.pr_number || '-' }}
+                                    {{ getSinglePrNumber(plan) }}
                                 </span>
                                 <span class="text-xs text-slate-500">
-                                    {{ plan.purchase_requisition?.division?.name || plan.purchase_requisition?.company?.name || '-' }}
+                                    {{ getSinglePrSubtitle(plan) }}
                                 </span>
                             </div>
                         </td>
@@ -1163,6 +1256,106 @@ onMounted(async () => {
                 </div>
             </div>
         </div>
+
+        <!-- Modal Rincian PR Asal Terkonsolidasi -->
+        <BaseModal
+            v-model="isPrModalOpen"
+            :title="`Dokumen PR Asal (${getMultiPrCount(selectedPlanForPrModal)} Dokumen)`"
+            :subtitle="`Rencana Pengadaan: ${selectedPlanForPrModal?.pp_number || '-'}`"
+            :icon="Layers"
+            size="lg"
+            :show-backdrop="true"
+            @close="isPrModalOpen = false"
+        >
+            <div v-if="selectedPlanForPrModal" class="space-y-4">
+                <!-- Summary Banner -->
+                <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
+                    <div>
+                        <span class="text-slate-500">Metode Pengadaan:</span>
+                        <span class="font-bold text-slate-800 ml-1.5 uppercase font-mono">{{ selectedPlanForPrModal.procurement_method }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500">Total Item Rencana:</span>
+                        <span class="font-bold text-blue-600 ml-1.5">{{ selectedPlanForPrModal.items?.length || selectedPlanForPrModal.items_count || 0 }} Item</span>
+                    </div>
+                </div>
+
+                <!-- List of PRs -->
+                <div class="space-y-3">
+                    <div 
+                        v-for="(pr, pIdx) in (selectedPlanForPrModal.source_prs || [])" 
+                        :key="pr.id || pIdx"
+                        class="p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-xs transition-all space-y-2.5"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-blue-700 text-sm flex items-center gap-1.5">
+                                    <FileText class="w-4 h-4 text-blue-500" />
+                                    {{ pr.pr_number }}
+                                </span>
+                                <span v-if="pr.items_count" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                    {{ pr.items_count }} Item Dialokasikan
+                                </span>
+                            </div>
+                            <span v-if="pr.division_name" class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                                {{ pr.division_name }}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 text-slate-600">
+                            <div>
+                                <span class="text-slate-400">Pemohon:</span>
+                                <span class="font-medium text-slate-800 ml-1">{{ pr.requester_name || '-' }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400">Perusahaan:</span>
+                                <span class="font-medium text-slate-800 ml-1">{{ pr.company_name || '-' }}</span>
+                            </div>
+                        </div>
+
+                        <div v-if="pr.purpose" class="text-xs text-slate-500 bg-slate-50/80 p-2 rounded-lg italic">
+                            "{{ pr.purpose }}"
+                        </div>
+                    </div>
+
+                    <!-- Fallback if source_prs is empty but pr_numbers has values -->
+                    <div 
+                        v-if="(!selectedPlanForPrModal.source_prs || selectedPlanForPrModal.source_prs.length === 0) && selectedPlanForPrModal.pr_numbers?.length > 0"
+                        class="space-y-2"
+                    >
+                        <div 
+                            v-for="prNo in selectedPlanForPrModal.pr_numbers" 
+                            :key="prNo"
+                            class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"
+                        >
+                            <span class="font-mono font-bold text-blue-600 flex items-center gap-1.5">
+                                <FileText class="w-3.5 h-3.5 text-blue-500" />
+                                {{ prNo }}
+                            </span>
+                            <span class="text-slate-500">Dokumen PR Terkait</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <template #footer>
+                <BaseButton
+                    variant="outline"
+                    size="sm"
+                    @click="isPrModalOpen = false"
+                >
+                    Tutup
+                </BaseButton>
+                <BaseButton
+                    v-if="selectedPlanForPrModal"
+                    variant="primary"
+                    size="sm"
+                    @click="router.push({ name: 'user.purchasing.plans.detail', params: { id: selectedPlanForPrModal.id } })"
+                >
+                    Buka Detail Rencana
+                </BaseButton>
+            </template>
+        </BaseModal>
     </div>
 </template>
 
