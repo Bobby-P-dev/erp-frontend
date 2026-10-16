@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '../../../../components/ui/PageHeader.vue'
 import BaseButton from '../../../../components/ui/BaseButton.vue'
+import StatusBadge from '../../../../components/ui/StatusBadge.vue'
 import ApprovalStepper from '../../../../components/approval/ApprovalStepper.vue'
 import {
     showApprovalConfiguration,
@@ -192,16 +193,7 @@ onMounted(() => {
                         <span class="text-xs font-bold px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-mono">
                             {{ config?.code || '...' }}
                         </span>
-                        <span
-                            :class="[
-                                'text-xs font-semibold px-2.5 py-0.5 rounded-full border',
-                                config?.is_active
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-slate-100 text-slate-500 border-slate-200'
-                            ]"
-                        >
-                            {{ config?.is_active ? 'Aktif' : 'Nonaktif' }}
-                        </span>
+                        <StatusBadge :is-active="Boolean(config?.is_active)" size="sm" />
                         <span v-if="config?.document_type_label || config?.document_type" class="text-xs font-medium text-slate-500 flex items-center gap-1">
                             • {{ config?.document_type_label || config?.document_type }}
                         </span>

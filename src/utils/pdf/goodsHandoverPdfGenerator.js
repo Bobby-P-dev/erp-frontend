@@ -1,6 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake.js'
 import pdfFonts from 'pdfmake/build/vfs_fonts.js'
-import Swal from 'sweetalert2'
+import { showLoading, showError, closeSwal } from '../swal.js'
+import { toast } from 'vue-sonner'
 
 // Initialize pdfMake virtual file system for fonts
 if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
@@ -58,22 +59,13 @@ const formatDateTimePdf = (dateStr) => {
  */
 export const generateGoodsHandoverPdf = async (handover, options = {}) => {
     if (!handover || !handover.items || handover.items.length === 0) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Data Barang Kosong',
-            text: 'Tidak ada daftar barang yang dipilih untuk dicetak pada lembar BAST.',
+        toast.warning('Data Barang Kosong', {
+            description: 'Tidak ada daftar barang yang dipilih untuk dicetak pada lembar BAST.'
         })
         return false
     }
 
-    Swal.fire({
-        title: 'Menyiapkan Lembar BAST',
-        text: 'Menyusun berkas Berita Acara Serah Terima Barang untuk dicetak...',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading()
-        }
-    })
+    showLoading('Menyiapkan Lembar BAST', 'Menyusun berkas Berita Acara Serah Terima Barang untuk dicetak...')
 
     try {
         const isPreview = options.isPreview || !handover.handover_number
@@ -424,15 +416,12 @@ export const generateGoodsHandoverPdf = async (handover, options = {}) => {
 
         pdfMake.createPdf(docDefinition).download(fileName)
 
-        Swal.close()
+        closeSwal()
         return true
     } catch (err) {
         console.error('Handover PDF Generation Error:', err)
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal Menghasilkan PDF BAST',
-            text: err.message || 'Terjadi kesalahan teknis saat menyusun berkas BAST PDF.',
-        })
+        closeSwal()
+        showError('Gagal Menghasilkan PDF BAST', err.message || 'Terjadi kesalahan teknis saat menyusun berkas BAST PDF.', err)
         return false
     }
 }

@@ -130,150 +130,143 @@ const badgeClass = computed(() => {
     <RouterLink
         v-if="isInteractive"
         :to="to"
-        class="group h-full bg-white rounded-2xl border border-gray-200/80 p-6 shadow-2xs hover:shadow-md hover:border-indigo-200 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+        class="group h-full bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-2xs hover:shadow-xs hover:border-blue-300 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between focus-visible:ring-2 focus-visible:ring-blue-600 outline-none"
     >
         <div class="flex-1 flex flex-col">
             <!-- Top Bar: Icon & Badge -->
             <div class="flex items-center justify-between gap-3">
                 <div 
-                    class="w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 group-hover:scale-105 shrink-0"
-                    :class="colorStyles.container"
+                    class="w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 group-hover:scale-105 shrink-0 bg-blue-50 text-blue-600 border border-blue-100"
                 >
-                    <component :is="icon" class="w-6 h-6" />
+                    <component :is="icon" class="w-6 h-6 text-blue-600" />
                 </div>
 
                 <span 
                     v-if="badge"
-                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold tracking-wide shrink-0"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide shrink-0"
                     :class="badgeClass"
                 >
                     <span 
-                        v-if="badgeVariant === 'emerald' || badge === 'Aktif'" 
-                        class="w-2 h-2 rounded-full bg-emerald-500"
+                        v-if="badgeVariant === 'amber' || badgeVariant === 'emerald'" 
+                        class="w-1.5 h-1.5 rounded-full"
+                        :class="badgeVariant === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'"
                     ></span>
                     {{ badge }}
                 </span>
             </div>
 
-            <!-- Subtitle / Lifecycle Stage -->
-            <p v-if="subtitle" class="mt-4 text-sm font-bold text-slate-400 uppercase tracking-wider">
-                {{ subtitle }}
-            </p>
-
-            <!-- Title -->
-            <h3 
-                class="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors"
-                :class="{ 'mt-1': subtitle, 'mt-4': !subtitle }"
-            >
-                {{ title }}
-            </h3>
+            <!-- Title & Subtitle Group -->
+            <div class="mt-4">
+                <h3 class="text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
+                    {{ title }}
+                </h3>
+                <p v-if="subtitle" class="text-xs font-semibold text-blue-600/90 mt-0.5">
+                    {{ subtitle }}
+                </p>
+            </div>
 
             <!-- Description -->
-            <p class="mt-2 text-base text-slate-600 leading-relaxed line-clamp-3 min-h-[4.5rem]">
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed line-clamp-3 min-h-[3.75rem]">
                 {{ description }}
             </p>
         </div>
 
         <!-- Bottom Action CTA -->
-        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-base font-bold transition-colors mt-auto shrink-0" :class="colorStyles.accent">
-            <span>{{ actionText }}</span>
-            <ArrowRight class="w-5 h-5 transition-transform group-hover:translate-x-1" />
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-blue-600 group-hover:text-blue-700 transition-colors mt-auto shrink-0">
+            <span>{{ actionText || 'Buka Modul' }}</span>
+            <ArrowRight class="w-4.5 h-4.5 transition-transform group-hover:translate-x-1" />
         </div>
     </RouterLink>
 
     <!-- Coming Soon State -->
     <div
         v-else-if="status === 'coming_soon'"
-        class="h-full bg-slate-50/70 border border-dashed border-slate-200 rounded-2xl p-6 relative cursor-not-allowed select-none opacity-90 flex flex-col justify-between"
+        class="h-full bg-slate-50/70 border border-dashed border-slate-200/90 rounded-xl sm:rounded-2xl p-5 sm:p-6 relative cursor-not-allowed select-none opacity-85 flex flex-col justify-between"
         aria-disabled="true"
     >
         <div class="flex-1 flex flex-col">
             <div class="flex items-center justify-between gap-3">
-                <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                    <component :is="icon" class="w-6 h-6" />
+                <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 border border-slate-200/80 flex items-center justify-center shrink-0">
+                    <component :is="icon" class="w-6 h-6 text-slate-400" />
                 </div>
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase shrink-0" :class="badgeClass">
-                    {{ badge || 'Coming Soon' }}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0">
+                    {{ badge || 'Segera Hadir' }}
                 </span>
             </div>
 
-            <p v-if="subtitle" class="mt-4 text-sm font-bold text-slate-400 uppercase tracking-wider">
-                {{ subtitle }}
-            </p>
+            <div class="mt-4">
+                <h3 class="text-base sm:text-lg font-bold text-slate-700 leading-snug">
+                    {{ title }}
+                </h3>
+                <p v-if="subtitle" class="text-xs font-semibold text-slate-400 mt-0.5">
+                    {{ subtitle }}
+                </p>
+            </div>
 
-            <h3 
-                class="text-lg sm:text-xl font-bold text-slate-700"
-                :class="{ 'mt-1': subtitle, 'mt-4': !subtitle }"
-            >
-                {{ title }}
-            </h3>
-
-            <p class="mt-2 text-base text-slate-500 leading-relaxed line-clamp-3 min-h-[4.5rem]">
+            <p class="mt-2 text-sm text-slate-500 leading-relaxed line-clamp-3 min-h-[3.75rem]">
                 {{ description }}
             </p>
         </div>
 
-        <div class="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-sm font-semibold text-slate-400 mt-auto shrink-0">
-            <span>{{ actionText || 'Segera Hadir' }}</span>
-            <Lock class="w-4 h-4" />
+        <div class="mt-6 pt-4 border-t border-slate-200/70 flex items-center justify-between text-sm font-medium text-slate-400 mt-auto shrink-0">
+            <span>{{ actionText || 'Dalam Pengembangan' }}</span>
+            <Lock class="w-4 h-4 text-slate-400" />
         </div>
     </div>
 
     <!-- Restricted / No Permission State -->
     <div
         v-else-if="restricted"
-        class="h-full bg-gray-50/70 border border-gray-200/70 rounded-2xl p-6 relative cursor-not-allowed select-none opacity-80 flex flex-col justify-between"
+        class="h-full bg-slate-50/70 border border-slate-200/70 rounded-xl sm:rounded-2xl p-5 sm:p-6 relative cursor-not-allowed select-none opacity-80 flex flex-col justify-between"
         aria-disabled="true"
     >
         <div class="flex-1 flex flex-col">
             <div class="flex items-center justify-between gap-3">
-                <div class="w-12 h-12 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
-                    <component :is="icon" class="w-6 h-6" />
+                <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 border border-slate-200/80 flex items-center justify-center shrink-0">
+                    <component :is="icon" class="w-6 h-6 text-slate-400" />
                 </div>
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-gray-100 text-gray-500 border border-gray-200 shrink-0">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
                     Akses Terbatas
                 </span>
             </div>
 
-            <p v-if="subtitle" class="mt-4 text-sm font-bold text-gray-400 uppercase tracking-wider">
-                {{ subtitle }}
-            </p>
+            <div class="mt-4">
+                <h3 class="text-base sm:text-lg font-bold text-slate-700 leading-snug">
+                    {{ title }}
+                </h3>
+                <p v-if="subtitle" class="text-xs font-semibold text-slate-400 mt-0.5">
+                    {{ subtitle }}
+                </p>
+            </div>
 
-            <h3 
-                class="text-lg sm:text-xl font-bold text-gray-700"
-                :class="{ 'mt-1': subtitle, 'mt-4': !subtitle }"
-            >
-                {{ title }}
-            </h3>
-
-            <p class="mt-2 text-base text-gray-500 leading-relaxed line-clamp-3 min-h-[4.5rem]">
+            <p class="mt-2 text-sm text-slate-500 leading-relaxed line-clamp-3 min-h-[3.75rem]">
                 {{ description }}
             </p>
         </div>
 
-        <div class="mt-6 pt-4 border-t border-gray-200/60 flex items-center justify-between text-sm font-medium text-amber-700 mt-auto shrink-0">
+        <div class="mt-6 pt-4 border-t border-slate-200/70 flex items-center justify-between text-sm font-medium text-slate-500 mt-auto shrink-0">
             <span class="flex items-center gap-1.5">
-                <ShieldAlert class="w-4 h-4" />
+                <ShieldAlert class="w-4 h-4 text-slate-400" />
                 {{ restrictedMessage }}
             </span>
-            <span class="font-bold text-gray-400">Terkunci</span>
+            <Lock class="w-4 h-4 text-slate-400" />
         </div>
     </div>
 
     <!-- Fallback Disabled State -->
     <div
         v-else
-        class="h-full bg-gray-50 border border-gray-200/60 rounded-2xl p-6 opacity-75 flex flex-col justify-between"
+        class="h-full bg-slate-50 border border-slate-200/70 rounded-xl sm:rounded-2xl p-5 sm:p-6 opacity-75 flex flex-col justify-between"
         aria-disabled="true"
     >
         <div class="flex-1 flex flex-col">
-            <div class="w-12 h-12 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
+            <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
                 <component :is="icon" class="w-6 h-6" />
             </div>
-            <h3 class="mt-4 text-lg sm:text-xl font-bold text-gray-700">{{ title }}</h3>
-            <p class="mt-2 text-base text-gray-400 line-clamp-3 min-h-[4.5rem]">{{ description }}</p>
+            <h3 class="mt-4 text-base sm:text-lg font-bold text-slate-700">{{ title }}</h3>
+            <p class="mt-2 text-sm text-slate-400 line-clamp-3 min-h-[3.75rem]">{{ description }}</p>
         </div>
-        <div class="mt-6 pt-4 border-t border-gray-200/60 text-sm text-gray-400 mt-auto shrink-0">
+        <div class="mt-6 pt-4 border-t border-slate-200/70 text-sm text-slate-400 mt-auto shrink-0">
             Tidak aktif
         </div>
     </div>

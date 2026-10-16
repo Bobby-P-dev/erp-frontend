@@ -25,6 +25,7 @@ import {
 import { formatCurrency } from '../../utils/stringUtils.js'
 import { getApprovalLifecycle } from '../../services/approvalServices.js'
 import { getPurchaseRequisitionLifecycle } from '../../services/purchaseRequisitionServices.js'
+import StatusBadge from '../ui/StatusBadge.vue'
 
 const props = defineProps({
     lifecycle: {
@@ -151,27 +152,6 @@ const getStageIcon = (key) => {
     }
 }
 
-const getStatusBadgeClass = (status) => {
-    switch (status) {
-        case 'completed':
-        case 'approved':
-            return 'bg-emerald-50 text-emerald-800 border-emerald-200'
-        case 'in_progress':
-            return 'bg-blue-50 text-blue-800 border-blue-200 ring-1 ring-blue-400/30 font-bold'
-        case 'rejected':
-            return 'bg-rose-50 text-rose-800 border-rose-200'
-        case 'revision':
-            return 'bg-amber-50 text-amber-800 border-amber-200'
-        case 'ready_to_start':
-            return 'bg-indigo-50 text-indigo-800 border-indigo-200'
-        case 'pending':
-            return 'bg-amber-50/70 text-amber-700 border-amber-200'
-        case 'skipped':
-            return 'bg-slate-100 text-slate-600 border-slate-200'
-        default:
-            return 'bg-slate-50 text-slate-500 border-slate-200'
-    }
-}
 
 const getStageTiers = (stage) => {
     if (!stage) return []
@@ -204,18 +184,27 @@ const formatTierStatus = (status) => {
     }
 }
 
+const formatPurchaseChannel = (channel) => {
+    switch (channel) {
+        case 'marketplace': return 'Online Marketplace'
+        case 'direct_supplier': return 'Supplier Langsung'
+        case 'retail_store': return 'Toko Fisik / Retail'
+        default: return channel ? String(channel).replace(/_/g, ' ') : 'Pembelian Langsung'
+    }
+}
+
 const getRailIconColor = (status) => {
     switch (status) {
         case 'completed':
-            return 'bg-emerald-600 text-white shadow-xs ring-4 ring-emerald-50'
+            return 'bg-[#1B5E20] text-white shadow-xs ring-4 ring-[#E8F8EE]'
         case 'in_progress':
-            return 'bg-blue-600 text-white shadow-xs ring-4 ring-blue-100 animate-pulse'
+            return 'bg-[#014BAA] text-white shadow-xs ring-4 ring-[#EAF2FF] animate-pulse'
         case 'rejected':
             return 'bg-rose-600 text-white shadow-xs ring-4 ring-rose-50'
         case 'revision':
             return 'bg-amber-600 text-white shadow-xs ring-4 ring-amber-50'
         case 'ready_to_start':
-            return 'bg-indigo-600 text-white shadow-xs ring-4 ring-indigo-50'
+            return 'bg-[#014BAA] text-white shadow-xs ring-4 ring-[#EAF2FF]'
         default:
             return 'bg-slate-100 text-slate-400 border border-slate-300'
     }
@@ -224,48 +213,9 @@ const getRailIconColor = (status) => {
 
 <template>
     <div class="space-y-4">
-        <!-- HEADER / PROGRESS SUMMARY -->
-        <div v-if="showProgressSummary" class="bg-gradient-to-r from-slate-50 to-slate-100/60 p-4 rounded-xl border border-slate-200 shadow-2xs">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                        6-T
-                    </div>
-                    <div>
-                        <h4 class="text-xs sm:text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                            <span>{{ title }}</span>
-                            <span v-if="activeLifecycle?.document_number" class="px-2 py-0.5 rounded font-mono text-[11px] bg-white border border-slate-200 text-slate-700 font-semibold">
-                                {{ activeLifecycle.document_number }}
-                            </span>
-                        </h4>
-                        <p class="text-[11px] text-slate-500 mt-0.5">
-                            Rantai kolaborasi lintas divisi: Pemohon &rarr; Approver PR &rarr; Purchasing Buyer &rarr; Kasir Keuangan &rarr; Gudang &rarr; Penerima
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3 self-end sm:self-auto">
-                    <div class="text-right">
-                        <span class="text-[11px] font-bold text-slate-700 block">
-                            {{ completedStagesCount }} dari {{ stages.length || 6 }} Tahap Selesai
-                        </span>
-                        <span class="text-[10px] text-slate-500 font-medium font-mono">
-                            {{ progressPercentage }}% Progres Alur
-                        </span>
-                    </div>
-                    <div class="w-16 sm:w-24 bg-slate-200 rounded-full h-2 overflow-hidden">
-                        <div 
-                            class="bg-emerald-600 h-2 rounded-full transition-all duration-500" 
-                            :style="{ width: `${progressPercentage}%` }"
-                        ></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- LOADING STATE -->
         <div v-if="isLoading && !stages.length" class="p-8 text-center bg-slate-50 rounded-xl border border-slate-200">
-            <RefreshCw class="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+            <RefreshCw class="w-6 h-6 animate-spin text-[#014BAA] mx-auto mb-2" />
             <span class="text-xs text-slate-500">Menghubungkan rantai dokumen lintas divisi...</span>
         </div>
 
@@ -299,7 +249,7 @@ const getRailIconColor = (status) => {
                 <div 
                     class="bg-white rounded-xl border transition-all overflow-hidden"
                     :class="[
-                        stage.status === 'in_progress' ? 'border-blue-300 shadow-xs ring-1 ring-blue-100' : 'border-slate-200 shadow-2xs',
+                        stage.status === 'in_progress' ? 'border-[#014BAA]/30 shadow-xs ring-1 ring-[#014BAA]/10' : 'border-slate-200 shadow-2xs',
                         stage.status === 'pending' ? 'bg-slate-50/50 opacity-80' : ''
                     ]"
                 >
@@ -312,8 +262,8 @@ const getRailIconColor = (status) => {
                             <div 
                                 class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"
                                 :class="[
-                                    stage.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
-                                    stage.status === 'in_progress' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                                    stage.status === 'completed' ? 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/20' : 
+                                    stage.status === 'in_progress' ? 'bg-[#EAF2FF] text-[#014BAA] border-[#014BAA]/20' : 
                                     stage.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
                                     'bg-slate-100 text-slate-500 border-slate-200'
                                 ]"
@@ -326,12 +276,11 @@ const getRailIconColor = (status) => {
                                     <h5 class="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
                                         {{ getStageTitle(stage) }}
                                     </h5>
-                                    <span 
-                                        class="px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold border"
-                                        :class="getStatusBadgeClass(stage.status)"
-                                    >
-                                        {{ stage.status_label || stage.status }}
-                                    </span>
+                                    <StatusBadge 
+                                        :status="stage.status" 
+                                        :label="stage.status_label || stage.status" 
+                                        size="sm" 
+                                    />
                                 </div>
                                 <p class="text-[11px] text-slate-500 mt-0.5">
                                     {{ getStageSubtitle(stage) }}
@@ -423,11 +372,11 @@ const getRailIconColor = (status) => {
                                     :key="tier.id || tier.step_order"
                                     class="p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors"
                                     :class="[
-                                        tier.status === 'approved' ? 'bg-emerald-50/40 border-emerald-200' : 
+                                        tier.status === 'approved' ? 'bg-[#E8F8EE]/60 border-[#1B5E20]/20' : 
                                         tier.status === 'rejected' ? 'bg-rose-50/40 border-rose-200' : 
                                         tier.status === 'revision' ? 'bg-amber-50/40 border-amber-200' : 
                                         tier.status === 'skipped' ? 'bg-slate-50 border-slate-200 opacity-60' : 
-                                        tier.status === 'in_progress' ? 'bg-blue-50/40 border-blue-200 ring-1 ring-blue-300/40' : 
+                                        tier.status === 'in_progress' ? 'bg-[#EAF2FF]/60 border-[#014BAA]/20 ring-1 ring-[#014BAA]/20' : 
                                         'bg-slate-50/60 border-slate-200'
                                     ]"
                                 >
@@ -435,10 +384,10 @@ const getRailIconColor = (status) => {
                                         <div 
                                             class="w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-[11px] shrink-0"
                                             :class="[
-                                                tier.status === 'approved' ? 'bg-emerald-600 text-white' : 
+                                                tier.status === 'approved' ? 'bg-[#1B5E20] text-white' : 
                                                 tier.status === 'rejected' ? 'bg-rose-600 text-white' : 
                                                 tier.status === 'revision' ? 'bg-amber-600 text-white' : 
-                                                tier.status === 'in_progress' ? 'bg-blue-600 text-white animate-pulse' : 
+                                                tier.status === 'in_progress' ? 'bg-[#014BAA] text-white animate-pulse' : 
                                                 'bg-slate-400 text-white'
                                             ]"
                                         >
@@ -450,7 +399,7 @@ const getRailIconColor = (status) => {
                                                 <span v-if="tier.role_name || tier.assignee_label" class="text-[11px] text-slate-500 font-normal">
                                                     ({{ tier.role_name || tier.assignee_label }})
                                                 </span>
-                                                <span v-if="tier.approval_mode === 'all'" class="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded">
+                                                <span v-if="tier.approval_mode === 'all'" class="text-[10px] font-semibold text-[#014BAA] bg-[#EAF2FF] border border-[#014BAA]/20 px-1.5 py-0.2 rounded">
                                                     Konsensus (Semua)
                                                 </span>
                                             </div>
@@ -469,12 +418,11 @@ const getRailIconColor = (status) => {
                                     </div>
 
                                     <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0">
-                                        <span 
-                                            class="px-2 py-0.5 rounded text-[10px] font-bold border"
-                                            :class="getStatusBadgeClass(tier.status)"
-                                        >
-                                            {{ tier.status_label || formatTierStatus(tier.status) }}
-                                        </span>
+                                        <StatusBadge 
+                                            :status="tier.status" 
+                                            :label="tier.status_label || formatTierStatus(tier.status)" 
+                                            size="sm" 
+                                        />
                                         <span v-if="tier.completed_at || tier.acted_at" class="text-[10px] text-slate-500 font-medium">
                                             {{ formatDate(tier.completed_at || tier.acted_at) }}
                                         </span>
@@ -506,42 +454,50 @@ const getRailIconColor = (status) => {
 
                         <!-- 3. STAGE SPECIFIC: DIRECT PURCHASE / BUYER -->
                         <div v-else-if="stage.key === 'direct_purchase'" class="space-y-3">
-                            <div v-if="stage.documents?.length" class="space-y-2.5">
-                                <div 
-                                    v-for="dp in stage.documents" 
-                                    :key="dp.id"
-                                    class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2.5"
-                                >
-                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                                        <div class="flex items-center gap-2">
+                            <div v-if="stage.document || stage.actor || stage.documents?.length" class="space-y-2.5">
+                                <div class="p-3 bg-slate-50/70 rounded-lg border border-slate-200/80 space-y-2.5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+                                        <div class="flex items-center gap-2 flex-wrap">
                                             <span class="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                                {{ dp.number }}
+                                                {{ stage.document?.number || stage.document?.dp_number || stage.documents?.[0]?.number || 'Direct Purchase' }}
                                             </span>
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                                {{ dp.purchase_channel || 'Pembelian Langsung' }}
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EAF2FF] text-[#014BAA] border border-[#014BAA]/20">
+                                                {{ formatPurchaseChannel(stage.document?.channel || stage.documents?.[0]?.purchase_channel || 'Pembelian Langsung') }}
                                             </span>
                                         </div>
                                         <div class="font-mono font-bold text-slate-900 text-sm">
-                                            {{ formatCurrency(dp.grand_total || 0) }}
+                                            {{ formatCurrency(stage.document?.total_amount || stage.document?.grand_total || stage.documents?.[0]?.grand_total || 0) }}
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
                                         <div>
-                                            <span class="text-slate-400 block text-[10px]">Toko / Supplier / Vendor:</span>
-                                            <span class="font-bold text-slate-800">{{ dp.supplier_name }}</span>
+                                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Staf Eksekusi Pembelian (Buyer):</span>
+                                            <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5 flex-wrap">
+                                                <span>{{ stage.actor?.name || stage.document?.buyer?.name || stage.documents?.[0]?.buyer?.name || '-' }}</span>
+                                                <span v-if="stage.actor?.nik || stage.document?.buyer?.nik" class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-slate-200/70 text-slate-700">
+                                                    {{ stage.actor?.nik || stage.document?.buyer?.nik }}
+                                                </span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                                <span>{{ stage.actor?.position || 'Staf Purchasing Buyer' }}</span>
+                                                <span v-if="stage.actor?.division"> &bull; {{ stage.actor.division }}</span>
+                                            </div>
                                         </div>
+
                                         <div>
-                                            <span class="text-slate-400 block text-[10px]">Staf Buyer (Purchasing):</span>
-                                            <div class="font-bold text-slate-800 flex items-center gap-1">
-                                                <span>{{ dp.buyer?.name || '-' }}</span>
-                                                <span v-if="dp.buyer?.nik" class="font-mono text-[10px] text-slate-500">[{{ dp.buyer.nik }}]</span>
+                                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Toko / Supplier / Merchant:</span>
+                                            <div class="font-bold text-slate-800 mt-1">
+                                                {{ stage.document?.store_name || stage.document?.supplier_name || stage.documents?.[0]?.supplier_name || 'Toko Retail / Supplier' }}
+                                            </div>
+                                            <div v-if="stage.completed_at" class="text-[10px] text-slate-500 mt-0.5">
+                                                Waktu Belanja: {{ formatDate(stage.completed_at) }}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div v-if="dp.notes" class="text-[11px] text-slate-600 bg-white p-2 rounded border border-slate-200/70">
-                                        <strong>Catatan Checkout:</strong> {{ dp.notes }}
+                                    <div v-if="stage.document?.notes || stage.documents?.[0]?.notes" class="text-[11px] text-slate-600 bg-white p-2 rounded border border-slate-200/70">
+                                        <strong>Catatan Belanja:</strong> {{ stage.document?.notes || stage.documents?.[0]?.notes }}
                                     </div>
                                 </div>
                             </div>
@@ -553,66 +509,73 @@ const getRailIconColor = (status) => {
 
                         <!-- 4. STAGE SPECIFIC: PAYMENT DISBURSEMENT (PEMBAYARAN KEUANGAN) -->
                         <div v-else-if="stage.key === 'payment_disbursement'" class="space-y-3">
-                            <div v-if="stage.documents?.length" class="space-y-2.5">
-                                <div 
-                                    v-for="(pay, pIdx) in stage.documents" 
-                                    :key="pIdx"
-                                    class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2.5"
-                                >
-                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                                        <div class="flex items-center gap-2">
+                            <div v-if="stage.document || stage.actor || stage.documents?.length" class="space-y-2.5">
+                                <div class="p-3 bg-slate-50/70 rounded-lg border border-slate-200/80 space-y-2.5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+                                        <div class="flex items-center gap-2 flex-wrap">
                                             <span class="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                                {{ pay.number || pay.prq_number }}
+                                                {{ stage.document?.payment_number || stage.document?.number || stage.document?.prq_number || stage.documents?.[0]?.number || 'Payment' }}
                                             </span>
                                             <span 
                                                 class="px-2 py-0.5 rounded text-[10px] font-bold border"
-                                                :class="pay.type === 'payment' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-blue-50 text-blue-800 border-blue-200'"
+                                                :class="stage.status === 'completed' ? 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/20' : 'bg-[#EAF2FF] text-[#014BAA] border-[#014BAA]/20'"
                                             >
-                                                {{ pay.type === 'payment' ? 'Lunas Ditransfer' : 'Menunggu Transfer Kasir' }}
+                                                {{ stage.status === 'completed' ? 'Lunas Ditransfer' : 'Menunggu Transfer Kasir' }}
                                             </span>
-                                            <span v-if="pay.prq_number && pay.number" class="text-[10px] text-slate-500 font-mono">
-                                                Tagihan: {{ pay.prq_number }}
+                                            <span v-if="stage.document?.prq_number && stage.document?.payment_number" class="text-[10px] text-slate-500 font-mono">
+                                                Tagihan: {{ stage.document.prq_number }}
                                             </span>
                                         </div>
                                         <div class="font-mono font-bold text-slate-900 text-sm">
-                                            {{ formatCurrency(pay.amount_paid || 0) }}
+                                            {{ formatCurrency(stage.document?.amount || stage.document?.amount_paid || stage.documents?.[0]?.amount_paid || 0) }}
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
                                         <div>
-                                            <span class="text-slate-400 block text-[10px]">Tujuan Pembayaran (Vendor/Toko):</span>
-                                            <span class="font-bold text-slate-800">{{ pay.recipient_name || '-' }}</span>
-                                            <div v-if="pay.bank_name" class="text-slate-500 text-[10px] mt-0.5">
-                                                {{ pay.bank_name }} - {{ pay.bank_account_number }} (a.n. {{ pay.bank_account_holder }})
+                                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Staf Eksekusi Kasir (Finance):</span>
+                                            <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5 flex-wrap">
+                                                <span>{{ stage.actor?.name || stage.document?.disbursed_by?.name || stage.documents?.[0]?.disbursed_by?.name || '-' }}</span>
+                                                <span v-if="stage.actor?.nik" class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-slate-200/70 text-slate-700">
+                                                    {{ stage.actor.nik }}
+                                                </span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                                <span>{{ stage.actor?.position || 'Kasir Keuangan' }}</span>
+                                                <span v-if="stage.actor?.division"> &bull; {{ stage.actor.division }}</span>
+                                            </div>
+                                            <div v-if="stage.document?.paid_at || stage.completed_at" class="text-[10px] text-slate-500 mt-0.5">
+                                                Waktu Transfer: {{ formatDate(stage.document?.paid_at || stage.completed_at) }}
                                             </div>
                                         </div>
+
                                         <div>
-                                            <span class="text-slate-400 block text-[10px]">Kasir / Staf Keuangan:</span>
-                                            <span class="font-bold text-slate-800">{{ pay.disbursed_by?.name || stage.actor?.name || '-' }}</span>
-                                            <div v-if="pay.source_account" class="text-slate-500 text-[10px] mt-0.5">
-                                                Sumber Dana: {{ pay.source_account }}
+                                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Tujuan Pembayaran & Rekening:</span>
+                                            <div class="font-bold text-slate-800 mt-1">
+                                                {{ stage.document?.recipient_name || stage.documents?.[0]?.recipient_name || 'Vendor / Toko' }}
                                             </div>
-                                            <div v-else-if="pay.payment_method" class="text-slate-500 text-[10px] mt-0.5 capitalize">
-                                                Metode: {{ String(pay.payment_method).replace(/_/g, ' ') }}
+                                            <div v-if="stage.document?.recipient_bank || stage.documents?.[0]?.bank_name" class="text-[10px] text-slate-500 mt-0.5">
+                                                Bank: {{ stage.document?.recipient_bank || stage.documents?.[0]?.bank_name }}
+                                                <span v-if="stage.documents?.[0]?.bank_account_number"> - {{ stage.documents[0].bank_account_number }}</span>
+                                            </div>
+                                            <div v-if="stage.document?.payment_method || stage.documents?.[0]?.payment_method" class="text-[10px] text-slate-500 mt-0.5 capitalize">
+                                                Metode: {{ String(stage.document?.payment_method || stage.documents?.[0]?.payment_method).replace(/_/g, ' ') }}
+                                                <span v-if="stage.document?.reference_number || stage.documents?.[0]?.reference_number" class="font-mono">
+                                                    (Ref: {{ stage.document?.reference_number || stage.documents?.[0]?.reference_number }})
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div v-if="pay.payment_date || pay.reference_number" class="flex flex-wrap items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-200/50">
-                                        <span v-if="pay.payment_date">Tanggal Transfer: <strong>{{ formatDateOnly(pay.payment_date) }}</strong></span>
-                                        <span v-if="pay.reference_number" class="font-mono">Ref: {{ pay.reference_number }}</span>
-                                    </div>
-
-                                    <div v-if="pay.proof_file" class="pt-1">
+                                    <div v-if="stage.document?.proof_file_url || stage.document?.proof_file || stage.documents?.[0]?.proof_file" class="pt-1 border-t border-slate-100">
                                         <a 
-                                            :href="pay.proof_file.url" 
-                                            target="_blank"
+                                            :href="stage.document?.proof_file_url || stage.document?.proof_file?.url || stage.documents?.[0]?.proof_file?.url" 
+                                            target="_blank" 
                                             rel="noopener noreferrer"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-white border border-slate-200 text-blue-600 hover:text-blue-800 hover:bg-slate-50 shadow-2xs transition-colors"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white border border-slate-200 text-[#014BAA] hover:bg-[#EAF2FF] shadow-2xs transition-colors"
                                         >
                                             <Paperclip class="w-3.5 h-3.5" />
-                                            <span>Lihat Bukti Transfer: {{ pay.proof_file.file_name }}</span>
+                                            <span>Lihat Bukti Transfer Bank</span>
                                             <ExternalLink class="w-3 h-3 text-slate-400" />
                                         </a>
                                     </div>
@@ -624,47 +587,52 @@ const getRailIconColor = (status) => {
                             </div>
                         </div>
 
-                        <!-- 6. STAGE SPECIFIC: GOODS RECEIPT -->
+                        <!-- 5. STAGE SPECIFIC: GOODS RECEIPT (PENERIMAAN GUDANG) -->
                         <div v-else-if="stage.key === 'goods_receipt'" class="space-y-3">
-                            <div v-if="stage.documents?.length" class="space-y-2.5">
-                                <div 
-                                    v-for="gr in stage.documents" 
-                                    :key="gr.id"
-                                    class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2.5"
-                                >
-                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
-                                        <div class="flex items-center gap-2">
+                            <div v-if="stage.document || stage.actor || stage.documents?.length" class="space-y-2.5">
+                                <div class="p-3 bg-slate-50/70 rounded-lg border border-slate-200/80 space-y-2.5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+                                        <div class="flex items-center gap-2 flex-wrap">
                                             <span class="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                                {{ gr.number }}
+                                                {{ stage.document?.number || stage.document?.grn_number || stage.documents?.[0]?.number || 'Goods Receipt' }}
                                             </span>
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E8F8EE] text-[#1B5E20] border border-[#1B5E20]/20">
                                                 Tiba di Gudang
                                             </span>
                                         </div>
-                                        <div class="text-[11px] text-slate-600">
-                                            Tiba: <strong>{{ formatDateOnly(gr.receipt_date) }}</strong>
+                                        <div v-if="stage.document?.received_date || stage.document?.receipt_date || stage.documents?.[0]?.receipt_date" class="text-[11px] text-slate-600">
+                                            Tiba: <strong>{{ formatDateOnly(stage.document?.received_date || stage.document?.receipt_date || stage.documents?.[0]?.receipt_date) }}</strong>
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
                                         <div>
-                                            <span class="text-slate-400 block text-[10px]">Petugas Pemeriksa Gudang:</span>
-                                            <span class="font-bold text-slate-800">{{ gr.received_by?.name || stage.actor?.name || '-' }}</span>
-                                            <div v-if="gr.received_by?.position" class="text-slate-500 text-[10px]">
-                                                {{ gr.received_by.position }}
+                                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Petugas Pemeriksa Gudang:</span>
+                                            <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5 flex-wrap">
+                                                <span>{{ stage.actor?.name || stage.document?.received_by?.name || stage.documents?.[0]?.received_by?.name || '-' }}</span>
+                                                <span v-if="stage.actor?.nik || stage.document?.received_by?.nik" class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-slate-200/70 text-slate-700">
+                                                    {{ stage.actor?.nik || stage.document?.received_by?.nik }}
+                                                </span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                                <span>{{ stage.actor?.position || 'Staff Gudang' }}</span>
+                                                <span v-if="stage.actor?.division"> &bull; {{ stage.actor.division }}</span>
                                             </div>
                                         </div>
+
                                         <div>
-                                            <span class="text-slate-400 block text-[10px]">Kurir & Surat Jalan:</span>
-                                            <span class="font-bold text-slate-800">{{ gr.delivery_note_number || 'Tanpa No. SJ' }}</span>
-                                            <div v-if="gr.shipping_carrier" class="text-slate-500 text-[10px]">
-                                                Ekspedisi: {{ gr.shipping_carrier }}
+                                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Kurir & Surat Jalan:</span>
+                                            <div class="font-bold text-slate-800 mt-1">
+                                                {{ stage.document?.delivery_order_number || stage.document?.delivery_note_number || stage.documents?.[0]?.delivery_note_number || 'Tanpa No. SJ' }}
+                                            </div>
+                                            <div v-if="stage.document?.courier_name || stage.document?.shipping_carrier || stage.documents?.[0]?.shipping_carrier" class="text-[10px] text-slate-500 mt-0.5">
+                                                Ekspedisi: {{ stage.document?.courier_name || stage.document?.shipping_carrier || stage.documents?.[0]?.shipping_carrier }}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div v-if="gr.notes" class="text-[11px] text-slate-600 bg-white p-2 rounded border border-slate-200/70">
-                                        <strong>Catatan Verifikasi Fisik:</strong> {{ gr.notes }}
+                                    <div v-if="stage.document?.notes || stage.documents?.[0]?.notes" class="text-[11px] text-slate-600 bg-white p-2 rounded border border-slate-200/70">
+                                        <strong>Catatan Verifikasi Fisik:</strong> {{ stage.document?.notes || stage.documents?.[0]?.notes }}
                                     </div>
                                 </div>
                             </div>
@@ -674,36 +642,45 @@ const getRailIconColor = (status) => {
                             </div>
                         </div>
 
-                        <!-- 7. STAGE SPECIFIC: HANDOVER -->
+                        <!-- 6. STAGE SPECIFIC: HANDOVER (SERAH TERIMA KE PEMOHON) -->
                         <div v-else-if="stage.key === 'handover'" class="space-y-3">
-                            <div class="p-3 rounded-lg border" :class="stage.status === 'completed' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'">
+                            <div class="p-3 rounded-lg border" :class="stage.status === 'completed' ? 'bg-[#E8F8EE]/50 border-[#1B5E20]/20' : 'bg-slate-50 border-slate-200'">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
                                     <div>
-                                        <span class="text-slate-400 block text-[10px]">Penerima Akhir (Pemohon):</span>
-                                        <div class="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
+                                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Penerima Akhir (Pemohon):</span>
+                                        <div class="font-bold text-slate-900 flex items-center gap-1.5 mt-1 flex-wrap">
                                             <span>{{ stage.actor?.name || '-' }}</span>
-                                            <span v-if="stage.actor?.nik" class="font-mono text-[10px] text-slate-500">[{{ stage.actor.nik }}]</span>
+                                            <span v-if="stage.actor?.nik" class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-slate-200/70 text-slate-700">
+                                                {{ stage.actor.nik }}
+                                            </span>
                                         </div>
-                                        <div class="text-[10px] text-slate-500">
-                                            {{ stage.actor?.position || 'Pemohon Asli' }}
+                                        <div class="text-[10px] text-slate-500 mt-0.5">
+                                            <span>{{ stage.actor?.position || 'Pemohon Asli' }}</span>
+                                            <span v-if="stage.actor?.division"> &bull; {{ stage.actor.division }}</span>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <span class="text-slate-400 block text-[10px]">Status Serah Terima:</span>
-                                        <div class="font-bold mt-0.5 flex items-center gap-1.5" :class="stage.status === 'completed' ? 'text-emerald-700' : 'text-slate-700'">
-                                            <CheckCircle2 v-if="stage.status === 'completed'" class="w-4 h-4 text-emerald-600" />
-                                            <Clock v-else class="w-4 h-4 text-slate-400" />
-                                            <span>{{ stage.status_label }}</span>
+                                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Diserahkan Oleh (Gudang):</span>
+                                        <div class="font-bold text-slate-900 flex items-center gap-1.5 mt-1 flex-wrap">
+                                            <span>{{ stage.handover_by?.name || 'Petugas Gudang' }}</span>
+                                            <span v-if="stage.handover_by?.nik" class="px-1.5 py-0.2 rounded font-mono text-[10px] bg-slate-200/70 text-slate-700">
+                                                {{ stage.handover_by.nik }}
+                                            </span>
                                         </div>
-                                        <div v-if="stage.completed_at" class="text-[10px] text-slate-500">
-                                            Waktu: {{ formatDate(stage.completed_at) }}
+                                        <div class="mt-1 flex items-center gap-1.5 font-bold" :class="stage.status === 'completed' ? 'text-[#1B5E20]' : 'text-slate-700'">
+                                            <CheckCircle2 v-if="stage.status === 'completed'" class="w-4 h-4 text-[#1B5E20]" />
+                                            <Clock v-else class="w-4 h-4 text-slate-400" />
+                                            <span class="text-xs">{{ stage.status_label }}</span>
+                                        </div>
+                                        <div v-if="stage.document?.handed_over_at || stage.completed_at" class="text-[10px] text-slate-500 mt-0.5">
+                                            Waktu: {{ formatDate(stage.document?.handed_over_at || stage.completed_at) }}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div v-if="stage.notes" class="mt-2.5 pt-2 border-t border-slate-200/80 text-[11px] text-slate-700 italic">
-                                    "{{ stage.notes }}"
+                                <div v-if="stage.document?.handover_notes || stage.notes" class="mt-2.5 pt-2 border-t border-slate-200/80 text-[11px] text-slate-700 italic">
+                                    "{{ stage.document?.handover_notes || stage.notes }}"
                                 </div>
                             </div>
                         </div>

@@ -1,7 +1,8 @@
 import pdfMake from 'pdfmake/build/pdfmake.js'
 import pdfFonts from 'pdfmake/build/vfs_fonts.js'
 import { formatCurrency } from '../stringUtils.js'
-import Swal from 'sweetalert2'
+import { showLoading, showError, closeSwal } from '../swal.js'
+import { toast } from 'vue-sonner'
 import { getPurchaseRequisitionLifecycle } from '../../services/purchaseRequisitionServices.js'
 
 // Initialize pdfMake virtual file system for fonts
@@ -83,35 +84,21 @@ const formatDateTimePdf = (dateStr) => {
  */
 export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
     if (!pr || !pr.id) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Dokumen Tidak Ditemukan',
-            text: 'Data dokumen Purchase Requisition tidak valid untuk dicetak.',
-        })
+        showError('Dokumen Tidak Ditemukan', 'Data dokumen Purchase Requisition tidak valid untuk dicetak.')
         return false
     }
 
     // 1. Download Guard: Strict requirement that all approvals are completed
     const approvedStatuses = ['approved', 'in_procurement', 'ready_for_pickup', 'completed']
     if (!approvedStatuses.includes(pr.status)) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Belum Disetujui Penuh',
-            text: 'Lembar Persetujuan PDF hanya dapat diunduh jika pengajuan telah disetujui penuh oleh seluruh peninjau.',
-            confirmButtonColor: '#d97706',
+        toast.warning('Belum Disetujui Penuh', {
+            description: 'Lembar Persetujuan PDF hanya dapat diunduh jika pengajuan telah disetujui penuh oleh seluruh peninjau.'
         })
         return false
     }
 
     // Show loading indicator during PDF generation & asset resolution
-    Swal.fire({
-        title: 'Menyiapkan Lembar Persetujuan',
-        text: 'Sedang memproses tanda tangan digital dan menyusun berkas PDF resmi...',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading()
-        }
-    })
+    showLoading('Menyiapkan Lembar Persetujuan', 'Sedang memproses tanda tangan digital dan menyusun berkas PDF resmi...')
 
     try {
         // 2. Fetch full lifecycle data if not provided
@@ -577,15 +564,12 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
 
         pdfMake.createPdf(docDefinition).download(fileName)
 
-        Swal.close()
+        closeSwal()
         return true
     } catch (err) {
         console.error('PDF Generation Error:', err)
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal Menghasilkan PDF',
-            text: err.message || 'Terjadi kesalahan teknis saat menyusun berkas PDF.',
-        })
+        closeSwal()
+        showError('Gagal Menghasilkan PDF', err.message || 'Terjadi kesalahan teknis saat menyusun berkas PDF.', err)
         return false
     }
 }

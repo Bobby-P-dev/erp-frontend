@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { 
     Clock, 
-    CheckCircle2, 
-    XCircle, 
+    Check, 
+    X, 
     RotateCcw, 
     SkipForward, 
     Ban,
@@ -30,22 +30,42 @@ const badgeConfig = computed(() => {
             return {
                 label: 'Menunggu Persetujuan',
                 icon: Clock,
-                classes: 'bg-amber-50 text-amber-700 border-amber-200/60 ring-amber-500/20',
-                dotClass: 'bg-amber-500',
+                classes: 'bg-[#FEF3E2] text-[#B45309] border border-[#B45309]/15',
+                iconBg: 'bg-[#B45309]'
+            }
+        case 'in_review':
+        case 'in_progress':
+        case 'review':
+        case 'sedang_ditinjau':
+            return {
+                label: 'Sedang Ditinjau',
+                icon: Clock,
+                classes: 'bg-[#E8F1FD] text-[#014BAA] border border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]'
+            }
+        case 'waiting':
+        case 'queue':
+        case 'menunggu_antrean':
+        case 'menunggu_giliran':
+            return {
+                label: 'Menunggu Antrean',
+                icon: Clock,
+                classes: 'bg-[#F1F5F9] text-[#475569] border border-[#475569]/15',
+                iconBg: 'bg-[#475569]'
             }
         case 'approved':
             return {
                 label: 'Disetujui',
-                icon: CheckCircle2,
-                classes: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 ring-emerald-500/20',
-                dotClass: 'bg-emerald-500',
+                icon: Check,
+                classes: 'bg-[#E8F8EE] text-[#1B5E20] border border-[#1B5E20]/15',
+                iconBg: 'bg-[#1B5E20]'
             }
         case 'rejected':
             return {
                 label: 'Ditolak',
-                icon: XCircle,
-                classes: 'bg-rose-50 text-rose-700 border-rose-200/60 ring-rose-500/20',
-                dotClass: 'bg-rose-500',
+                icon: X,
+                classes: 'bg-[#FDE8E8] text-[#991B1B] border border-[#991B1B]/15',
+                iconBg: 'bg-[#991B1B]'
             }
         case 'revision':
         case 'revision_requested':
@@ -53,41 +73,54 @@ const badgeConfig = computed(() => {
             return {
                 label: 'Perlu Revisi',
                 icon: RotateCcw,
-                classes: 'bg-orange-50 text-orange-700 border-orange-200/60 ring-orange-500/20',
-                dotClass: 'bg-orange-500',
+                classes: 'bg-[#FFF1E6] text-[#C2410C] border border-[#C2410C]/15',
+                iconBg: 'bg-[#C2410C]'
             }
         case 'skipped':
             return {
                 label: 'Dilewati',
                 icon: SkipForward,
-                classes: 'bg-slate-100 text-slate-600 border-slate-200 ring-slate-400/20',
-                dotClass: 'bg-slate-400',
+                classes: 'bg-[#F1F5F9] text-[#475569] border border-[#475569]/15',
+                iconBg: 'bg-[#475569]'
             }
         case 'cancelled':
             return {
                 label: 'Dibatalkan',
                 icon: Ban,
-                classes: 'bg-gray-100 text-gray-600 border-gray-200 ring-gray-400/20',
-                dotClass: 'bg-gray-400',
+                classes: 'bg-[#F1F5F9] text-[#475569] border border-[#475569]/15',
+                iconBg: 'bg-[#475569]'
             }
         default:
             return {
                 label: props.status || 'Unknown',
                 icon: HelpCircle,
-                classes: 'bg-gray-50 text-gray-600 border-gray-200',
-                dotClass: 'bg-gray-400',
+                classes: 'bg-[#F1F5F9] text-[#475569] border border-[#475569]/15',
+                iconBg: 'bg-[#475569]'
             }
     }
 })
 
 const sizeClasses = computed(() => {
     switch (props.size) {
-        case 'sm':
-            return 'px-2 py-0.5 text-xs gap-1'
         case 'lg':
-            return 'px-3 py-1.5 text-sm gap-2'
+            return {
+                badge: 'pl-2 pr-4 py-1.5 text-sm font-bold gap-2 min-h-[32px] leading-none',
+                circle: 'w-5 h-5',
+                icon: 'w-3 h-3 stroke-[2.75]'
+            }
+        case 'sm':
+            return {
+                badge: 'pl-1.5 pr-3 py-1 text-xs font-bold gap-1.5 min-h-[26px] leading-none',
+                circle: 'w-4 h-4',
+                icon: 'w-2.5 h-2.5 stroke-[2.75]'
+            }
+        case 'md':
         default:
-            return 'px-2.5 py-1 text-xs gap-1.5'
+            return {
+                badge: 'pl-1.5 pr-3.5 py-1.5 text-xs sm:text-sm font-bold gap-2 min-h-[30px] leading-none',
+                circle: 'w-5 h-5',
+                icon: 'w-3 h-3 stroke-[2.75]'
+            }
     }
 })
 </script>
@@ -95,12 +128,20 @@ const sizeClasses = computed(() => {
 <template>
     <span
         :class="[
-            'inline-flex items-center font-semibold rounded-full border shadow-2xs transition-all',
+            'inline-flex items-center justify-center font-bold rounded-full border whitespace-nowrap transition-all select-none tracking-tight shadow-2xs',
             badgeConfig.classes,
-            sizeClasses
+            sizeClasses.badge
         ]"
     >
-        <component :is="badgeConfig.icon" class="w-3.5 h-3.5 shrink-0" />
-        <span>{{ badgeConfig.label }}</span>
+        <span
+            :class="[
+                'rounded-full flex items-center justify-center shrink-0 text-white shadow-2xs',
+                badgeConfig.iconBg,
+                sizeClasses.circle
+            ]"
+        >
+            <component :is="badgeConfig.icon" :class="sizeClasses.icon" />
+        </span>
+        <span class="leading-none pt-0.5">{{ badgeConfig.label }}</span>
     </span>
 </template>

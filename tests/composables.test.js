@@ -164,3 +164,107 @@ describe('useDataTable Composable Lifecycle & State Management', () => {
         assert.equal(table.filters.value.category, 'books')
     })
 })
+
+describe('useModalState Composable Lifecycle', async () => {
+    const { useModalState } = await import('../src/composables/core/useModalState.js')
+
+    it('initializes with default closed state', () => {
+        const modal = useModalState()
+        assert.equal(modal.isOpen.value, false)
+        assert.equal(modal.isEditing.value, false)
+        assert.equal(modal.editId.value, null)
+        assert.equal(modal.editData.value, null)
+    })
+
+    it('handles openCreate, openEdit, and closeModal correctly', () => {
+        const modal = useModalState()
+        modal.openCreate({ name: 'New Unit' })
+        assert.equal(modal.isOpen.value, true)
+        assert.equal(modal.isEditing.value, false)
+        assert.deepEqual(modal.editData.value, { name: 'New Unit' })
+
+        modal.openEdit({ id: 42, name: 'Existing Unit' })
+        assert.equal(modal.isOpen.value, true)
+        assert.equal(modal.isEditing.value, true)
+        assert.equal(modal.editId.value, 42)
+        assert.equal(modal.editData.value.name, 'Existing Unit')
+
+        modal.closeModal()
+        assert.equal(modal.isOpen.value, false)
+        assert.equal(modal.isEditing.value, false)
+        assert.equal(modal.editId.value, null)
+        assert.equal(modal.editData.value, null)
+    })
+})
+
+describe('useFinancialCalculation Composable & Calculation Helpers', async () => {
+    const {
+        calculateItemSubtotal,
+        calculateItemsSubtotal,
+        calculateTaxAmount,
+        calculateGrandTotal,
+        calculateEquivalentIdr,
+        useFinancialCalculation,
+    } = await import('../src/composables/finance/useFinancialCalculation.js')
+    const { ref } = await import('vue')
+
+    it('calculates item subtotal accurately', () => {
+        assert.equal(calculateItemSubtotal(5, 10000, 5000), 45000)
+        assert.equal(calculateItemSubtotal(0, 10000, 0), 0)
+        assert.equal(calculateItemSubtotal(2, 5000, 15000), 0) // no negative subtotal
+    })
+
+    it('calculates items subtotal for list of items', () => {
+        const items = [
+            { quantity: 2, unit_price: 50000, discount_amount: 0 },
+            { quantity: 3, unit_price: 20000, discount_amount: 10000 },
+        ]
+        assert.equal(calculateItemsSubtotal(items), 150000)
+    })
+
+    it('calculates tax amount with percentage rate correctly', () => {
+        assert.equal(calculateTaxAmount(100000, 11), 11000)
+        assert.equal(calculateTaxAmount(0, 11), 0)
+    })
+
+    it('calculates grand total with discount, shipping, fee, and tax', () => {
+        const total = calculateGrandTotal({
+            subtotal: 100000,
+            discountAmount: 10000,
+            shippingCost: 15000,
+            platformFee: 2000,
+            taxAmount: 9900,
+        })
+        // 100,000 - 10,000 + 15,000 + 2,000 + 9,900 = 116,900
+        assert.equal(total, 116900)
+    })
+
+    it('calculates equivalent IDR using exchange rate', () => {
+        assert.equal(calculateEquivalentIdr(100, 16250), 1625000)
+        assert.equal(calculateEquivalentIdr(50000, 1), 50000)
+    })
+
+    it('computes reactive grand total and tax recalculation', () => {
+        const form = ref({
+            items: [
+                { quantity: 2, unit_price: 50000, discount_amount: 0 },
+            ],
+            discount_amount: 10000,
+            shipping_cost: 15000,
+            platform_fee: 1000,
+            tax_id: 1,
+            tax_amount: 0,
+            exchange_rate: 1,
+        })
+
+        const taxesList = [{ id: 1, name: 'PPN 11%', rate: 11 }]
+        const calc = useFinancialCalculation(form)
+
+        assert.equal(calc.itemsSubtotal.value, 100000)
+        assert.equal(calc.netBase.value, 90000)
+
+        calc.recalculateTax(taxesList)
+        assert.equal(form.value.tax_amount, 9900) // 11% of 90,000
+        assert.equal(calc.grandTotal.value, 115900) // 100,000 - 10,000 + 15,000 + 1,000 + 9,900
+    })
+})

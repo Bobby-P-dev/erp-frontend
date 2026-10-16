@@ -5,6 +5,15 @@ defineProps({
         required: true,
     }
 })
+
+const getColAlignClass = (col) => {
+    if (col.class && (col.class.includes('text-center') || col.class.includes('text-right') || col.class.includes('text-left'))) {
+        return ''
+    }
+    if (col.align === 'center') return 'text-center'
+    if (col.align === 'right') return 'text-right'
+    return 'text-left'
+}
 </script>
 
 <template>
@@ -15,8 +24,12 @@ defineProps({
                     <th 
                         v-for="col in columns" 
                         :key="col.key" 
-                        class="px-6 py-4.5 text-base font-bold text-slate-800 tracking-wide select-none"
-                        :class="col.class"
+                        class="px-6 py-4 text-sm font-bold text-slate-800 tracking-wide select-none whitespace-nowrap"
+                        :class="[getColAlignClass(col), col.class]"
+                        :style="{
+                            width: col.width,
+                            minWidth: col.minWidth
+                        }"
                     >
                         {{ col.label }}
                     </th>

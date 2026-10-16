@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth.js";
+import { dialogState, closeGlobalDialog } from "../composables/useFeedback.js";
 
 const router = createRouter({
     history: createWebHistory(),
@@ -410,6 +411,12 @@ router.beforeEach((to) => {
     }
 
     return true
+})
+
+router.afterEach(() => {
+    if (dialogState.value?.isOpen && dialogState.value?.type === 'loading') {
+        closeGlobalDialog()
+    }
 })
 
 export default router;

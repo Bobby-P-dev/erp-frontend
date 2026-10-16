@@ -6,15 +6,15 @@ import {
     submitDirectPurchaseForPayment, 
     cancelDirectPurchase 
 } from '../../services/directPurchaseServices.js'
-import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
+import { showLoading, showSuccess, showError, showConfirm, showPrompt } from '../../utils/swal.js'
 import { formatCurrency } from '../../utils/stringUtils.js'
-import Swal from 'sweetalert2'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
 import Pagination from '../../components/ui/Pagination.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 import {
     Home,
@@ -140,52 +140,6 @@ const formatDate = (dateString) => {
     }).format(date)
 }
 
-const getStatusBadge = (status) => {
-    switch (status) {
-        case 'draft':
-            return {
-                label: 'Draft',
-                bg: 'bg-amber-50 text-amber-700 border-amber-200',
-                dot: 'bg-amber-500'
-            }
-        case 'ready_for_payment':
-            return {
-                label: 'Siap Dibayar',
-                bg: 'bg-blue-50 text-blue-700 border-blue-200',
-                dot: 'bg-blue-500'
-            }
-        case 'paid':
-            return {
-                label: 'Telah Dibayar',
-                bg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                dot: 'bg-indigo-500'
-            }
-        case 'partially_received':
-            return {
-                label: 'Diterima Sebagian',
-                bg: 'bg-amber-50 text-amber-700 border-amber-200',
-                dot: 'bg-amber-500'
-            }
-        case 'completed':
-            return {
-                label: 'Selesai',
-                bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                dot: 'bg-emerald-500'
-            }
-        case 'cancelled':
-            return {
-                label: 'Dibatalkan',
-                bg: 'bg-rose-50 text-rose-700 border-rose-200',
-                dot: 'bg-rose-500'
-            }
-        default:
-            return {
-                label: status || '-',
-                bg: 'bg-gray-50 text-gray-600 border-gray-200',
-                dot: 'bg-gray-400'
-            }
-    }
-}
 
 const getChannelInfo = (dp) => {
     switch (dp.purchase_channel) {
@@ -243,16 +197,14 @@ const handleSubmitForPayment = async (dp) => {
 }
 
 const handleCancel = async (dp) => {
-    const { value: reason, isConfirmed } = await Swal.fire({
+    const { value: reason, isConfirmed } = await showPrompt({
         title: 'Batalkan Pembelian Langsung?',
         text: `Masukkan alasan pembatalan untuk ${dp.dp_number}:`,
-        input: 'textarea',
-        inputPlaceholder: 'Tuliskan alasan pembatalan pembelian ini...',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, Batalkan Pembelian',
-        cancelButtonText: 'Tutup',
-        confirmButtonColor: '#e11d48',
-        inputValidator: (value) => {
+        placeholder: 'Tuliskan alasan pembatalan pembelian ini...',
+        confirmText: 'Ya, Batalkan Pembelian',
+        cancelText: 'Tutup',
+        isDestructive: true,
+        validator: (value) => {
             if (!value) {
                 return 'Alasan pembatalan wajib diisi!'
             }
@@ -500,13 +452,7 @@ onMounted(() => {
 
                     <!-- Status Badge -->
                     <td class="px-6 py-4 text-center">
-                        <span 
-                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border"
-                            :class="getStatusBadge(dp.status).bg"
-                        >
-                            <span class="w-1.5 h-1.5 rounded-full" :class="getStatusBadge(dp.status).dot"></span>
-                            {{ getStatusBadge(dp.status).label }}
-                        </span>
+                        <StatusBadge :status="dp.status" size="sm" />
                     </td>
 
                     <!-- Actions -->

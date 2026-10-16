@@ -7,7 +7,6 @@ import Pagination from '../../components/ui/Pagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import TabNavigation from '../../components/ui/TabNavigation.vue'
 import PurchaseRequisitionDetailModal from '../../components/purchasing/PurchaseRequisitionDetailModal.vue'
-import PurchaseRequisitionConfirmReceiptModal from '../../components/purchasing/PurchaseRequisitionConfirmReceiptModal.vue'
 
 import { useDataTable } from '../../composables/useDataTable.js'
 import { useFormatter } from '../../composables/useFormatter.js'
@@ -29,7 +28,6 @@ import {
     Send,
     Eye,
     FileEdit,
-    CheckCircle2,
     RefreshCw,
     ArrowUpRight,
     Download,
@@ -69,8 +67,6 @@ const showDetailModal = ref(false)
 const selectedPR = ref(null)
 const isLoadingDetail = ref(false)
 
-const showConfirmReceiptModal = ref(false)
-const confirmReceiptTarget = ref(null)
 
 const openDetail = async (pr) => {
     selectedPR.value = pr
@@ -104,10 +100,6 @@ const handleDownloadPdf = async (pr) => {
     }
 }
 
-const openConfirmReceiptModal = (pr) => {
-    confirmReceiptTarget.value = pr
-    showConfirmReceiptModal.value = true
-}
 
 const handleSubmitPR = async (pr) => {
     const isRevision = pr.status === 'revision_requested'
@@ -145,13 +137,13 @@ const statusTabs = [
 ]
 
 const tableColumns = [
-    { key: 'no', label: 'No', width: '50px', align: 'center' },
-    { key: 'pr_number', label: 'No. PR', minWidth: '170px' },
-    { key: 'request_date', label: 'Tanggal & Target', minWidth: '160px' },
-    { key: 'company_id', label: 'Perusahaan & Divisi', minWidth: '180px' },
-    { key: 'purpose', label: 'Keperluan & Estimasi', minWidth: '220px' },
-    { key: 'status', label: 'Status & Approval', minWidth: '170px', align: 'center' },
-    { key: 'actions', label: 'Aksi', minWidth: '140px', align: 'center' }
+    { key: 'no', label: 'No', width: '70px', align: 'center', class: 'text-center' },
+    { key: 'pr_number', label: 'No. PR', minWidth: '180px' },
+    { key: 'request_date', label: 'Tanggal & Target', minWidth: '180px' },
+    { key: 'company_id', label: 'Perusahaan & Divisi', minWidth: '220px' },
+    { key: 'purpose', label: 'Keperluan & Estimasi', minWidth: '240px' },
+    { key: 'status', label: 'Status & Approval', minWidth: '200px', align: 'center', class: 'text-center' },
+    { key: 'actions', label: 'Aksi', minWidth: '180px', align: 'center', class: 'text-center' }
 ]
 
 const getActiveStepName = (pr) => {
@@ -257,7 +249,7 @@ const getActiveStepName = (pr) => {
             <!-- TABLE -->
             <BaseTable :columns="tableColumns">
                 <tr v-if="isLoading">
-                    <td colspan="7" class="px-6 py-14 text-center text-xs text-slate-500">
+                    <td colspan="7" class="px-6 py-14 text-center text-sm text-slate-500">
                         <div class="inline-flex items-center gap-2 font-medium">
                             <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
                             Memuat daftar Purchase Requisition...
@@ -271,18 +263,18 @@ const getActiveStepName = (pr) => {
                             <div class="p-3 bg-slate-100 rounded-xl border border-slate-200/80">
                                 <FileText class="w-6 h-6 text-slate-400" />
                             </div>
-                            <div class="text-xs font-semibold text-slate-700">
+                            <div class="text-sm font-semibold text-slate-700">
                                 {{ searchQuery || filters.status ? 'Tidak ada pengajuan yang cocok dengan kriteria filter' : 'Belum Ada Pengajuan Purchase Requisition' }}
                             </div>
-                            <p class="text-[11px] text-slate-400">
+                            <p class="text-xs text-slate-400">
                                 {{ searchQuery || filters.status ? 'Coba ubah kata kunci pencarian atau reset tab status.' : 'Anda belum membuat pengajuan pengadaan barang/jasa. Buat permohonan baru untuk memulai.' }}
                             </p>
                             <RouterLink 
                                 v-if="!searchQuery && !filters.status" 
                                 :to="{ name: 'user.purchasing.requisitions.create' }"
-                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-xs shadow-blue-200 mt-1"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-xs shadow-blue-200 mt-1"
                             >
-                                <Plus class="w-3.5 h-3.5" />
+                                <Plus class="w-4 h-4" />
                                 <span>Buat PR Baru</span>
                             </RouterLink>
                         </div>
@@ -295,59 +287,59 @@ const getActiveStepName = (pr) => {
                     class="hover:bg-slate-50/80 transition-colors group border-b border-slate-100 last:border-b-0"
                 >
                     <!-- No -->
-                    <td class="px-4 py-3.5 whitespace-nowrap text-xs font-mono text-slate-400 text-center">
+                    <td class="px-6 py-4.5 whitespace-nowrap text-sm font-mono font-semibold text-slate-500 text-center">
                         {{ ((pagination.current_page - 1) * pagination.per_page) + index + 1 }}
                     </td>
 
                     <!-- PR Number -->
-                    <td class="px-4 py-3.5 whitespace-nowrap">
+                    <td class="px-6 py-4.5 whitespace-nowrap">
                         <button
                             type="button"
                             @click="openDetail(pr)"
-                            class="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900 hover:text-indigo-600 transition-colors group/btn text-left cursor-pointer"
+                            class="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors group/btn text-left cursor-pointer"
                             title="Klik untuk melihat rincian PR"
                         >
                             <span class="group-hover/btn:underline">{{ pr.pr_number }}</span>
-                            <ArrowUpRight class="w-3 h-3 text-slate-400 group-hover/btn:text-indigo-600 opacity-0 group-hover/btn:opacity-100 transition-all shrink-0" />
+                            <ArrowUpRight class="w-4 h-4 text-slate-400 group-hover/btn:text-blue-600 opacity-0 group-hover/btn:opacity-100 transition-all shrink-0" />
                         </button>
                     </td>
 
                     <!-- Dates -->
-                    <td class="px-4 py-3.5 whitespace-nowrap">
-                        <div class="text-xs text-slate-800 font-medium flex items-center gap-1.5">
-                            <Calendar class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <td class="px-6 py-4.5 whitespace-nowrap">
+                        <div class="text-sm text-slate-800 font-semibold flex items-center gap-2">
+                            <Calendar class="w-4 h-4 text-slate-400 shrink-0" />
                             <span>{{ formatDate(pr.request_date) }}</span>
                         </div>
-                        <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                            <Clock class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
+                            <Clock class="w-4 h-4 text-slate-400 shrink-0" />
                             <span>Target: {{ formatDate(pr.required_date) }}</span>
                         </div>
                     </td>
 
                     <!-- Company & Division -->
-                    <td class="px-4 py-3.5 whitespace-nowrap">
-                        <div class="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                            <Building2 class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <td class="px-6 py-4.5 whitespace-nowrap">
+                        <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <Building2 class="w-4 h-4 text-slate-400 shrink-0" />
                             <span>{{ pr.company?.name || 'Perusahaan #' + pr.company_id }}</span>
                         </div>
-                        <div class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                            <Layers class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <div class="text-xs font-medium text-slate-600 mt-1 flex items-center gap-2">
+                            <Layers class="w-4 h-4 text-slate-400 shrink-0" />
                             <span>{{ pr.division?.name || 'Divisi #' + pr.division_id }}</span>
                         </div>
                     </td>
 
                     <!-- Purpose & Estimated Total -->
-                    <td class="px-4 py-3.5">
-                        <div class="text-xs font-medium text-slate-900 max-w-sm truncate" :title="pr.purpose">
+                    <td class="px-6 py-4.5">
+                        <div class="text-sm font-medium text-slate-900 max-w-sm truncate" :title="pr.purpose">
                             {{ pr.purpose }}
                         </div>
-                        <div class="mt-1 flex items-center gap-2 flex-wrap text-xs">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/60">
+                        <div class="mt-1.5 flex items-center gap-2.5 flex-wrap text-xs">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80">
                                 {{ pr.items ? pr.items.length : 0 }} Item
                             </span>
                             <span 
                                 v-if="pr.total_estimated_amount && Number(pr.total_estimated_amount) > 0"
-                                class="inline-flex items-center gap-0.5 text-xs font-mono font-bold text-slate-800"
+                                class="inline-flex items-center gap-1 text-sm font-mono font-bold text-slate-900"
                                 title="Estimasi Nilai Total"
                             >
                                 {{ formatCurrency(pr.total_estimated_amount, pr.currency) }}
@@ -356,21 +348,21 @@ const getActiveStepName = (pr) => {
                     </td>
 
                     <!-- Status & Approval Stage -->
-                    <td class="px-4 py-3.5 whitespace-nowrap text-center">
-                        <div class="inline-flex flex-col items-center">
-                            <StatusBadge :status="pr.status" size="sm" />
+                    <td class="px-6 py-4.5 whitespace-nowrap text-center">
+                        <div class="inline-flex flex-col items-center justify-center">
+                            <StatusBadge :status="pr.status" size="md" class="min-w-[125px]" />
                             
                             <!-- Detailed active approval step indicator -->
                             <span 
                                 v-if="pr.status === 'pending_approval' && pr.approval_request" 
-                                class="text-[10px] text-amber-700 font-medium mt-1 truncate max-w-[170px]"
+                                class="text-xs font-semibold text-amber-800 mt-1.5 truncate max-w-[190px]"
                                 :title="'Tahap ' + (pr.approval_request.current_step_order || 1) + ': ' + getActiveStepName(pr)"
                             >
                                 Tahap {{ pr.approval_request.current_step_order || 1 }}: {{ getActiveStepName(pr) }}
                             </span>
                             <span 
                                 v-else-if="pr.status === 'revision_requested'" 
-                                class="text-[10px] text-amber-700 font-medium mt-1 truncate max-w-[170px]"
+                                class="text-xs font-semibold text-amber-800 mt-1.5 truncate max-w-[190px]"
                                 title="Menunggu perbaikan data oleh pemohon"
                             >
                                 Perlu tindakan perbaikan
@@ -379,15 +371,15 @@ const getActiveStepName = (pr) => {
                     </td>
 
                     <!-- Actions -->
-                    <td class="px-4 py-3.5 whitespace-nowrap text-center">
-                        <div class="flex items-center justify-center gap-1.5">
+                    <td class="px-6 py-4.5 whitespace-nowrap text-center">
+                        <div class="flex items-center justify-center gap-2">
                             <button
                                 type="button"
                                 @click="openDetail(pr)"
-                                class="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+                                class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 title="Lihat Rincian PR"
                             >
-                                <Eye class="w-4 h-4" />
+                                <Eye class="w-4.5 h-4.5" />
                             </button>
 
                             <!-- Unduh Lembar Persetujuan (PDF) Langsung di Tabel -->
@@ -396,41 +388,30 @@ const getActiveStepName = (pr) => {
                                 type="button"
                                 :disabled="downloadingPrId === pr.id"
                                 @click="handleDownloadPdf(pr)"
-                                class="p-1.5 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                                class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                                 title="Unduh Lembar Persetujuan (PDF)"
                             >
-                                <Loader2 v-if="downloadingPrId === pr.id" class="w-4 h-4 animate-spin text-indigo-600" />
-                                <Download v-else class="w-4 h-4 text-slate-700 hover:text-indigo-600" />
+                                <Loader2 v-if="downloadingPrId === pr.id" class="w-4.5 h-4.5 animate-spin text-blue-600" />
+                                <Download v-else class="w-4.5 h-4.5 text-slate-600 hover:text-blue-600" />
                             </button>
 
                             <RouterLink
                                 v-if="pr.status === 'draft' || pr.status === 'revision_requested'"
                                 :to="{ name: 'user.purchasing.requisitions.edit', params: { id: pr.id } }"
-                                class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                                class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
                                 :title="pr.status === 'revision_requested' ? 'Perbaiki & Edit PR' : 'Edit Draft PR'"
                             >
-                                <FileEdit class="w-4 h-4" />
+                                <FileEdit class="w-4.5 h-4.5" />
                             </RouterLink>
-
-                            <button
-                                v-if="pr.status === 'ready_for_pickup'"
-                                type="button"
-                                @click="openConfirmReceiptModal(pr)"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
-                                title="Konfirmasi bahwa barang telah diterima / diambil dari gudang"
-                            >
-                                <CheckCircle2 class="w-3.5 h-3.5" />
-                                <span>Terima Barang</span>
-                            </button>
 
                             <button
                                 v-if="pr.can_be_submitted || pr.status === 'draft' || pr.status === 'revision_requested'"
                                 type="button"
                                 @click="handleSubmitPR(pr)"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
                                 :title="pr.status === 'revision_requested' ? 'Ajukan Ulang Persetujuan' : 'Ajukan Persetujuan Sekarang'"
                             >
-                                <Send class="w-3 h-3" />
+                                <Send class="w-3.5 h-3.5" />
                                 <span>{{ pr.status === 'revision_requested' ? 'Ajukan Ulang' : 'Ajukan' }}</span>
                             </button>
                         </div>
@@ -453,15 +434,7 @@ const getActiveStepName = (pr) => {
             v-model="showDetailModal"
             :item="selectedPR"
             :is-loading="isLoadingDetail"
-            @confirm-receipt="openConfirmReceiptModal"
             @submit-p-r="handleSubmitPR"
-        />
-
-        <!-- 5. CONFIRM RECEIPT MODAL COMPONENT -->
-        <PurchaseRequisitionConfirmReceiptModal
-            v-model="showConfirmReceiptModal"
-            :target="confirmReceiptTarget"
-            @saved="fetchData(pagination.current_page)"
         />
     </div>
 </template>

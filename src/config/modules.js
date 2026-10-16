@@ -14,11 +14,12 @@ export const erpModules = [
     {
         id: 'purchasing',
         title: 'Purchasing',
+        subtitle: 'Pengadaan & Pembelian',
         description: 'Kelola pengajuan pembelian, antrean alokasi pengadaan, pesanan direct purchase, dan riwayat vendor.',
         routeName: 'user.purchasing',
         icon: ShoppingBag,
-        color: 'indigo',
-        badge: 'Aktif',
+        color: 'blue',
+        badge: '',
         status: 'active',
         permission: null, // Accessible to all authenticated employees
         active: true
@@ -27,11 +28,12 @@ export const erpModules = [
     {
         id: 'finance',
         title: 'Finance & Payments',
+        subtitle: 'Tagihan & Pembayaran',
         description: 'Kelola verifikasi tagihan supplier, permohonan pembayaran (Payment Requests), dan pencairan kas/bank.',
         routeName: 'user.finance.payment-requests',
         icon: Landmark,
-        color: 'emerald',
-        badge: 'Operasional',
+        color: 'blue',
+        badge: '',
         status: 'active',
         permission: null,
         active: true
@@ -39,11 +41,12 @@ export const erpModules = [
     {
         id: 'inventory',
         title: 'Warehouse & Inventory',
+        subtitle: 'Gudang & Persediaan',
         description: 'Penerimaan fisik barang (Goods Receipts), pemeriksaan surat jalan vendor, dan verifikasi kualitas barang masuk.',
         routeName: 'user.inventory.goods-receipts',
         icon: Boxes,
         color: 'blue',
-        badge: 'Operasional',
+        badge: '',
         status: 'active',
         permission: null,
         active: true
@@ -51,11 +54,12 @@ export const erpModules = [
     {
         id: 'hr',
         title: 'Human Resources',
+        subtitle: 'SDM & Organisasi',
         description: 'Data karyawan, kehadiran, struktur organisasi, dan manajemen talenta.',
         routeName: null,
         icon: Users,
-        color: 'purple',
-        badge: 'Coming Soon',
+        color: 'slate',
+        badge: 'Segera Hadir',
         status: 'coming_soon',
         permission: 'hr.read',
         active: false

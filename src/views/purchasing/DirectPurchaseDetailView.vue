@@ -9,13 +9,13 @@ import {
     cancelDirectPurchase 
 } from '../../services/directPurchaseServices.js'
 import { getAccountingAccounts } from '../../services/accountingAccountServices.js'
-import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
+import { showLoading, showSuccess, showError, showConfirm, showPrompt } from '../../utils/swal.js'
 import { formatCurrency } from '../../utils/stringUtils.js'
-import Swal from 'sweetalert2'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 import DocumentWorkflowTracker from '../../components/approval/DocumentWorkflowTracker.vue'
 
 import {
@@ -145,52 +145,6 @@ const formatDate = (dateString) => {
     }).format(date)
 }
 
-const getStatusBadge = (status) => {
-    switch (status) {
-        case 'draft':
-            return {
-                label: 'Draft (Pembelian Baru)',
-                bg: 'bg-amber-50 text-amber-700 border-amber-200',
-                icon: Clock
-            }
-        case 'ready_for_payment':
-            return {
-                label: 'Menunggu Persetujuan Keuangan',
-                bg: 'bg-blue-50 text-blue-700 border-blue-200',
-                icon: CreditCard
-            }
-        case 'paid':
-            return {
-                label: 'Telah Dibayar (Siap Terima Barang)',
-                bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                icon: Coins
-            }
-        case 'partially_received':
-            return {
-                label: 'Diterima Sebagian',
-                bg: 'bg-amber-50 text-amber-700 border-amber-200',
-                icon: Truck
-            }
-        case 'completed':
-            return {
-                label: 'Selesai Lengkap (Diterima Penuh)',
-                bg: 'bg-emerald-50 text-emerald-800 border-emerald-300',
-                icon: CheckCircle2
-            }
-        case 'cancelled':
-            return {
-                label: 'Dibatalkan',
-                bg: 'bg-rose-50 text-rose-700 border-rose-200',
-                icon: XCircle
-            }
-        default:
-            return {
-                label: status || '-',
-                bg: 'bg-gray-50 text-gray-600 border-gray-200',
-                icon: Clock
-            }
-    }
-}
 
 // Action: Open Submit Modal
 const openSubmitModal = () => {
@@ -336,16 +290,14 @@ const confirmGoodsReceipt = async () => {
 
 const handleCancel = async () => {
     if (!dp.value) return
-    const { value: reason, isConfirmed } = await Swal.fire({
+    const { value: reason, isConfirmed } = await showPrompt({
         title: 'Batalkan Pembelian Langsung?',
         text: `Masukkan alasan pembatalan untuk ${dp.value.dp_number}:`,
-        input: 'textarea',
-        inputPlaceholder: 'Tuliskan alasan pembatalan pembelian ini...',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, Batalkan Pembelian',
-        cancelButtonText: 'Tutup',
-        confirmButtonColor: '#e11d48',
-        inputValidator: (value) => {
+        placeholder: 'Tuliskan alasan pembatalan pembelian ini...',
+        confirmText: 'Ya, Batalkan Pembelian',
+        cancelText: 'Tutup',
+        isDestructive: true,
+        validator: (value) => {
             if (!value) {
                 return 'Alasan pembatalan wajib diisi!'
             }
@@ -398,13 +350,7 @@ onMounted(() => {
                         <h2 class="text-2xl font-bold text-gray-900 font-mono">{{ dp.dp_number }}</h2>
 
                         <!-- Status Badge -->
-                        <span 
-                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border"
-                            :class="getStatusBadge(dp.status).bg"
-                        >
-                            <component :is="getStatusBadge(dp.status).icon" class="w-3.5 h-3.5" />
-                            {{ getStatusBadge(dp.status).label }}
-                        </span>
+                        <StatusBadge :status="dp.status" size="md" />
 
                         <!-- Channel Badge -->
                         <span 

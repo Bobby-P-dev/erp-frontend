@@ -7,9 +7,8 @@ import {
     cancelProcurementPlan 
 } from '../../services/procurementPlanServices.js'
 import { getApprovalTrackerByDocument } from '../../services/approvalServices.js'
-import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
+import { showLoading, showSuccess, showError, showConfirm, showPrompt } from '../../utils/swal.js'
 import { formatCurrency } from '../../utils/stringUtils.js'
-import Swal from 'sweetalert2'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
@@ -211,16 +210,14 @@ const handleActivate = async () => {
 
 const handleCancel = async () => {
     if (!plan.value) return
-    const { value: reason, isConfirmed } = await Swal.fire({
+    const { value: reason, isConfirmed } = await showPrompt({
         title: 'Batalkan Rencana Pengadaan?',
         text: `Masukkan alasan pembatalan untuk rencana ${plan.value.pp_number}:`,
-        input: 'textarea',
-        inputPlaceholder: 'Tuliskan alasan pembatalan rencana ini...',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, Batalkan Rencana',
-        cancelButtonText: 'Tutup',
-        confirmButtonColor: '#e11d48',
-        inputValidator: (value) => {
+        placeholder: 'Tuliskan alasan pembatalan rencana ini...',
+        confirmText: 'Ya, Batalkan Rencana',
+        cancelText: 'Tutup',
+        isDestructive: true,
+        validator: (value) => {
             if (!value) {
                 return 'Alasan pembatalan wajib diisi!'
             }

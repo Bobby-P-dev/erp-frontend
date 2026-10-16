@@ -19,7 +19,7 @@ import {
 import { useAuthStore } from '../../stores/auth.js'
 import { deleteUserSignature } from '../../services/userServices.js'
 import SignaturePadModal from '../../components/profile/SignaturePadModal.vue'
-import Swal from 'sweetalert2'
+import { showConfirm, showSuccess, showError } from '../../utils/swal.js'
 
 const authStore = useAuthStore()
 const isSignatureModalOpen = ref(false)
@@ -33,38 +33,24 @@ const rolesList = computed(() => {
 })
 
 const handleDeleteSignature = async () => {
-    const result = await Swal.fire({
-        title: 'Hapus Tanda Tangan?',
-        text: 'Anda harus mengunggah atau membuat tanda tangan baru untuk dapat menyetujui dokumen di sistem ERP.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal',
-        confirmButtonColor: '#e11d48',
-        cancelButtonColor: '#64748b',
-    })
+    const confirmed = await showConfirm(
+        'Hapus Tanda Tangan?',
+        'Anda harus mengunggah atau membuat tanda tangan baru untuk dapat menyetujui dokumen di sistem ERP.',
+        'Ya, Hapus',
+        'Batal',
+        '#e11d48'
+    )
 
-    if (!result.isConfirmed) return
+    if (!confirmed) return
 
     try {
         isDeletingSignature.value = true
         await deleteUserSignature()
         authStore.updateUserSignature(false, null, null)
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Tanda Tangan Dihapus',
-            text: 'Spesimen tanda tangan digital Anda berhasil dihapus.',
-            timer: 2000,
-            showConfirmButton: false,
-        })
+        showSuccess('Tanda Tangan Dihapus', 'Spesimen tanda tangan digital Anda berhasil dihapus.')
     } catch (err) {
         console.error(err)
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal Menghapus',
-            text: err.response?.data?.message || 'Terjadi kesalahan saat menghapus tanda tangan.',
-        })
+        showError('Gagal Menghapus', 'Terjadi kesalahan saat menghapus tanda tangan.', err)
     } finally {
         isDeletingSignature.value = false
     }

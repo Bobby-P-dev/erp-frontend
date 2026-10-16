@@ -1,5 +1,24 @@
 <script setup>
 import { computed } from 'vue'
+import {
+    Check,
+    Clock,
+    X,
+    RotateCcw,
+    FileText,
+    CheckCheck,
+    Package,
+    ShoppingBag,
+    Wallet,
+    Search,
+    Minus,
+    Pause,
+    Ban,
+    ArrowDown,
+    CircleDot,
+    Info,
+    HelpCircle
+} from '@lucide/vue'
 
 const props = defineProps({
     /**
@@ -24,7 +43,7 @@ const props = defineProps({
         default: ''
     },
     /**
-     * Explicit color variant override ('emerald', 'amber', 'rose', 'blue', 'slate', 'zinc', 'indigo').
+     * Explicit color variant override ('emerald', 'amber', 'rose', 'blue', 'slate', 'zinc', 'indigo', 'purple', 'teal').
      */
     variant: {
         type: String,
@@ -39,14 +58,14 @@ const props = defineProps({
         validator: (v) => ['sm', 'md', 'lg'].includes(v)
     },
     /**
-     * Whether to show a colored status dot indicator.
+     * Whether to show the circular icon indicator.
      */
     dot: {
         type: Boolean,
         default: true
     },
     /**
-     * Optional icon component to display beside the label.
+     * Optional icon component override to display inside the left circular badge.
      */
     icon: {
         type: [Object, Function],
@@ -63,120 +82,223 @@ const rawStatus = computed(() => {
 })
 
 const badgeConfig = computed(() => {
-    // 1. If legacy isActive boolean prop is supplied
+    // 1. If legacy isActive boolean prop is supplied (Master Data)
     if (props.isActive !== null && props.isActive !== undefined) {
         const active = Boolean(props.isActive)
         return {
-            label: active ? 'Active' : 'Inactive',
-            bg: active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200',
-            dot: active ? 'bg-emerald-500' : 'bg-rose-500',
-            pulse: false
+            label: active ? 'Aktif' : 'Nonaktif',
+            bg: active
+                ? 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15'
+                : 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+            iconBg: active ? 'bg-[#1B5E20]' : 'bg-[#475569]',
+            icon: active ? Check : Minus
         }
     }
 
-    // 2. If status string is supplied
+    // 2. Check if custom label specifically indicates unstarted or waiting queue
+    if (props.label) {
+        const lbl = String(props.label).toLowerCase().trim()
+        if (lbl.includes('belum') || lbl.includes('antrean') || lbl.includes('antri') || lbl.includes('menunggu pengiriman')) {
+            return {
+                label: props.label,
+                bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+                iconBg: 'bg-[#475569]',
+                icon: Clock
+            }
+        }
+        if (lbl.includes('ditinjau') || lbl.includes('in review') || lbl.includes('sedang')) {
+            return {
+                label: props.label,
+                bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]',
+                icon: Clock
+            }
+        }
+    }
+
+    // 3. If status string is supplied
     const st = rawStatus.value
     switch (st) {
         case 'draft':
             return {
                 label: 'Draft',
-                bg: 'bg-slate-100 text-slate-700 border-slate-200',
-                dot: 'bg-slate-400',
-                pulse: false
+                bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+                iconBg: 'bg-[#475569]',
+                icon: FileText
             }
+        case 'pending':
         case 'pending_approval':
             return {
                 label: 'Menunggu Approval',
-                bg: 'bg-amber-50 text-amber-800 border-amber-200',
-                dot: 'bg-amber-500',
-                pulse: true
+                bg: 'bg-[#FEF3E2] text-[#B45309] border-[#B45309]/15',
+                iconBg: 'bg-[#B45309]',
+                icon: Clock
+            }
+        case 'waiting':
+        case 'queue':
+        case 'menunggu_antrean':
+        case 'menunggu_giliran':
+        case 'belum_dimulai':
+        case 'not_started':
+        case 'unstarted':
+        case 'belum_ada_tagihan':
+        case 'menunggu_pengiriman':
+        case 'belum_diserahkan':
+            return {
+                label: props.label || 'Menunggu Antrean',
+                bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+                iconBg: 'bg-[#475569]',
+                icon: Clock
+            }
+        case 'in_progress':
+        case 'in_review':
+        case 'review':
+        case 'sedang_ditinjau':
+        case 'berjalan':
+            return {
+                label: 'Sedang Ditinjau',
+                bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]',
+                icon: Clock
             }
         case 'approved':
+        case 'disetujui':
             return {
                 label: 'Disetujui',
-                bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                dot: 'bg-emerald-600',
-                pulse: false
+                bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
+                iconBg: 'bg-[#1B5E20]',
+                icon: Check
             }
-        case 'ready_for_pickup':
+        case 'ready_for_payment':
             return {
-                label: 'Siap Diambil di Gudang',
-                bg: 'bg-amber-50 text-amber-900 border-amber-300 ring-1 ring-amber-400/20',
-                dot: 'bg-amber-500',
-                pulse: true
-            }
-        case 'pending_pickup':
-            return {
-                label: 'Sampai di Gudang (Belum Diambil)',
-                bg: 'bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-400/20',
-                dot: 'bg-amber-500',
-                pulse: true
-            }
-        case 'handed_over':
-            return {
-                label: 'Sudah Diambil Pemohon',
-                bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                dot: 'bg-emerald-600',
-                pulse: false
+                label: 'Siap Dibayar',
+                bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]',
+                icon: Wallet
             }
         case 'ready_to_disburse':
             return {
                 label: 'Siap Dicairkan Kasir',
-                bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                dot: 'bg-emerald-600',
-                pulse: false
+                bg: 'bg-[#E0F2FE] text-[#0369A1] border-[#0369A1]/15',
+                iconBg: 'bg-[#0369A1]',
+                icon: Wallet
             }
         case 'paid':
+        case 'telah_dibayar':
             return {
-                label: 'Telah Dibayar (Paid)',
-                bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                dot: 'bg-emerald-600',
-                pulse: false
+                label: 'Telah Dibayar',
+                bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
+                iconBg: 'bg-[#1B5E20]',
+                icon: Check
+            }
+        case 'in_procurement':
+        case 'procurement':
+        case 'proses_pengadaan':
+        case 'dalam_pengadaan':
+            return {
+                label: 'Dalam Pengadaan',
+                bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]',
+                icon: ShoppingBag
+            }
+        case 'ready_for_pickup':
+            return {
+                label: 'Siap Diambil',
+                bg: 'bg-[#FEF3E2] text-[#B45309] border-[#B45309]/15',
+                iconBg: 'bg-[#B45309]',
+                icon: Package
+            }
+        case 'pending_pickup':
+            return {
+                label: 'Sampai di Gudang (Belum Diambil)',
+                bg: 'bg-[#FEF3E2] text-[#B45309] border-[#B45309]/15',
+                iconBg: 'bg-[#B45309]',
+                icon: Package
+            }
+        case 'handed_over':
+            return {
+                label: 'Sudah Diambil Pemohon',
+                bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
+                iconBg: 'bg-[#1B5E20]',
+                icon: CheckCheck
             }
         case 'completed':
+        case 'selesai':
+        case 'selesai_diajukan':
+        case 'done':
             return {
                 label: 'Selesai',
-                bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                dot: 'bg-emerald-600',
-                pulse: false
+                bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
+                iconBg: 'bg-[#1B5E20]',
+                icon: Check
             }
         case 'partial':
         case 'partially_received':
             return {
                 label: 'Diterima Sebagian',
-                bg: 'bg-amber-50 text-amber-800 border-amber-200',
-                dot: 'bg-amber-500',
-                pulse: false
+                bg: 'bg-[#FEF3E2] text-[#B45309] border-[#B45309]/15',
+                iconBg: 'bg-[#B45309]',
+                icon: Clock
             }
         case 'revision':
         case 'revision_requested':
+        case 'request_revision':
             return {
                 label: 'Perlu Revisi',
-                bg: 'bg-amber-50 text-amber-800 border-amber-200',
-                dot: 'bg-amber-500',
-                pulse: true
+                bg: 'bg-[#FFF1E6] text-[#C2410C] border-[#C2410C]/15',
+                iconBg: 'bg-[#C2410C]',
+                icon: RotateCcw
             }
         case 'rejected':
+        case 'ditolak':
+        case 'blocked':
             return {
                 label: 'Ditolak',
-                bg: 'bg-rose-50 text-rose-800 border-rose-200',
-                dot: 'bg-rose-500',
-                pulse: false
+                bg: 'bg-[#FDE8E8] text-[#991B1B] border-[#991B1B]/15',
+                iconBg: 'bg-[#991B1B]',
+                icon: X
+            }
+        case 'hold':
+        case 'on_hold':
+        case 'suspended':
+            return {
+                label: 'Ditahan (Hold)',
+                bg: 'bg-[#FFEDD5] text-[#9A3412] border-[#9A3412]/15',
+                iconBg: 'bg-[#9A3412]',
+                icon: Pause
             }
         case 'cancelled':
+        case 'dibatalkan':
             return {
                 label: 'Dibatalkan',
-                bg: 'bg-zinc-100 text-zinc-600 border-zinc-200',
-                dot: 'bg-zinc-400',
-                pulse: false
+                bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+                iconBg: 'bg-[#475569]',
+                icon: Ban
             }
-        default:
+        case 'archived':
             return {
-                label: props.label || st || '-',
-                bg: 'bg-slate-50 text-slate-700 border-slate-200',
-                dot: 'bg-slate-400',
-                pulse: false
+                label: 'Diarsipkan',
+                bg: 'bg-[#E0F2FE] text-[#0369A1] border-[#0369A1]/15',
+                iconBg: 'bg-[#0369A1]',
+                icon: ArrowDown
             }
+        case 'todo':
+        case 'to_do':
+            return {
+                label: 'To-do',
+                bg: 'bg-[#E6FFFA] text-[#0F766E] border-[#0F766E]/15',
+                iconBg: 'bg-[#0F766E]',
+                icon: CircleDot
+            }
+        default: {
+            const fallbackLabel = props.label || (st ? st.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '-')
+            return {
+                label: fallbackLabel,
+                bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+                iconBg: 'bg-[#475569]',
+                icon: Info
+            }
+        }
     }
 })
 
@@ -185,32 +307,86 @@ const finalClasses = computed(() => {
     if (props.variant) {
         switch (props.variant) {
             case 'emerald':
-                return { bg: 'bg-emerald-50 text-emerald-800 border-emerald-200', dot: 'bg-emerald-600' }
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
+                    iconBg: 'bg-[#1B5E20]',
+                    icon: badgeConfig.value.icon || Check
+                }
             case 'amber':
-                return { bg: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500' }
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#FEF3E2] text-[#B45309] border-[#B45309]/15',
+                    iconBg: 'bg-[#B45309]',
+                    icon: badgeConfig.value.icon || Clock
+                }
             case 'rose':
-                return { bg: 'bg-rose-50 text-rose-800 border-rose-200', dot: 'bg-rose-500' }
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#FDE8E8] text-[#991B1B] border-[#991B1B]/15',
+                    iconBg: 'bg-[#991B1B]',
+                    icon: badgeConfig.value.icon || X
+                }
             case 'blue':
-                return { bg: 'bg-blue-50 text-blue-800 border-blue-200', dot: 'bg-blue-600' }
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                    iconBg: 'bg-[#014BAA]',
+                    icon: badgeConfig.value.icon || Search
+                }
+            case 'purple':
             case 'indigo':
-                return { bg: 'bg-indigo-50 text-indigo-800 border-indigo-200', dot: 'bg-indigo-600' }
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#F3E8FF] text-[#6B21A8] border-[#6B21A8]/15',
+                    iconBg: 'bg-[#6B21A8]',
+                    icon: badgeConfig.value.icon || CircleDot
+                }
+            case 'teal':
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#E6FFFA] text-[#0F766E] border-[#0F766E]/15',
+                    iconBg: 'bg-[#0F766E]',
+                    icon: badgeConfig.value.icon || CircleDot
+                }
             case 'zinc':
             case 'slate':
-                return { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400' }
+                return {
+                    ...badgeConfig.value,
+                    bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
+                    iconBg: 'bg-[#475569]',
+                    icon: badgeConfig.value.icon || FileText
+                }
         }
     }
     return badgeConfig.value
 })
 
+const activeIcon = computed(() => {
+    return props.icon || finalClasses.value.icon || Check
+})
+
 const sizeClasses = computed(() => {
     switch (props.size) {
-        case 'sm':
-            return 'px-2.5 py-0.5 text-xs'
         case 'lg':
-            return 'px-3.5 py-1.5 text-sm font-bold'
+            return {
+                badge: 'pl-2 pr-4 py-1.5 text-sm font-bold gap-2 min-h-[32px] leading-none',
+                circle: 'w-5 h-5',
+                icon: 'w-3 h-3 stroke-[2.75]'
+            }
         case 'md':
+            return {
+                badge: 'pl-1.5 pr-3.5 py-1.5 text-xs sm:text-sm font-bold gap-2 min-h-[30px] leading-none',
+                circle: 'w-5 h-5',
+                icon: 'w-3 h-3 stroke-[2.75]'
+            }
+        case 'sm':
         default:
-            return 'px-3 py-1 text-xs sm:text-sm font-semibold'
+            return {
+                badge: 'pl-1.5 pr-3 py-1 text-xs font-bold gap-1.5 min-h-[26px] leading-none',
+                circle: 'w-4 h-4',
+                icon: 'w-2.5 h-2.5 stroke-[2.75]'
+            }
     }
 })
 </script>
@@ -218,28 +394,31 @@ const sizeClasses = computed(() => {
 <template>
     <span
         :class="[
-            'inline-flex items-center gap-1.5 rounded-full font-semibold border whitespace-nowrap transition-colors',
+            'inline-flex items-center justify-center rounded-full border whitespace-nowrap transition-colors select-none tracking-tight shadow-2xs',
             finalClasses.bg,
-            sizeClasses
+            sizeClasses.badge
         ]"
     >
+        <!-- Circular Icon Indicator on the Left (Matching Reference Design) -->
         <span
             v-if="dot"
             :class="[
-                'w-1.5 h-1.5 rounded-full shrink-0',
-                finalClasses.dot,
-                badgeConfig.pulse ? 'animate-pulse' : ''
+                'rounded-full flex items-center justify-center shrink-0 text-white shadow-2xs',
+                finalClasses.iconBg,
+                sizeClasses.circle
             ]"
-        ></span>
+        >
+            <component
+                :is="activeIcon"
+                :class="sizeClasses.icon"
+            />
+        </span>
 
-        <component
-            :is="icon"
-            v-if="icon"
-            class="w-3.5 h-3.5 shrink-0"
-        />
-
-        <slot>
-            {{ label || badgeConfig.label }}
-        </slot>
+        <!-- Badge Label -->
+        <span class="leading-none pt-0.5">
+            <slot>
+                {{ label || finalClasses.label }}
+            </slot>
+        </span>
     </span>
 </template>

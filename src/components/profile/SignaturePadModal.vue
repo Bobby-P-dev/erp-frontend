@@ -12,7 +12,7 @@ import {
 } from '@lucide/vue'
 import { uploadUserSignature } from '../../services/userServices.js'
 import { useAuthStore } from '../../stores/auth.js'
-import Swal from 'sweetalert2'
+import { showSuccess } from '../../utils/swal.js'
 
 const props = defineProps({
     isOpen: {
@@ -151,13 +151,7 @@ const handleSave = async () => {
             const updatedUser = res.data || res.user || {}
             authStore.updateUserSignature(true, updatedUser.signature_url, updatedUser.signature_file_id)
 
-            Swal.fire({
-                icon: 'success',
-                title: 'Tanda Tangan Tersimpan',
-                text: 'Spesimen tanda tangan digital berhasil diperbarui di profil Anda.',
-                timer: 2000,
-                showConfirmButton: false,
-            })
+            showSuccess('Tanda Tangan Tersimpan', 'Spesimen tanda tangan digital berhasil diperbarui di profil Anda.')
 
             emit('saved', updatedUser)
             emit('close')
@@ -180,13 +174,7 @@ const handleSave = async () => {
             const updatedUser = res.data || res.user || {}
             authStore.updateUserSignature(true, updatedUser.signature_url, updatedUser.signature_file_id)
 
-            Swal.fire({
-                icon: 'success',
-                title: 'Tanda Tangan Tersimpan',
-                text: 'Berkas tanda tangan resmi berhasil diunggah ke profil Anda.',
-                timer: 2000,
-                showConfirmButton: false,
-            })
+            showSuccess('Tanda Tangan Tersimpan', 'Berkas tanda tangan resmi berhasil diunggah ke profil Anda.')
 
             emit('saved', updatedUser)
             emit('close')
