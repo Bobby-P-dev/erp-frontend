@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { truncateText } from '../../utils/stringUtils'
@@ -27,6 +28,15 @@ const goToProfile = () => {
 const goToAdmin = () => {
     router.push({ name: 'admin.dashboard' })
 }
+
+const userInitials = computed(() => {
+    const name = authStore.profile?.name || authStore.user?.name || 'User'
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return name.slice(0, 2).toUpperCase()
+})
 </script>
 
 <template>
@@ -34,27 +44,27 @@ const goToAdmin = () => {
         <DropdownMenuTrigger as-child>
             <button 
                 type="button" 
-                class="flex items-center gap-3 p-1.5 pr-3.5 rounded-full hover:bg-slate-100/80 transition-colors border border-transparent hover:border-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 cursor-pointer group select-none"
+                class="flex items-center gap-3 p-1.5 pr-3 rounded-full hover:bg-slate-100/80 transition-colors border border-transparent hover:border-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 cursor-pointer group select-none"
             >
-                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold shadow-xs border border-blue-200">
-                    {{ authStore.profile?.name?.charAt(0)?.toUpperCase() || 'U' }}
+                <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold shadow-2xs border border-blue-200/80 shrink-0">
+                    {{ userInitials }}
                 </div>
                 <div class="text-left hidden sm:block">
-                    <p class="text-sm font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">
-                        {{ truncateText(authStore.profile?.name || 'User', 20) }}
+                    <p class="text-xs font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight">
+                        {{ truncateText(authStore.profile?.name || authStore.user?.name || 'User', 22) }}
                     </p>
-                    <p class="text-xs font-medium text-slate-500 leading-tight mt-0.5">
+                    <p class="text-[10px] font-semibold text-slate-400 leading-tight mt-0.5 uppercase tracking-wider">
                         {{ authStore.profile?.position?.name || 'Karyawan' }}
                     </p>
                 </div>
-                <ChevronDown class="w-4 h-4 text-slate-400 hidden sm:block transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <ChevronDown class="w-3.5 h-3.5 text-slate-400 hidden sm:block transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" :side-offset="8" class="w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 p-1.5 z-50">
+        <DropdownMenuContent align="end" :side-offset="8" class="w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-50">
             <DropdownMenuLabel class="px-3 py-2.5 border-b border-slate-100 mb-1 sm:hidden">
-                <p class="text-sm font-bold text-slate-900">{{ authStore.profile?.name || 'User' }}</p>
-                <p class="text-xs text-slate-500">{{ authStore.profile?.position?.name || 'Karyawan' }}</p>
+                <p class="text-sm font-bold text-slate-900 uppercase">{{ authStore.profile?.name || authStore.user?.name || 'User' }}</p>
+                <p class="text-xs text-slate-500 uppercase">{{ authStore.profile?.position?.name || 'Karyawan' }}</p>
             </DropdownMenuLabel>
 
             <DropdownMenuItem 

@@ -17,10 +17,21 @@ const approvalStore = useApprovalStore()
 // Dynamic greeting based on current local time
 const timeGreeting = computed(() => {
     const hour = new Date().getHours()
-    if (hour >= 4 && hour < 11) return 'Selamat Pagi'
-    if (hour >= 11 && hour < 15) return 'Selamat Siang'
-    if (hour >= 15 && hour < 18) return 'Selamat Sore'
-    return 'Selamat Malam'
+    if (hour >= 4 && hour < 11) return 'SELAMAT PAGI'
+    if (hour >= 11 && hour < 15) return 'SELAMAT SIANG'
+    if (hour >= 15 && hour < 18) return 'SELAMAT SORE'
+    return 'SELAMAT MALAM'
+})
+
+// Current date formatted in Indonesian locale (e.g. "Kamis, 15 Oktober 2026")
+const currentDateFormatted = computed(() => {
+    const now = new Date()
+    return now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    })
 })
 
 // Helper to convert shouting ALL-CAPS strings from database to elegant Title Case
@@ -50,16 +61,6 @@ const formattedUserName = computed(() => {
     return raw
 })
 
-// User initial monogram for profile lockup
-const userInitials = computed(() => {
-    const raw = formattedUserName.value || 'K'
-    const parts = raw.trim().split(/\s+/)
-    if (parts.length >= 2) {
-        return (parts[0][0] + parts[1][0]).toUpperCase()
-    }
-    return raw.slice(0, 2).toUpperCase()
-})
-
 // Primary display role
 const primaryRole = computed(() => {
     const roles = authStore.user?.roles || []
@@ -72,19 +73,19 @@ const primaryRole = computed(() => {
 
 // Organization & employee metadata (with graceful Title Case formatting)
 const companyName = computed(() => {
-    const raw = authStore.profile?.company?.name || 'PT Padma Soode Indonesia'
+    const raw = authStore.profile?.company?.name || 'Padma Soode Indonesia'
     if (raw && raw === raw.toUpperCase()) return toTitleCase(raw)
-    return raw
+    return raw.replace(/^PT\s+/i, '')
 })
 
 const divisionName = computed(() => {
-    const raw = authStore.profile?.division?.name || '-'
+    const raw = authStore.profile?.division?.name || 'Sistem & Audit'
     if (raw && raw === raw.toUpperCase()) return toTitleCase(raw)
     return raw
 })
 
 const positionName = computed(() => {
-    const raw = authStore.profile?.position?.name || primaryRole.value
+    const raw = authStore.profile?.position?.name || primaryRole.value || 'Software Developer'
     if (raw && raw === raw.toUpperCase()) return toTitleCase(raw)
     return raw
 })
@@ -96,7 +97,7 @@ const jobLevel = computed(() => {
 })
 
 const nik = computed(() => {
-    return authStore.profile?.nik || ''
+    return authStore.profile?.nik || authStore.user?.nik || ''
 })
 
 // Filter active modules by permissions and inject live approval count if applicable
@@ -116,80 +117,60 @@ const activeModules = computed(() => {
 </script>
 
 <template>
-    <section class="w-full space-y-8">
-        <!-- 1. Streamlined Welcome & Identity Lockup -->
+    <section class="w-full space-y-8 py-2">
+        <!-- 1. Header Greeting & Localized Date Lockup -->
         <div class="space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="flex items-center gap-3.5 sm:gap-4">
-                    <!-- Refined Initial Monogram Lockup -->
-                    <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-600 text-white font-bold text-sm sm:text-base flex items-center justify-center shrink-0 shadow-xs shadow-blue-500/20 select-none tracking-wider">
-                        {{ userInitials }}
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                    <div class="text-xs font-bold text-slate-500 tracking-wider uppercase">
+                        {{ timeGreeting }}
                     </div>
-                    <div>
-                        <div class="text-xs font-semibold text-slate-500 tracking-wide uppercase">
-                            {{ timeGreeting }}
-                        </div>
-                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
-                            {{ formattedUserName }}
-                        </h1>
-                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight mt-1">
+                        {{ formattedUserName }}
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                        Pilih modul ERP untuk melanjutkan pekerjaan Anda.
+                    </p>
                 </div>
 
-                <!-- Workplace Context Subline -->
-                <p class="text-xs sm:text-sm text-slate-500 max-w-sm sm:text-right">
-                    Akses modul ERP terintegrasi sesuai kewenangan tugas Anda.
-                </p>
+                <!-- Right Aligned Live Calendar Date -->
+                <div class="text-xs sm:text-sm font-medium text-slate-500 sm:text-right pt-1 select-none">
+                    {{ currentDateFormatted }}
+                </div>
             </div>
 
-            <!-- Inline Metadata Chips (Company, Division, Position, NIK) -->
-            <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <!-- 2. Horizontal Metadata Pills Bar (Rounded-Full Minimalist Chips) -->
+            <div class="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
                 <!-- Entitas Perusahaan -->
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 shadow-2xs">
-                    <Building2 class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span class="font-medium text-slate-900">{{ companyName }}</span>
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-slate-300 transition-colors">
+                    <Building2 class="size-3.5 text-blue-600 shrink-0" />
+                    <span class="font-medium text-slate-800">{{ companyName }}</span>
                 </div>
 
                 <!-- Divisi Kerja -->
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 shadow-2xs">
-                    <Layers class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span class="text-slate-500 font-normal">Divisi:</span>
-                    <span class="font-medium text-slate-900">{{ divisionName }}</span>
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-slate-300 transition-colors">
+                    <Layers class="size-3.5 text-blue-600 shrink-0" />
+                    <span class="font-medium text-slate-800">{{ divisionName }}</span>
                 </div>
 
                 <!-- Jabatan & Level -->
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 shadow-2xs">
-                    <Briefcase class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span class="font-medium text-slate-900">{{ positionName }}</span>
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-slate-300 transition-colors">
+                    <Briefcase class="size-3.5 text-blue-600 shrink-0" />
+                    <span class="font-medium text-slate-800">{{ positionName }}</span>
                     <span v-if="jobLevel" class="text-slate-400 font-normal">({{ jobLevel }})</span>
                 </div>
 
-                <!-- NIK (Metadata Sekunder) -->
-                <div v-if="nik" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/70 text-slate-600 font-mono text-xs">
-                    <IdCard class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>NIK: <strong class="font-medium text-slate-800">{{ nik }}</strong></span>
+                <!-- NIK (Metadata Karyawan) -->
+                <div v-if="nik" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 font-mono shadow-2xs hover:border-slate-300 transition-colors">
+                    <IdCard class="size-3.5 text-blue-600 shrink-0" />
+                    <span>NIK: <strong class="font-semibold text-slate-900">{{ nik }}</strong></span>
                 </div>
             </div>
         </div>
 
-        <!-- 2. ERP Modules Section (Primary Focus of Dashboard) -->
-        <div class="space-y-5 pt-2">
-            <!-- Section Header & Architectural Counter (No Floating AI Pill Badge) -->
-            <div class="flex items-center justify-between border-b border-slate-200/80 pb-3">
-                <div class="flex items-center gap-2.5">
-                    <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                        Modul ERP
-                    </h2>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold font-mono bg-slate-100 text-slate-700 border border-slate-200/70">
-                        {{ activeModules.length }} Modul
-                    </span>
-                </div>
-                <p class="text-xs text-slate-500 hidden sm:block">
-                    Pilih modul untuk mulai bekerja
-                </p>
-            </div>
-
-            <!-- Responsive 3-Column Launcher Grid (Equal Height Stretching) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
+        <!-- 3. Minimalist Launcher Grid (Purchasing, Finance, Warehouse) -->
+        <div class="pt-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
                 <ModuleCard
                     v-for="moduleItem in activeModules"
                     :key="moduleItem.id"
@@ -202,7 +183,6 @@ const activeModules = computed(() => {
                     :badge="moduleItem.badge"
                     :badge-variant="moduleItem.badgeVariant || 'default'"
                     :status="moduleItem.status"
-                    actionText="Buka Modul"
                 />
             </div>
         </div>

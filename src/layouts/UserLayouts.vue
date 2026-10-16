@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import UserProfileDropdown from '../components/layout/UserProfileDropdown.vue'
-import { Bell } from '@lucide/vue'
+import { Bell, Sun } from '@lucide/vue'
 import { useApprovalStore } from '../stores/approvalStore'
 
 const approvalStore = useApprovalStore()
@@ -33,6 +33,10 @@ onMounted(() => {
                 <button type="button" class="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors relative" title="Notifikasi">
                     <Bell class="w-5 h-5" />
                     <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
+
+                <button type="button" class="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors" title="Mode Tampilan">
+                    <Sun class="w-5 h-5" />
                 </button>
 
                 <div class="w-px h-6 bg-slate-200 mx-1"></div>
