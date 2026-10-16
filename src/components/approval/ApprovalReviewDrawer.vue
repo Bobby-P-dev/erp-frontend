@@ -16,7 +16,8 @@ import {
     Layers,
     Package,
     ShieldAlert,
-    AlertTriangle
+    AlertTriangle,
+    Pencil
 } from '@lucide/vue'
 import ApprovalBadge from './ApprovalBadge.vue'
 import ApprovalStepper from './ApprovalStepper.vue'
@@ -152,6 +153,51 @@ const dynamicEffectiveTotal = computed(() => {
         }, 0)
 })
 
+// Item Rejection Dialog state
+const isItemRejectDialogOpen = ref(false)
+const selectedItemForRejection = ref(null)
+const itemRejectReasonInput = ref('')
+const itemRejectError = ref('')
+
+const openRejectItemDialog = (item) => {
+    selectedItemForRejection.value = item
+    itemRejectReasonInput.value = itemRejectionStates.value[item.id]?.reason || ''
+    itemRejectError.value = ''
+    isItemRejectDialogOpen.value = true
+}
+
+const confirmRejectItem = () => {
+    const trimmed = itemRejectReasonInput.value.trim()
+    if (!trimmed) {
+        itemRejectError.value = 'Alasan penolakan item wajib diisi.'
+        return
+    }
+    if (trimmed.length < 3) {
+        itemRejectError.value = 'Alasan penolakan minimal 3 karakter.'
+        return
+    }
+
+    const itemId = selectedItemForRejection.value.id
+    if (!itemRejectionStates.value[itemId]) {
+        itemRejectionStates.value[itemId] = { isRejected: false, isPermanentlyLocked: false, reason: '' }
+    }
+    itemRejectionStates.value[itemId].isRejected = true
+    itemRejectionStates.value[itemId].reason = trimmed
+    
+    isItemRejectDialogOpen.value = false
+    selectedItemForRejection.value = null
+    itemRejectReasonInput.value = ''
+    itemRejectError.value = ''
+}
+
+const cancelItemRejection = (itemId) => {
+    if (itemRejectionStates.value[itemId]?.isPermanentlyLocked) return
+    if (itemRejectionStates.value[itemId]) {
+        itemRejectionStates.value[itemId].isRejected = false
+        itemRejectionStates.value[itemId].reason = ''
+    }
+}
+
 const toggleItemRejection = (itemId, shouldReject) => {
     if (!itemRejectionStates.value[itemId]) {
         itemRejectionStates.value[itemId] = { isRejected: false, isPermanentlyLocked: false, reason: '' }
@@ -181,6 +227,8 @@ watch(isDrawerVisible, (newVal) => {
         fetchTracker(props.task.id)
     } else {
         trackerData.value = null
+        isItemRejectDialogOpen.value = false
+        selectedItemForRejection.value = null
     }
 })
 
@@ -261,12 +309,12 @@ const formatDate = (dateStr) => {
     <Teleport to="body">
         <div 
             v-if="isDrawerVisible" 
-            class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+            class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-slate-900/40"
             @click="emit('close')"
         >
             <!-- Centered Modal Box -->
             <div 
-                class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl lg:max-w-5xl flex flex-col max-h-[90vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+                class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl xl:max-w-6xl flex flex-col max-h-[90vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
                 @click.stop
             >
                 <!-- MODAL HEADER -->
@@ -437,47 +485,77 @@ const formatDate = (dateStr) => {
                                             <th class="py-2.5 px-3 text-right w-32">Est. Harga Satuan</th>
                                             <th class="py-2.5 px-3 text-right w-32">Subtotal</th>
                                             <th class="py-2.5 px-3 min-w-[180px]">Catatan / Referensi</th>
-                                            <th v-if="isDocPurchaseRequisition" class="py-2.5 px-3 text-center min-w-[160px]">Keputusan Item</th>
+                                            <th v-if="isDocPurchaseRequisition" class="py-2.5 px-3 text-center min-w-[210px]">Keputusan Item</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 bg-white">
                                         <tr 
                                             v-for="(item, idx) in effectiveItems" 
                                             :key="item.id || idx" 
-                                            class="hover:bg-slate-50/70 transition-colors"
-                                            :class="{'bg-rose-50/30': itemRejectionStates[item.id]?.isRejected}"
+                                            class="transition-colors"
+                                            :class="[
+                                                itemRejectionStates[item.id]?.isRejected
+                                                    ? 'bg-rose-50/50 hover:bg-rose-50/70 border-l-4 border-l-rose-500'
+                                                    : 'hover:bg-slate-50/70'
+                                            ]"
                                         >
-                                            <td class="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{{ idx + 1 }}</td>
-                                            <td class="py-2.5 px-3">
-                                                <div class="font-bold text-slate-900 flex items-center gap-2">
+                                            <td class="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">{{ idx + 1 }}</td>
+                                            <td class="py-3 px-3">
+                                                <div 
+                                                    class="font-bold text-slate-900 flex items-center gap-2"
+                                                    :class="{'line-through text-slate-500': itemRejectionStates[item.id]?.isRejected}"
+                                                >
                                                     <span>{{ item.item_name || 'Item #' + (item.item_id || item.id) }}</span>
                                                     <span 
                                                         v-if="item.is_non_catalog" 
-                                                        class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                                                        class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0"
                                                     >
                                                         Non-Katalog
                                                     </span>
                                                 </div>
-                                                <div v-if="item.detail_name" class="text-xs text-slate-600 font-medium mt-0.5">
+                                                <div 
+                                                    v-if="item.detail_name" 
+                                                    class="text-xs text-slate-600 font-medium mt-0.5"
+                                                    :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
+                                                >
                                                     {{ item.detail_name }}
                                                 </div>
                                                 <div v-if="item.item_code" class="text-[10px] text-slate-400 font-mono mt-0.5">
                                                     Kode: {{ item.item_code }}
                                                 </div>
                                             </td>
-                                            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                            <td 
+                                                class="py-3 px-3 text-right font-mono font-bold text-slate-900"
+                                                :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
+                                            >
                                                 {{ item.quantity }}
                                             </td>
-                                            <td class="py-2.5 px-3 text-slate-600">
+                                            <td 
+                                                class="py-3 px-3 text-slate-600"
+                                                :class="{'text-slate-400': itemRejectionStates[item.id]?.isRejected}"
+                                            >
                                                 {{ item.unit?.code || item.unit?.name || item.unit_name || '-' }}
                                             </td>
-                                            <td class="py-2.5 px-3 text-right font-mono text-slate-700">
+                                            <td 
+                                                class="py-3 px-3 text-right font-mono text-slate-700"
+                                                :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
+                                            >
                                                 {{ formatCurrency(item.estimated_price || 0) }}
                                             </td>
-                                            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                                                {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0))) }}
+                                            <td class="py-3 px-3 text-right font-mono">
+                                                <div v-if="itemRejectionStates[item.id]?.isRejected">
+                                                    <span class="line-through text-slate-400 font-normal block text-xs">
+                                                        {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0))) }}
+                                                    </span>
+                                                    <span class="font-bold text-rose-600 text-xs mt-0.5 inline-block">
+                                                        Ditolak (Rp 0)
+                                                    </span>
+                                                </div>
+                                                <div v-else class="font-bold text-slate-900">
+                                                    {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0))) }}
+                                                </div>
                                             </td>
-                                            <td class="py-2.5 px-3">
+                                            <td class="py-3 px-3">
                                                 <div v-if="item.notes" class="text-slate-700 leading-snug">
                                                     {{ item.notes }}
                                                 </div>
@@ -494,56 +572,73 @@ const formatDate = (dateStr) => {
                                                 <span v-if="!item.notes && !item.reference_url" class="text-slate-400">-</span>
                                             </td>
                                             <!-- KEPUTUSAN ITEM COLUMN -->
-                                            <td v-if="isDocPurchaseRequisition" class="py-2.5 px-3">
+                                            <td v-if="isDocPurchaseRequisition" class="py-3 px-3 align-middle">
                                                 <!-- Jika barang sudah ditolak permanen dari tier sebelumnya -->
                                                 <div v-if="itemRejectionStates[item.id]?.isPermanentlyLocked" class="text-center">
-                                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                                        <XCircle class="w-3 h-3 text-rose-600" />
+                                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                                        <XCircle class="w-3.5 h-3.5 text-rose-600" />
                                                         Ditolak Sebelumnya
                                                     </span>
-                                                    <div v-if="itemRejectionStates[item.id]?.reason" class="text-[10px] text-rose-600 mt-0.5 line-clamp-2 italic" :title="itemRejectionStates[item.id]?.reason">
+                                                    <div v-if="itemRejectionStates[item.id]?.reason" class="text-[11px] text-rose-600 mt-1 italic" :title="itemRejectionStates[item.id]?.reason">
                                                         "{{ itemRejectionStates[item.id]?.reason }}"
                                                     </div>
                                                 </div>
 
                                                 <!-- Jika user adalah approver berwenang di step aktif -->
-                                                <div v-else-if="canUserAct" class="space-y-1.5">
-                                                    <div class="flex items-center justify-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
-                                                        <button
-                                                            type="button"
-                                                            @click="toggleItemRejection(item.id, false)"
-                                                            :class="[
-                                                                'flex-1 py-1 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1',
-                                                                !itemRejectionStates[item.id]?.isRejected
-                                                                    ? 'bg-emerald-600 text-white shadow-xs'
-                                                                    : 'text-slate-600 hover:text-slate-900'
-                                                            ]"
-                                                        >
-                                                            <CheckCircle2 class="w-3 h-3" />
-                                                            <span>Setuju</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            @click="toggleItemRejection(item.id, true)"
-                                                            :class="[
-                                                                'flex-1 py-1 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1',
-                                                                itemRejectionStates[item.id]?.isRejected
-                                                                    ? 'bg-rose-600 text-white shadow-xs'
-                                                                    : 'text-slate-600 hover:text-rose-700'
-                                                            ]"
-                                                        >
-                                                            <XCircle class="w-3 h-3" />
-                                                            <span>Tolak</span>
-                                                        </button>
+                                                <div v-else-if="canUserAct" class="flex flex-col items-center gap-2">
+                                                    <!-- Sub-kasus A: Item sedang ditandai DITOLAK -->
+                                                    <div v-if="itemRejectionStates[item.id]?.isRejected" class="w-full space-y-2">
+                                                        <div class="flex items-center justify-between gap-1.5">
+                                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">
+                                                                <XCircle class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                                                Item Ditolak
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                @click="cancelItemRejection(item.id)"
+                                                                class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                                                                title="Kembalikan item ini menjadi disetujui"
+                                                            >
+                                                                <CheckCircle2 class="w-3 h-3 text-emerald-600" />
+                                                                <span>Batal Tolak</span>
+                                                            </button>
+                                                        </div>
+
+                                                        <!-- Reason callout with edit button -->
+                                                        <div class="p-2 rounded-lg bg-white border border-rose-200 text-xs text-rose-950 flex items-start justify-between gap-2 shadow-2xs">
+                                                            <div class="min-w-0">
+                                                                <span class="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Alasan:</span>
+                                                                <p class="text-xs text-rose-900 mt-0.5 break-words line-clamp-3">
+                                                                    "{{ itemRejectionStates[item.id].reason }}"
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                @click="openRejectItemDialog(item)"
+                                                                class="p-1 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors shrink-0 cursor-pointer"
+                                                                title="Ubah alasan penolakan"
+                                                            >
+                                                                <Pencil class="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
                                                     </div>
 
-                                                    <div v-if="itemRejectionStates[item.id]?.isRejected" class="animate-in fade-in duration-150">
-                                                        <input
-                                                            v-model="itemRejectionStates[item.id].reason"
-                                                            type="text"
-                                                            placeholder="Alasan tolak item..."
-                                                            class="w-full text-[11px] px-2 py-1 rounded border border-rose-300 focus:outline-none focus:ring-1 focus:ring-rose-500 bg-rose-50/50 text-rose-900 placeholder:text-rose-400"
-                                                        />
+                                                    <!-- Sub-kasus B: Item berstatus DISETUJUI (Default) -->
+                                                    <div v-else class="flex items-center justify-center gap-2">
+                                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                                            <span>Disetujui</span>
+                                                        </span>
+
+                                                        <button
+                                                            type="button"
+                                                            @click="openRejectItemDialog(item)"
+                                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 transition-colors shadow-2xs cursor-pointer"
+                                                            title="Tolak / coret item ini dari pengajuan"
+                                                        >
+                                                            <XCircle class="w-3.5 h-3.5" />
+                                                            <span>Tolak</span>
+                                                        </button>
                                                     </div>
                                                 </div>
 
@@ -551,23 +646,23 @@ const formatDate = (dateStr) => {
                                                 <div v-else class="text-center">
                                                     <span 
                                                         v-if="item.approval_status === 'approved'"
-                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                                                     >
-                                                        <CheckCircle2 class="w-3 h-3 text-emerald-600" />
+                                                        <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
                                                         Disetujui
                                                     </span>
                                                     <span 
                                                         v-else-if="item.approval_status === 'rejected'"
-                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"
                                                     >
-                                                        <XCircle class="w-3 h-3 text-rose-600" />
+                                                        <XCircle class="w-3.5 h-3.5 text-rose-600" />
                                                         Ditolak
                                                     </span>
                                                     <span 
                                                         v-else
-                                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
                                                     >
-                                                        <Clock class="w-3 h-3 text-amber-600" />
+                                                        <Clock class="w-3.5 h-3.5 text-amber-600" />
                                                         Menunggu
                                                     </span>
                                                 </div>
@@ -728,6 +823,103 @@ const formatDate = (dateStr) => {
                 @close="showActionDialog = false"
                 @confirm="handleActionConfirm"
             />
+
+            <!-- Dedicated Item Rejection Dialog -->
+            <Teleport to="body">
+                <div 
+                    v-if="isItemRejectDialogOpen" 
+                    class="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-slate-900/50"
+                    @click="isItemRejectDialogOpen = false"
+                >
+                    <div 
+                        class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150"
+                        @click.stop
+                    >
+                        <!-- Header -->
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
+                                <XCircle class="w-6 h-6" />
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                                    Tolak / Coret Item Ini?
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">
+                                    Item yang ditolak tidak akan diproses dalam alur pengadaan ini.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                @click="isItemRejectDialogOpen = false"
+                                class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Batal"
+                            >
+                                <X class="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <!-- Item Detail Info Card -->
+                        <div v-if="selectedItemForRejection" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                            <div class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                <span>{{ selectedItemForRejection.item_name || 'Item #' + (selectedItemForRejection.item_id || selectedItemForRejection.id) }}</span>
+                                <span 
+                                    v-if="selectedItemForRejection.is_non_catalog" 
+                                    class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                                >
+                                    Non-Katalog
+                                </span>
+                            </div>
+                            <div v-if="selectedItemForRejection.detail_name" class="text-slate-600">
+                                {{ selectedItemForRejection.detail_name }}
+                            </div>
+                            <div class="flex items-center justify-between text-slate-700 pt-1.5 border-t border-slate-200/70 font-mono text-[11px]">
+                                <span>Jumlah: <strong>{{ selectedItemForRejection.quantity }} {{ selectedItemForRejection.unit?.code || selectedItemForRejection.unit?.name || 'PCS' }}</strong></span>
+                                <span>Subtotal: <strong>{{ formatCurrency(selectedItemForRejection.estimated_subtotal || ((Number(selectedItemForRejection.quantity) || 0) * (Number(selectedItemForRejection.estimated_price) || 0))) }}</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Form Rejection Reason -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-800">
+                                Alasan Penolakan Item <span class="text-rose-600">*</span>
+                            </label>
+                            <textarea
+                                v-model="itemRejectReasonInput"
+                                rows="3"
+                                class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 placeholder:text-slate-400 bg-white"
+                                placeholder="Tuliskan alasan penolakan secara jelas (contoh: spesifikasi tidak sesuai kebutuhan departemen, stok masih ada di gudang, dll)..."
+                                @keydown.enter.ctrl="confirmRejectItem"
+                            ></textarea>
+                            <p v-if="itemRejectError" class="text-xs text-rose-600 font-medium flex items-center gap-1">
+                                <AlertCircle class="w-3.5 h-3.5 shrink-0" />
+                                <span>{{ itemRejectError }}</span>
+                            </p>
+                            <p v-else class="text-[11px] text-slate-400">
+                                Alasan ini akan tercatat dalam riwayat audit penolakan parsial dokumen.
+                            </p>
+                        </div>
+
+                        <!-- Footer Buttons -->
+                        <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                            <button
+                                type="button"
+                                @click="isItemRejectDialogOpen = false"
+                                class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                @click="confirmRejectItem"
+                                class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                                <XCircle class="w-4 h-4" />
+                                <span>Konfirmasi Tolak Item</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Teleport>
         </div>
     </Teleport>
 </template>
