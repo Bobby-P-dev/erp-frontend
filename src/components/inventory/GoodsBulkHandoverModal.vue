@@ -283,7 +283,7 @@ const printBastPdf = async () => {
         return
     }
 
-    const companyName = selectedCompanies.value[0]?.name || 'PT PADU KUE INDONESIA'
+    const companyName = selectedCompanies.value[0]?.name || 'PT PADMA SOODE INDONESIA'
     
     const previewData = {
         company_name: companyName,

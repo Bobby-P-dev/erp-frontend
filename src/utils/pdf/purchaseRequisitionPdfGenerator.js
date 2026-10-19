@@ -38,6 +38,19 @@ export const urlToBase64 = async (url) => {
 }
 
 /**
+ * Construct public verification QR URL for cryptographic approval token.
+ * 
+ * @param {string} origin - Base URL origin (e.g. window.location.origin)
+ * @param {string} token - Cryptographic verification token
+ * @returns {string} Fully qualified verification URL
+ */
+export const constructVerificationUrl = (origin, token) => {
+    if (!token) return ''
+    const base = origin ? origin.replace(/\/+$/, '') : ''
+    return `${base}/verify/${token}`
+}
+
+/**
  * Format date for PDF display.
  */
 const formatDatePdf = (dateStr) => {
@@ -113,7 +126,7 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
         const stage2 = stages.find(s => s.key === 'pr_approval') || {}
 
         // Metadata extraction
-        const company = stage1.company || pr.company || { name: 'PADU KUE INDONESIA' }
+        const company = stage1.company || pr.company || { name: 'PT PADMA SOODE INDONESIA' }
         const requester = stage1.actor || {
             name: pr.requester?.name || pr.requester?.employee?.name || 'Staff Pemohon',
             division: pr.division?.name || pr.requester?.employee?.division?.name || '-',
@@ -132,8 +145,10 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             return sum + (q * p)
         }, 0)
 
-        // 3. Resolve Signatures (Convert images to Base64)
-        const requesterSignatureBase64 = await urlToBase64(requester.signature_url)
+        // 3. Resolve Digital Signatures (100% Cryptographic QR Verification)
+        const reqVerificationToken = stage1.verification_token || stage1.actor?.verification_token || pr.verification_token || null
+        const reqShortHash = stage1.short_hash || stage1.actor?.short_hash || pr.short_hash || (pr.payload_hash ? pr.payload_hash.substring(0, 8) : null)
+        const reqSignedAt = stage1.signed_at || stage1.actor?.signed_at || pr.signed_at || requestDate
 
         // Approvers list from stage 2 levels and completed actions
         const approverColumns = []
@@ -146,17 +161,24 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             const approveAction = actions.find(a => a.action === 'approve') || actions[actions.length - 1]
 
             const approverUser = approveAction?.user || level.assignee || {}
-            const signUrl = approveAction?.signature_url || approverUser?.signature_url
-            const signBase64 = await urlToBase64(signUrl)
+
+            const status = String(approveAction?.action || level.status || '').toLowerCase()
+            const isApproved = status === 'approve' || status === 'approved' || Boolean(approveAction?.verification_token || level.verification_token)
+            const verificationToken = approveAction?.verification_token || level.verification_token || null
+            const shortHash = approveAction?.short_hash || level.short_hash || null
+            const signedAt = approveAction?.signed_at || approveAction?.acted_at || level.completed_at || level.acted_at || null
 
             approverColumns.push({
                 stepOrder: level.step_order || (i + 1),
                 stepName: level.step_name || `Penyetuju Tahap ${i + 1}`,
                 name: approverUser.name || 'Pejabat Berwenang',
                 position: approverUser.position || level.assignee?.position || 'Peninjau Dokumen',
-                actedAt: approveAction?.acted_at || level.completed_at || level.acted_at || null,
+                actedAt: signedAt,
+                signedAt: signedAt,
                 notes: approveAction?.notes || level.notes || null,
-                signatureBase64: signBase64,
+                isApproved,
+                verificationToken,
+                shortHash,
             })
         }
 
@@ -181,6 +203,8 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
         })
 
         // 5. Construct Signatures Grid
+        const origin = typeof window !== 'undefined' ? (window?.location?.origin || '') : ''
+
         // Total signature slots = 1 (requester) + approvers.length
         const totalSigners = 1 + approverColumns.length
         const signCellWidths = Array(totalSigners).fill('*')
@@ -193,11 +217,12 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             { text: `Tgl: ${formatDatePdf(requestDate)}`, style: 'signDate' },
         ]
 
-        if (requesterSignatureBase64) {
+        if (reqVerificationToken) {
+            const reqQrValue = constructVerificationUrl(origin, reqVerificationToken)
             reqSignStack.push({
-                image: requesterSignatureBase64,
-                width: 75,
-                height: 38,
+                qr: reqQrValue,
+                fit: 68,
+                eccLevel: 'H',
                 alignment: 'center',
                 margin: [0, 4, 0, 4],
             })
@@ -205,12 +230,28 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             reqSignStack.push({
                 text: '[Tanda Tangan Digital]',
                 style: 'signPlaceholder',
-                margin: [0, 14, 0, 14],
+                margin: [0, 18, 0, 18],
             })
         }
 
         reqSignStack.push({ text: `( ${requester.name} )`, style: 'signerName' })
         reqSignStack.push({ text: `${requester.position || 'Staff'}`, style: 'signerTitle' })
+
+        if (reqVerificationToken) {
+            if (reqSignedAt) {
+                reqSignStack.push({
+                    text: `TTD: ${formatDateTimePdf(reqSignedAt)}`,
+                    style: 'signTimestamp',
+                })
+            }
+            if (reqShortHash) {
+                reqSignStack.push({
+                    text: `Hash: ${reqShortHash}`,
+                    style: 'signHash',
+                })
+            }
+        }
+
         signatureCells.push(reqSignStack)
 
         // Columns 2..N: Approvers
@@ -220,11 +261,12 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 { text: `Tgl: ${formatDatePdf(app.actedAt)}`, style: 'signDate' },
             ]
 
-            if (app.signatureBase64) {
+            if (app.isApproved && app.verificationToken) {
+                const qrValue = constructVerificationUrl(origin, app.verificationToken)
                 appStack.push({
-                    image: app.signatureBase64,
-                    width: 75,
-                    height: 38,
+                    qr: qrValue,
+                    fit: 68,
+                    eccLevel: 'H',
                     alignment: 'center',
                     margin: [0, 4, 0, 4],
                 })
@@ -232,12 +274,27 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 appStack.push({
                     text: '[Disetujui Digital]',
                     style: 'signPlaceholder',
-                    margin: [0, 14, 0, 14],
+                    margin: [0, 18, 0, 18],
                 })
             }
 
             appStack.push({ text: `( ${app.name} )`, style: 'signerName' })
             appStack.push({ text: `${app.position}`, style: 'signerTitle' })
+
+            if (app.isApproved && app.verificationToken) {
+                if (app.signedAt) {
+                    appStack.push({
+                        text: `TTD: ${formatDateTimePdf(app.signedAt)}`,
+                        style: 'signTimestamp',
+                    })
+                }
+                if (app.shortHash) {
+                    appStack.push({
+                        text: `Hash: ${app.shortHash}`,
+                        style: 'signHash',
+                    })
+                }
+            }
 
             signatureCells.push(appStack)
         }
@@ -262,9 +319,10 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             ])
         ]
 
-        // Verification URL for QR code
-        const origin = window?.location?.origin || ''
-        const verificationUrl = `${origin}/purchasing/purchase-requisitions/${pr.id}`
+        // Verification URL for QR code (points to public verification if requester token exists)
+        const verificationUrl = reqVerificationToken
+            ? constructVerificationUrl(origin, reqVerificationToken)
+            : `${origin}/purchasing/purchase-requisitions/${pr.id}`
         const printTimestamp = formatDateTimePdf(new Date())
         const currentUser = options.currentUser || 'Petugas ERP'
 
@@ -475,7 +533,7 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                                     [
                                         {
                                             stack: [
-                                                { qr: verificationUrl, fit: 88, eccLevel: 'M', alignment: 'center', margin: [0, 2, 0, 4] },
+                                                { qr: verificationUrl, fit: 88, eccLevel: 'H', alignment: 'center', margin: [0, 2, 0, 4] },
                                                 { text: 'PINDAI VERIFIKASI', style: 'qrCaptionBold', alignment: 'center' },
                                                 { text: 'Validasi Keaslian PR', style: 'qrCaptionSub', alignment: 'center' }
                                             ],
@@ -545,6 +603,8 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 signerTitle: { fontSize: 6.5, color: '#475569', alignment: 'center' },
                 signPlaceholder: { fontSize: 7, italic: true, color: '#94a3b8', alignment: 'center' },
                 signNotes: { fontSize: 6, italic: true, color: '#059669', alignment: 'center' },
+                signTimestamp: { fontSize: 5.5, color: '#64748b', alignment: 'center', margin: [0, 1, 0, 0] },
+                signHash: { fontSize: 5, color: '#94a3b8', alignment: 'center', margin: [0, 1, 0, 0] },
                 qrCaptionBold: { fontSize: 7, bold: true, color: '#0f172a', letterSpacing: 0.3 },
                 qrCaptionSub: { fontSize: 6, color: '#64748b' },
                 legalHeader: { fontSize: 7.5, bold: true, color: '#334155' },

@@ -37,6 +37,14 @@ const router = createRouter({
             ],
         },
         {
+            path: '/verify/:token',
+            name: 'public.verify',
+            component: () => import('../views/public/VerificationView.vue'),
+            meta: {
+                requiresAuth: false
+            }
+        },
+        {
             path: '/dashboard',
             name: 'user',
             component: () => import('../layouts/UserLayouts.vue'),

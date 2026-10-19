@@ -70,7 +70,7 @@ export const generateGoodsHandoverPdf = async (handover, options = {}) => {
     try {
         const isPreview = options.isPreview || !handover.handover_number
         const docNumber = handover.handover_number || `BAST-PREVIEW-${new Date().getTime().toString().slice(-6)}`
-        const companyName = handover.company?.name || handover.company_name || 'PT PADU KUE INDONESIA'
+        const companyName = handover.company?.name || handover.company_name || 'PT PADMA SOODE INDONESIA'
         const companyAddress = handover.company?.address || 'Kawasan Pergudangan & Logistik Operasional'
         const handoverDate = handover.handover_date || new Date().toISOString()
         const handedOverByName = handover.handed_over_by_user?.name || handover.handed_over_by_name || options.currentUser || 'Petugas Gudang'
