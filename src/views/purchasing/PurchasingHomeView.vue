@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import { getPurchaseRequisitions } from '../../services/purchaseRequisitionServices.js'
 import { getProcurementPlans } from '../../services/procurementPlanServices.js'
 import { getDirectPurchases } from '../../services/directPurchaseServices.js'
+import { getRfqs } from '../../services/rfqServices.js'
 import { getPendingApprovalCount } from '../../services/approvalServices.js'
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import warehouseHeroImg from '../../assets/purchasing-warehouse-hero.png'
@@ -31,7 +32,8 @@ const counts = ref({
     pr: null,
     approvals: null,
     plans: null,
-    direct: null
+    direct: null,
+    rfq: null
 })
 
 const fetchSummaryCounts = async () => {
@@ -53,6 +55,11 @@ const fetchSummaryCounts = async () => {
     try {
         const dpRes = await getDirectPurchases('', 1, {})
         counts.value.direct = dpRes?.meta?.total ?? dpRes?.data?.total ?? null
+    } catch (_) {}
+
+    try {
+        const rfqRes = await getRfqs('', 1, {})
+        counts.value.rfq = rfqRes?.meta?.total ?? rfqRes?.data?.total ?? null
     } catch (_) {}
 }
 
@@ -430,19 +437,22 @@ onMounted(() => {
                 </div>
 
                 <!-- Card 5: Request for Quotation (RFQ) -->
-                <div class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 select-none opacity-90 flex flex-col justify-between">
+                <div 
+                    v-if="authStore.hasPermission('purchasing.view') || authStore.hasPermission('rfq.read')"
+                    class="bg-white rounded-2xl border border-slate-200/80 hover:border-blue-300 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
+                >
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
-                            <div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 border border-slate-200/80 flex items-center justify-center">
-                                <FileText class="w-5 h-5" />
+                            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                                <Scale class="w-5 h-5" />
                             </div>
-                            <span class="text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-lg">
-                                Segera Hadir
+                            <span class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1 rounded-lg">
+                                {{ counts.rfq !== null ? counts.rfq + ' Tender' : 'Multi-Vendor' }}
                             </span>
                         </div>
 
                         <div>
-                            <h4 class="text-base font-bold text-slate-900">
+                            <h4 class="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                                 Request for Quotation (RFQ)
                             </h4>
                             <p class="text-xs font-medium text-slate-500 mt-0.5">
@@ -454,8 +464,36 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-400">
-                        <span>Dalam Pengembangan</span>
+                    <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:text-blue-700 transition-colors">
+                        <RouterLink :to="{ name: 'user.purchasing.rfq' }" class="flex items-center justify-between w-full">
+                            <span>Kelola Tender RFQ</span>
+                            <ArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </RouterLink>
+                    </div>
+                </div>
+
+                <!-- Restricted Card 5 -->
+                <div 
+                    v-else
+                    class="bg-slate-50/70 rounded-2xl border border-slate-200/70 p-5 sm:p-6 opacity-80 flex flex-col justify-between"
+                >
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                                <Scale class="w-5 h-5" />
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/80">
+                                Khusus Procurement
+                            </span>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-bold text-slate-700">Request for Quotation (RFQ)</h4>
+                            <p class="text-xs font-medium text-slate-400 mt-0.5">Multi-Vendor Tender</p>
+                            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Komparasi penawaran harga multi-vendor dan negosiasi tender bernilai besar.</p>
+                        </div>
+                    </div>
+                    <div class="mt-5 pt-4 border-t border-slate-200/70 flex items-center justify-between text-xs text-slate-400">
+                        <span class="flex items-center gap-1.5"><ShieldAlert class="w-3.5 h-3.5 text-slate-400" /> Akses Terbatas</span>
                         <Lock class="w-3.5 h-3.5" />
                     </div>
                 </div>

@@ -1,10 +1,9 @@
 <script setup>
 import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowLeft, Save, Send } from '@lucide/vue'
+import { ArrowLeft, Save, Send, ShoppingCart } from '@lucide/vue'
 
 import BaseBreadcrumb from '@/components/ui/BaseBreadcrumb.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
 import { useDirectPurchaseForm } from '@/composables/purchasing/useDirectPurchaseForm.js'
 
 import DPPlanSection from '@/components/purchasing/direct/form/DPPlanSection.vue'
@@ -115,22 +114,30 @@ onMounted(() => {
         />
 
         <!-- Page Header -->
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-3">
-                <RouterLink :to="{ name: 'user.purchasing.direct' }" class="text-gray-400 hover:text-gray-600">
+                <RouterLink :to="{ name: 'user.purchasing.direct' }" class="text-slate-400 hover:text-slate-600 transition-colors">
                     <ArrowLeft class="w-6 h-6" />
                 </RouterLink>
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-900">Buat Transaksi Direct Purchase</h2>
-                    <p class="text-xs text-gray-500 mt-1">
+                    <h2 class="text-2xl font-bold text-slate-900">Buat Transaksi Direct Purchase</h2>
+                    <p class="text-xs text-slate-500 mt-1">
                         Eksekusi pembelian barang langsung untuk rencana pengadaan yang telah disetujui.
                     </p>
                 </div>
             </div>
+
+            <RouterLink 
+                :to="{ name: 'user.purchasing.direct', query: { tab: 'queue' } }"
+                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/80 shadow-2xs transition-all cursor-pointer"
+            >
+                <ShoppingCart class="w-4 h-4 text-blue-600" />
+                <span>Pilih dari Antrean Rencana Siap Eksekusi</span>
+            </RouterLink>
         </div>
 
-        <form @submit.prevent="handleSubmit(false)" class="space-y-6">
-            <!-- SECTION 1: Pilih Rencana Pengadaan -->
+        <form @submit.prevent="handleSubmit(false)" class="space-y-5">
+            <!-- CONTEXT HEADER: Rencana Pengadaan / Bulk Mode -->
             <DPPlanSection
                 :is-bulk-mode="isBulkMode"
                 :bulk-company="bulkCompany"
@@ -145,70 +152,76 @@ onMounted(() => {
                 @cancel-bulk-mode="cancelBulkMode"
             />
 
-            <!-- SECTION 2: Saluran & Informasi Toko / Supplier -->
-            <DPChannelSection
-                :form="form"
-                :popular-marketplaces="popularMarketplaces"
-                :supplier-options="supplierOptions"
-                :is-loading-suppliers="isLoadingSuppliers"
-            />
+            <!-- TWO-COLUMN WORKSPACE: Left (Channel & Items) | Right Sticky (Payment & Cost Summary) -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+                <!-- LEFT MAIN WORKSPACE (8 Cols) -->
+                <div class="xl:col-span-8 space-y-5">
+                    <DPChannelSection
+                        :form="form"
+                        :popular-marketplaces="popularMarketplaces"
+                        :supplier-options="supplierOptions"
+                        :is-loading-suppliers="isLoadingSuppliers"
+                    />
 
-            <!-- SECTION 3: Rincian Barang & Realisasi Harga -->
-            <DPItemsTableSection
-                :form="form"
-                :is-bulk-mode="isBulkMode"
-                :is-plan-fully-exhausted="isPlanFullyExhausted"
-                :has-exhausted-items="hasExhaustedItems"
-                @remove-bulk-item="removeBulkItem"
-            />
+                    <DPItemsTableSection
+                        :form="form"
+                        :is-bulk-mode="isBulkMode"
+                        :is-plan-fully-exhausted="isPlanFullyExhausted"
+                        :has-exhausted-items="hasExhaustedItems"
+                        @remove-bulk-item="removeBulkItem"
+                    />
+                </div>
 
-            <!-- SECTION 4: Informasi Pembayaran & Rekening Tujuan (Finance) -->
-            <DPPaymentInfoSection
-                :form="form"
-                :popular-banks="popularBanks"
-            />
+                <!-- RIGHT STICKY SIDEBAR (4 Cols): Finance, Cost Summary & Actions -->
+                <div class="xl:col-span-4 space-y-5 xl:sticky xl:top-6">
+                    <DPPaymentInfoSection
+                        :form="form"
+                        :popular-banks="popularBanks"
+                    />
 
-            <!-- SECTION 5: Komponen Biaya Tambahan & Total Transaksi -->
-            <DPCostSummarySection
-                :form="form"
-                :currencies-list="currenciesList"
-                :taxes-list="taxesList"
-                :selected-tax-rate="selectedTaxRate"
-                :selected-tax-name="selectedTaxName"
-                :items-subtotal="itemsSubtotal"
-                :grand-total="grandTotal"
-                :equivalent-idr-grand-total="equivalentIdrGrandTotal"
-                @tax-change="onTaxChange"
-            />
+                    <DPCostSummarySection
+                        :form="form"
+                        :currencies-list="currenciesList"
+                        :taxes-list="taxesList"
+                        :selected-tax-rate="selectedTaxRate"
+                        :selected-tax-name="selectedTaxName"
+                        :items-subtotal="itemsSubtotal"
+                        :grand-total="grandTotal"
+                        :equivalent-idr-grand-total="equivalentIdrGrandTotal"
+                        @tax-change="onTaxChange"
+                    />
 
-            <!-- Footer Buttons -->
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <RouterLink :to="{ name: 'user.purchasing.direct' }">
-                    <BaseButton variant="secondary">
-                        <span>Batal</span>
-                    </BaseButton>
-                </RouterLink>
+                    <!-- Action Buttons Card -->
+                    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-4 space-y-2.5">
+                        <button 
+                            type="button" 
+                            @click="handleSubmit(true)"
+                            :disabled="isSubmitting || form.items.length === 0"
+                            class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                            <Send class="w-4 h-4" />
+                            <span>Simpan & Ajukan Pembayaran</span>
+                        </button>
 
-                <div class="flex items-center gap-3">
-                    <button 
-                        type="button" 
-                        @click="handleSubmit(false)"
-                        :disabled="isSubmitting || form.items.length === 0"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 shadow-sm transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                        <Save class="w-4 h-4 text-gray-500" />
-                        <span>Simpan sebagai Draft</span>
-                    </button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button 
+                                type="button" 
+                                @click="handleSubmit(false)"
+                                :disabled="isSubmitting || form.items.length === 0"
+                                class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                                <Save class="w-3.5 h-3.5 text-slate-500" />
+                                <span>Simpan Draft</span>
+                            </button>
 
-                    <button 
-                        type="button" 
-                        @click="handleSubmit(true)"
-                        :disabled="isSubmitting || form.items.length === 0"
-                        class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-md shadow-blue-200 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                        <Send class="w-4 h-4" />
-                        <span>Simpan & Ajukan Pembayaran</span>
-                    </button>
+                            <RouterLink
+                                :to="{ name: 'user.purchasing.direct' }"
+                                class="inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent transition-colors"
+                            >
+                                Batal
+                            </RouterLink>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>

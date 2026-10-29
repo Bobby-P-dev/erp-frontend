@@ -161,6 +161,30 @@ const badgeConfig = computed(() => {
                 iconBg: 'bg-[#014BAA]',
                 icon: Clock
             }
+        case 'active':
+        case 'aktif':
+            return {
+                label: props.label || 'Aktif',
+                bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]',
+                icon: CircleDot
+            }
+        case 'published':
+        case 'dipublikasikan':
+            return {
+                label: props.label || 'Dipublikasikan',
+                bg: 'bg-blue-50 text-blue-700 border-blue-200',
+                iconBg: 'bg-blue-600',
+                icon: CircleDot
+            }
+        case 'evaluation':
+        case 'evaluasi':
+            return {
+                label: props.label || 'Evaluasi',
+                bg: 'bg-amber-50 text-amber-800 border-amber-200',
+                iconBg: 'bg-amber-600',
+                icon: Clock
+            }
         case 'approved':
         case 'disetujui':
             return {

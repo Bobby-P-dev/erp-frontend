@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
 import {
+    openAlertDialog,
     openConfirmDialog,
     openPromptDialog,
     openLoadingDialog,
@@ -7,26 +8,27 @@ import {
 } from '../composables/useFeedback.js'
 
 /**
- * Modern shadcn-based toast notification for successful operations.
+ * Centered modal alert for successful operations.
  * @param {string} title
  * @param {string} text
  */
 export const showSuccess = (title = 'Berhasil!', text = 'Data berhasil disimpan.') => {
-    closeGlobalDialog()
-    toast.success(title, {
-        description: text,
-        duration: 3500
+    return openAlertDialog({
+        title,
+        text,
+        type: 'success',
+        confirmText: 'OK, Mengerti',
+        autoCloseMs: 3000
     })
 }
 
 /**
- * Modern shadcn-based toast notification for errors.
+ * Centered modal alert for errors.
  * @param {string} title
  * @param {string} text
  * @param {any} error
  */
 export const showError = (title = 'Gagal!', text = 'Terjadi kesalahan pada sistem.', error = null) => {
-    closeGlobalDialog()
     let errorMessage = text
     if (error?.response?.data?.message) {
         errorMessage = error.response.data.message
@@ -36,9 +38,11 @@ export const showError = (title = 'Gagal!', text = 'Terjadi kesalahan pada siste
         errorMessage = error.message
     }
 
-    toast.error(title, {
-        description: errorMessage,
-        duration: 5000
+    return openAlertDialog({
+        title,
+        text: errorMessage,
+        type: 'error',
+        confirmText: 'Tutup'
     })
 }
 
@@ -183,15 +187,15 @@ export const Swal = {
 
         // 4. Notifications / Alerts
         if (icon === 'success') {
-            showSuccess(title, text)
+            await showSuccess(title, text)
             return { isConfirmed: true }
         }
         if (icon === 'error') {
-            showError(title, text)
+            await showError(title, text)
             return { isConfirmed: true }
         }
 
-        toast.info(title, { description: text })
+        await openAlertDialog({ title, text, type: 'info', confirmText: 'OK' })
         return { isConfirmed: true }
     },
     close: () => closeSwal(),

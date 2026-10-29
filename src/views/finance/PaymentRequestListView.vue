@@ -102,11 +102,13 @@ const openDetail = async (item) => {
 }
 
 const openDisburse = (item) => {
+    showDetailModal.value = false
     selectedPRQ.value = item
     showDisburseModal.value = true
 }
 
 const openResubmit = (item) => {
+    showDetailModal.value = false
     selectedPRQ.value = item
     showResubmitModal.value = true
 }

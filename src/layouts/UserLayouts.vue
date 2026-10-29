@@ -16,7 +16,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col bg-slate-50 font-sans">
+    <div class="min-h-screen flex flex-col bg-[#F7F9FC] font-sans">
         
         <AppHeader isSticky fullWidth>
             <template #left>
@@ -30,16 +30,16 @@ onMounted(() => {
             </template>
 
             <template #right>
-                <button type="button" class="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors relative" title="Notifikasi">
+                <button type="button" class="p-2.5 text-slate-500 hover:text-[#014BAA] hover:bg-[#EAF2FF] rounded-[10px] transition-colors relative cursor-pointer" title="Notifikasi">
                     <Bell class="w-5 h-5" />
                     <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
 
-                <button type="button" class="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors" title="Mode Tampilan">
+                <button type="button" class="p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-[10px] transition-colors cursor-pointer" title="Mode Tampilan">
                     <Sun class="w-5 h-5" />
                 </button>
 
-                <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                <div class="w-px h-6 bg-[#E5EAF1] mx-1"></div>
 
                 <UserProfileDropdown />
             </template>

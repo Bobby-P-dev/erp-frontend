@@ -93,22 +93,28 @@ describe('Modern Feedback & Dialog System (shadcn-vue backend)', () => {
         assert.equal(dialogState.value.isOpen, false)
     })
 
-    it('ensures showSuccess automatically dismisses active loading dialog', () => {
+    it('ensures showSuccess replaces active loading dialog with centered success alert modal', () => {
         openLoadingDialog('Menyimpan Data...', 'Mohon tunggu sebentar')
         assert.equal(dialogState.value.isOpen, true)
         assert.equal(dialogState.value.type, 'loading')
 
         showSuccess('Berhasil!', 'Data tersimpan')
-        assert.equal(dialogState.value.isOpen, false)
+        assert.equal(dialogState.value.isOpen, true)
+        assert.equal(dialogState.value.type, 'success')
+        assert.equal(dialogState.value.title, 'Berhasil!')
+        closeGlobalDialog()
     })
 
-    it('ensures showError automatically dismisses active loading dialog', () => {
+    it('ensures showError replaces active loading dialog with centered error alert modal', () => {
         openLoadingDialog('Menyimpan Data...', 'Mohon tunggu sebentar')
         assert.equal(dialogState.value.isOpen, true)
         assert.equal(dialogState.value.type, 'loading')
 
         showError('Gagal!', 'Terjadi kesalahan sistem')
-        assert.equal(dialogState.value.isOpen, false)
+        assert.equal(dialogState.value.isOpen, true)
+        assert.equal(dialogState.value.type, 'error')
+        assert.equal(dialogState.value.title, 'Gagal!')
+        closeGlobalDialog()
     })
 
     it('exports all expected swal functions for full backward compatibility', () => {

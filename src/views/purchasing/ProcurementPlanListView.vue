@@ -15,6 +15,7 @@ import SearchInput from '../../components/ui/SearchInput.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import BaseModal from '../../components/ui/BaseModal.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 import {
     Home,
@@ -22,6 +23,7 @@ import {
     Layers,
     Plus,
     RefreshCw,
+    Search,
     Calendar,
     ShoppingCart,
     Scale,
@@ -149,15 +151,16 @@ const methodOptions = [
     { value: 'rfq', label: 'Tender RFQ (Multi-Vendor)' }
 ]
 
-// Table Columns for Tab 1 (Pending PRs)
+// Table Columns for Tab 1 (Pending PRs) - Standardized with Multi-PR Bulk Selection
 const queueTableColumns = [
-    { key: 'select', label: '', class: 'w-10 text-center' },
-    { key: 'no', label: 'No', class: 'w-12 text-center' },
-    { key: 'pr_number', label: 'Dokumen PR & Target Kebutuhan', class: 'min-w-[220px]' },
-    { key: 'requester', label: 'Pemohon & Unit Kerja', class: 'min-w-[190px]' },
-    { key: 'items_summary', label: 'Item Pengadaan Disetujui', class: 'min-w-[250px]' },
-    { key: 'total_remaining', label: 'Sisa Kuota', class: 'w-32 text-right' },
-    { key: 'actions', label: 'Aksi', class: 'w-44 text-center' }
+    { key: 'select', label: '', width: '48px', align: 'center', class: 'text-center' },
+    { key: 'no', label: 'No', width: '60px', align: 'center', class: 'text-center' },
+    { key: 'pr_number', label: 'No. PR', minWidth: '180px' },
+    { key: 'request_date', label: 'Tanggal & Target', minWidth: '180px' },
+    { key: 'company_id', label: 'Perusahaan & Divisi', minWidth: '220px' },
+    { key: 'purpose', label: 'Keperluan & Item', minWidth: '240px' },
+    { key: 'status', label: 'Status & Kuota', minWidth: '180px', align: 'center', class: 'text-center' },
+    { key: 'actions', label: 'Aksi', minWidth: '160px', align: 'center', class: 'text-center' }
 ]
 
 // Bulk Selection State for Tab 1
@@ -284,16 +287,16 @@ const handleFastTrackBulkDirectPurchase = () => {
     })
 }
 
-// Table Columns for Tab 2 (Plans)
+// Table Columns for Tab 2 (Plans) - Standardized layout
 const tableColumns = [
-    { key: 'no', label: 'No', class: 'w-12 text-center' },
-    { key: 'pp_number', label: 'No. Rencana & Tanggal', class: 'min-w-[200px]' },
-    { key: 'pr_info', label: 'Dokumen PR Asal', class: 'min-w-[200px]' },
-    { key: 'method', label: 'Metode Pengadaan', class: 'w-48 text-center' },
-    { key: 'items_count', label: 'Alokasi Item', class: 'w-28 text-center' },
-    { key: 'status', label: 'Status', class: 'w-36 text-center' },
-    { key: 'creator', label: 'Dibuat Oleh', class: 'min-w-[150px]' },
-    { key: 'actions', label: 'Aksi', class: 'w-36 text-center' }
+    { key: 'no', label: 'No', width: '70px', align: 'center', class: 'text-center' },
+    { key: 'pp_number', label: 'No. Rencana & Tanggal', minWidth: '200px' },
+    { key: 'pr_info', label: 'Dokumen PR Asal', minWidth: '220px' },
+    { key: 'method', label: 'Metode Pengadaan', minWidth: '180px', align: 'center', class: 'text-center' },
+    { key: 'items_count', label: 'Alokasi Item', minWidth: '130px', align: 'center', class: 'text-center' },
+    { key: 'status', label: 'Status', minWidth: '140px', align: 'center', class: 'text-center' },
+    { key: 'creator', label: 'Dibuat Oleh', minWidth: '160px' },
+    { key: 'actions', label: 'Aksi', minWidth: '140px', align: 'center', class: 'text-center' }
 ]
 
 // Fetch Pending PR Queue
@@ -610,52 +613,61 @@ onMounted(async () => {
             </div>
 
             <!-- Toolbar & Search -->
-            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                    <div class="max-w-md w-full">
-                        <SearchInput 
-                            v-model="queueSearch" 
-                            placeholder="Cari No. PR, Divisi, atau Nama Barang..." 
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-100">
+                    <div class="relative flex-1 max-w-md w-full">
+                        <Search class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            v-model="queueSearch"
+                            type="text"
+                            placeholder="Cari nomor PR, divisi, pemohon, atau entitas..."
+                            class="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                         />
                     </div>
 
-                    <button 
-                        @click="fetchQueue"
-                        :disabled="isLoadingQueue"
-                        class="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all border border-slate-200 hover:border-blue-200 shrink-0 self-start sm:self-auto cursor-pointer"
-                        title="Segarkan Antrean PR"
-                    >
-                        <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoadingQueue }" />
-                    </button>
+                    <div class="flex items-center gap-2.5 self-end sm:self-auto">
+                        <button 
+                            type="button"
+                            @click="fetchQueue"
+                            :disabled="isLoadingQueue"
+                            class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                            title="Segarkan Antrean PR"
+                        >
+                            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingQueue }" />
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Table of Pending PRs -->
                 <BaseTable :columns="queueTableColumns">
                     <!-- Loading State -->
                     <tr v-if="isLoadingQueue">
-                        <td colspan="7" class="py-16 text-center text-slate-500">
-                            <div class="flex flex-col items-center justify-center gap-3">
-                                <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                <span class="text-sm font-medium text-slate-600">Memuat daftar Purchase Requisition approved...</span>
+                        <td colspan="8" class="px-6 py-14 text-center text-sm text-slate-500">
+                            <div class="inline-flex items-center gap-2 font-medium">
+                                <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
+                                Memuat daftar Purchase Requisition approved...
                             </div>
                         </td>
                     </tr>
 
                     <!-- Empty State -->
                     <tr v-else-if="groupedPurchaseRequisitions.length === 0">
-                        <td colspan="7" class="py-16 text-center text-slate-500">
-                            <div class="flex flex-col items-center justify-center max-w-md mx-auto">
-                                <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4 text-emerald-600 border border-emerald-100">
-                                    <CheckCheck class="w-8 h-8" />
+                        <td colspan="8" class="px-6 py-14 text-center">
+                            <div class="flex flex-col items-center justify-center max-w-sm mx-auto text-slate-400 space-y-2.5">
+                                <div class="p-3 bg-slate-100 rounded-xl border border-slate-200/80">
+                                    <FileText class="w-6 h-6 text-slate-400" />
                                 </div>
-                                <h4 class="text-lg font-bold text-slate-900 mb-1">Semua PR Telah Dibuatkan Rencana</h4>
-                                <p class="text-xs text-slate-500 leading-relaxed mb-5">
-                                    Tidak ada Purchase Requisition (PR) approved yang membutuhkan rencana pengadaan saat ini. Seluruh alokasi kebutuhan sudah diproses.
+                                <div class="text-sm font-semibold text-slate-700">
+                                    {{ queueSearch ? 'Tidak ada PR antrean yang cocok dengan pencarian' : 'Semua PR Telah Dibuatkan Rencana' }}
+                                </div>
+                                <p class="text-xs text-slate-400">
+                                    {{ queueSearch ? 'Coba ubah kata kunci pencarian Anda.' : 'Seluruh Purchase Requisition (PR) approved sudah dialokasikan ke dalam rencana pengadaan.' }}
                                 </p>
                                 <button
+                                    v-if="!queueSearch"
                                     type="button"
                                     @click="activeMainTab = 'plans'"
-                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-200 transition-all cursor-pointer"
+                                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-xs shadow-blue-200 mt-1 cursor-pointer"
                                 >
                                     <Layers class="w-4 h-4" />
                                     <span>Lihat Dokumen Rencana Pengadaan</span>
@@ -664,189 +676,190 @@ onMounted(async () => {
                         </td>
                     </tr>
 
-                    <!-- PR Rows -->
-                    <template v-else v-for="(pr, index) in groupedPurchaseRequisitions" :key="pr.pr_id">
-                        <tr class="hover:bg-slate-50/80 transition-colors" :class="{ 'bg-blue-50/40': isPrFullyChecked(pr) || isPrPartiallyChecked(pr) }">
-                            <!-- Select PR -->
-                            <td class="px-3 py-4 text-center">
+                    <!-- Data Rows -->
+                    <template 
+                        v-else 
+                        v-for="(pr, index) in groupedPurchaseRequisitions" 
+                        :key="pr.pr_id"
+                    >
+                        <tr 
+                            :class="[
+                                (isPrFullyChecked(pr) || isPrPartiallyChecked(pr)) ? 'bg-blue-50/40' : 'hover:bg-slate-50/80',
+                                'transition-colors group border-b border-slate-100 last:border-b-0'
+                            ]"
+                        >
+                            <!-- Select Checkbox -->
+                            <td class="px-4 py-4.5 whitespace-nowrap text-center">
                                 <input 
                                     type="checkbox"
                                     :checked="isPrFullyChecked(pr)"
                                     :indeterminate.prop="isPrPartiallyChecked(pr)"
                                     @change="toggleSelectPr(pr)"
                                     class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
-                                    title="Pilih seluruh item pada PR ini"
+                                    title="Pilih seluruh item pada PR ini untuk rencana konsolidasi"
                                 />
                             </td>
 
                             <!-- No -->
-                            <td class="px-4 py-4 text-sm text-slate-500 text-center font-medium font-mono">
+                            <td class="px-4 py-4.5 whitespace-nowrap text-sm font-mono font-semibold text-slate-500 text-center">
                                 {{ index + 1 }}
                             </td>
 
-                            <!-- PR Number & Date -->
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col gap-1">
-                                    <span class="font-bold text-blue-700 font-mono text-sm flex items-center gap-1.5">
-                                        <FileText class="w-4 h-4 text-blue-600" />
-                                        {{ pr.pr_number }}
-                                    </span>
-                                    <span class="text-xs text-slate-500 flex items-center gap-1">
-                                        <Calendar class="w-3 h-3 text-slate-400" />
-                                        Target: {{ formatDate(pr.required_date) }}
-                                    </span>
+                            <!-- PR Number -->
+                            <td class="px-6 py-4.5 whitespace-nowrap">
+                                <button
+                                    type="button"
+                                    @click="handleCreatePlanForPr(pr)"
+                                    class="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors group/btn text-left cursor-pointer"
+                                    title="Klik untuk membuat rencana pengadaan"
+                                >
+                                    <span class="group-hover/btn:underline">{{ pr.pr_number }}</span>
+                                    <ArrowUpRight class="w-4 h-4 text-slate-400 group-hover/btn:text-blue-600 opacity-0 group-hover/btn:opacity-100 transition-all shrink-0" />
+                                </button>
+                            </td>
+
+                            <!-- Dates: Tanggal & Target (Max 2 lines) -->
+                            <td class="px-6 py-4.5 whitespace-nowrap">
+                                <div class="text-sm text-slate-800 font-semibold flex items-center gap-2">
+                                    <Calendar class="w-4 h-4 text-slate-400 shrink-0" />
+                                    <span>{{ formatDate(pr.request_date) }}</span>
+                                </div>
+                                <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
+                                    <Clock class="w-4 h-4 text-slate-400 shrink-0" />
+                                    <span>Target: {{ formatDate(pr.required_date) }}</span>
                                 </div>
                             </td>
 
-                            <!-- Requester / Division -->
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col gap-1">
-                                    <div v-if="pr.requester?.name" class="flex items-center gap-1.5">
-                                        <div class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                                            <User class="w-3 h-3 text-blue-600" />
-                                        </div>
-                                        <span class="font-bold text-slate-800 text-xs truncate max-w-[170px]" :title="pr.requester.name">
-                                            {{ pr.requester.name }}
-                                        </span>
-                                    </div>
-                                    <div class="flex flex-col text-[11px] text-slate-500">
-                                        <span class="font-medium text-slate-700">
-                                            {{ pr.division?.name || 'Divisi Pemohon' }}
-                                        </span>
-                                        <span class="flex items-center gap-1 text-slate-400">
-                                            <Building2 class="w-3 h-3" />
-                                            {{ pr.company?.name || '-' }}
-                                        </span>
-                                    </div>
+                            <!-- Company & Division (Max 2 lines) -->
+                            <td class="px-6 py-4.5 whitespace-nowrap">
+                                <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <Building2 class="w-4 h-4 text-slate-400 shrink-0" />
+                                    <span>{{ pr.company?.name || 'Perusahaan #' + (pr.company_id || '-') }}</span>
+                                </div>
+                                <div class="text-xs font-medium text-slate-600 mt-1 flex items-center gap-2">
+                                    <Layers class="w-4 h-4 text-slate-400 shrink-0" />
+                                    <span>{{ pr.division?.name || 'Divisi Pemohon' }}</span>
                                 </div>
                             </td>
 
-                            <!-- Items Summary -->
-                            <td class="px-6 py-4">
-                                <div class="space-y-1.5">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                            <Package class="w-3 h-3" />
-                                            {{ pr.items.length }} Item
-                                        </span>
-                                        <span 
-                                            v-if="pr.has_custom_item" 
-                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
-                                        >
-                                            Non-Katalog (Direct)
-                                        </span>
-                                    </div>
+                            <!-- Purpose & Items Summary (Max 2 lines) -->
+                            <td class="px-6 py-4.5">
+                                <div class="text-sm font-medium text-slate-900 max-w-sm truncate" :title="pr.purpose">
+                                    {{ pr.purpose || '-' }}
+                                </div>
+                                <div class="mt-1.5 flex items-center gap-2 flex-wrap text-xs">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80">
+                                        {{ pr.items ? pr.items.length : 0 }} Item
+                                    </span>
+                                    <span 
+                                        v-if="pr.has_custom_item" 
+                                        class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                                    >
+                                        Non-Katalog
+                                    </span>
                                     <button 
                                         type="button" 
                                         @click="toggleExpandPr(pr.pr_id)"
                                         class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
                                     >
-                                        <span>{{ expandedPrs[pr.pr_id] ? 'Sembunyikan Rincian Item' : 'Lihat Rincian Item' }}</span>
+                                        <span>{{ expandedPrs[pr.pr_id] ? 'Tutup Rincian' : 'Rincian Item' }}</span>
                                         <ChevronUp v-if="expandedPrs[pr.pr_id]" class="w-3 h-3" />
                                         <ChevronDown v-else class="w-3 h-3" />
                                     </button>
                                 </div>
                             </td>
 
-                            <!-- Total Remaining Quantity -->
-                            <td class="px-6 py-4 text-right">
-                                <span class="font-mono font-bold text-slate-900 text-sm">
-                                    {{ pr.total_remaining_qty.toLocaleString('id-ID') }}
-                                </span>
-                                <span class="text-[11px] text-slate-500 block font-normal">Unit Terbuka</span>
+                            <!-- Status & Kuota (Max 2 lines) -->
+                            <td class="px-6 py-4.5 whitespace-nowrap text-center">
+                                <div class="inline-flex flex-col items-center justify-center">
+                                    <StatusBadge status="approved" size="md" class="min-w-[125px]" />
+                                    <span 
+                                        class="text-xs font-semibold text-slate-600 mt-1 font-mono"
+                                        title="Total sisa kuota yang belum dialokasikan"
+                                    >
+                                        {{ pr.total_remaining_qty.toLocaleString('id-ID') }} Unit Terbuka
+                                    </span>
+                                </div>
                             </td>
 
                             <!-- Actions -->
-                            <td class="px-6 py-4 text-center">
-                                <button
-                                    type="button"
-                                    @click="handleCreatePlanForPr(pr)"
-                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-200 transition-all hover:-translate-y-0.5 cursor-pointer"
-                                    title="Pilih PR ini dan buat rencana pengadaan"
-                                >
-                                    <Plus class="w-3.5 h-3.5" />
-                                    <span>Buat Rencana</span>
-                                </button>
+                            <td class="px-6 py-4.5 whitespace-nowrap text-center">
+                                <div class="flex items-center justify-center gap-2">
+                                    <button
+                                        type="button"
+                                        @click="handleCreatePlanForPr(pr)"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                                        title="Pilih PR ini dan buat rencana pengadaan"
+                                    >
+                                        <Plus class="w-3.5 h-3.5" />
+                                        <span>Buat Rencana</span>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
 
-                        <!-- Accordion Sub-Table for Items -->
-                        <tr v-if="expandedPrs[pr.pr_id]" class="bg-blue-50/20 border-b border-slate-200">
-                            <td colspan="7" class="p-4 sm:p-5">
+                        <!-- Expanded Item Details -->
+                        <tr v-if="expandedPrs[pr.pr_id]" class="bg-slate-50/60 border-b border-slate-200/60">
+                            <td colspan="8" class="p-4 sm:p-5">
                                 <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-2xs space-y-3">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                            <Package class="w-3.5 h-3.5 text-blue-600" />
-                                            <span>Daftar Item pada {{ pr.pr_number }}:</span>
-                                        </span>
+                                        <div class="flex items-center gap-2">
+                                            <Package class="w-4 h-4 text-slate-500" />
+                                            <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                                Daftar Item PR {{ pr.pr_number }}
+                                            </span>
+                                            <span class="text-xs text-slate-500 font-medium">({{ pr.items?.length || 0 }} item)</span>
+                                        </div>
                                         <button
                                             type="button"
-                                            @click="handleCreatePlanForPr(pr)"
-                                            class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                                            @click="toggleSelectPr(pr)"
+                                            class="text-xs font-semibold text-blue-600 hover:text-blue-800 cursor-pointer"
                                         >
-                                            <span>Lanjutkan Buat Rencana untuk PR Ini</span>
-                                            <ArrowRight class="w-3.5 h-3.5" />
+                                            {{ isPrFullyChecked(pr) ? 'Batalkan Semua Item' : 'Pilih Semua Item PR Ini' }}
                                         </button>
                                     </div>
-
-                                    <div class="overflow-x-auto rounded-lg border border-slate-100">
-                                        <table class="w-full text-left text-xs border-collapse">
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-xs text-left">
                                             <thead>
-                                                <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-100">
-                                                    <th class="py-2 px-3 text-center w-8">Pilih</th>
-                                                    <th class="py-2 px-3">Item / Deskripsi</th>
-                                                    <th class="py-2 px-3 text-center">Tipe</th>
-                                                    <th class="py-2 px-3 text-right">Diminta</th>
-                                                    <th class="py-2 px-3 text-right">Sisa Kuota</th>
-                                                    <th class="py-2 px-3">Referensi URL / Catatan</th>
+                                                <tr class="border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/80">
+                                                    <th class="py-2.5 px-3 w-10 text-center">Pilih</th>
+                                                    <th class="py-2.5 px-3">Item / Deskripsi</th>
+                                                    <th class="py-2.5 px-3 text-center">Qty Diminta</th>
+                                                    <th class="py-2.5 px-3 text-center">Sisa Kuota</th>
+                                                    <th class="py-2.5 px-3 text-right">Est. Harga Satuan</th>
                                                 </tr>
                                             </thead>
                                             <tbody class="divide-y divide-slate-100">
                                                 <tr 
                                                     v-for="item in pr.items" 
-                                                    :key="item.purchase_requisition_item_id" 
-                                                    class="hover:bg-slate-50/50 transition-colors"
-                                                    :class="{ 'bg-blue-50/50': isItemChecked(item) }"
+                                                    :key="item.purchase_requisition_item_id"
+                                                    :class="{ 'bg-blue-50/30': isItemChecked(item) }"
+                                                    class="hover:bg-slate-50 transition-colors"
                                                 >
                                                     <td class="py-2.5 px-3 text-center">
                                                         <input 
                                                             type="checkbox"
                                                             :checked="isItemChecked(item)"
                                                             @change="toggleSelectItem(item, pr)"
-                                                            class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                                                            class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
                                                         />
                                                     </td>
                                                     <td class="py-2.5 px-3">
-                                                        <span class="font-bold text-slate-800">{{ item.item_name }}</span>
-                                                        <span v-if="item.item?.code" class="block text-[11px] font-mono text-slate-400">{{ item.item.code }}</span>
+                                                        <div class="font-semibold text-slate-900">
+                                                            {{ item.item_name || item.item?.name || 'Item Non-Katalog' }}
+                                                        </div>
+                                                        <div v-if="item.item?.code" class="text-[11px] font-mono text-slate-500">
+                                                            {{ item.item.code }}
+                                                        </div>
                                                     </td>
-                                                    <td class="py-2.5 px-3 text-center">
-                                                        <span v-if="item.is_custom_item" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                            Non-Katalog
-                                                        </span>
-                                                        <span v-else class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
-                                                            Katalog
-                                                        </span>
+                                                    <td class="py-2.5 px-3 text-center font-mono font-semibold text-slate-700">
+                                                        {{ Number(item.requested_quantity || 0).toLocaleString('id-ID') }} {{ item.unit?.symbol || item.unit?.code || item.unit_name || 'Unit' }}
                                                     </td>
-                                                    <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-600">
-                                                        {{ item.requested_quantity }} {{ item.unit?.code || item.unit?.name || 'Unit' }}
+                                                    <td class="py-2.5 px-3 text-center font-mono font-bold text-slate-900">
+                                                        {{ Number(item.remaining_quantity || 0).toLocaleString('id-ID') }} {{ item.unit?.symbol || item.unit?.code || item.unit_name || 'Unit' }}
                                                     </td>
-                                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">
-                                                        {{ item.remaining_quantity }} {{ item.unit?.code || item.unit?.name || 'Unit' }}
-                                                    </td>
-                                                    <td class="py-2.5 px-3 text-slate-500">
-                                                        <a 
-                                                            v-if="item.reference_url" 
-                                                            :href="item.reference_url" 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer"
-                                                            class="text-blue-600 hover:underline flex items-center gap-1 truncate max-w-xs"
-                                                        >
-                                                            <ExternalLink class="w-3 h-3 shrink-0" />
-                                                            <span>{{ item.reference_url }}</span>
-                                                        </a>
-                                                        <span v-else-if="item.notes" class="italic">{{ item.notes }}</span>
-                                                        <span v-else class="text-slate-400">-</span>
+                                                    <td class="py-2.5 px-3 text-right font-mono font-medium text-slate-700">
+                                                        {{ item.estimated_unit_price ? 'Rp ' + Number(item.estimated_unit_price).toLocaleString('id-ID') : '-' }}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -858,12 +871,11 @@ onMounted(async () => {
                     </template>
                 </BaseTable>
 
-                <!-- Floating Bulk Selection Action Bar -->
+                <!-- Floating Bulk Selection Bar -->
                 <div 
                     v-if="selectedItemList.length > 0"
-                    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-4xl w-[92%] bg-slate-900/95 backdrop-blur-md text-white px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl shadow-2xl border border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
+                    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-4xl w-[92%] bg-slate-900 text-white px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
                 >
-                    <!-- Left Info -->
                     <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
                         <div class="flex items-center gap-2.5">
                             <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shadow-blue-500">
@@ -874,13 +886,12 @@ onMounted(async () => {
                                     <span>{{ selectedItemList.length }} Item Terpilih</span>
                                     <span class="text-slate-400 font-normal">({{ selectedPrCount }} Dokumen PR)</span>
                                 </span>
-                                <span v-if="selectedCompany" class="text-[11px] text-slate-400 flex items-center gap-1">
-                                    <Building2 class="w-3 h-3 text-slate-400" />
+                                <span v-if="selectedCompany" class="text-[11px] text-slate-300 flex items-center gap-1">
+                                    <Building2 class="w-3.5 h-3.5 text-blue-400" />
                                     <span>{{ selectedCompany.name }}</span>
                                 </span>
                             </div>
                         </div>
-
                         <button 
                             type="button"
                             @click="clearSelection"
@@ -890,13 +901,12 @@ onMounted(async () => {
                         </button>
                     </div>
 
-                    <!-- Right Actions -->
-                    <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                    <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
                         <button
                             type="button"
                             @click="handleCreateConsolidatedPlan"
-                            class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
-                            title="Kelompokkan item ke dalam Rencana Pengadaan Konsolidasi"
+                            class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-all cursor-pointer flex items-center gap-1.5"
+                            title="Kelompokkan item dari beberapa PR ke dalam 1 Rencana Pengadaan Konsolidasi"
                         >
                             <Layers class="w-3.5 h-3.5 text-blue-400" />
                             <span>Buat Rencana Konsolidasi</span>
@@ -905,7 +915,7 @@ onMounted(async () => {
                         <button
                             type="button"
                             @click="handleFastTrackBulkDirectPurchase"
-                            class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-900/40 transition-all hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5"
+                            class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-900/40 transition-all cursor-pointer flex items-center gap-1.5"
                             title="Beli seluruh item terpilih dalam 1 kali Direct Purchase & 1 kali pembayaran Finance"
                         >
                             <ShoppingCart class="w-3.5 h-3.5" />
@@ -996,20 +1006,23 @@ onMounted(async () => {
             <!-- Table & Filter Card -->
             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <!-- Filter Toolbar -->
-                <div class="p-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <!-- Search & Method Dropdown -->
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
-                        <div class="flex-1">
-                            <SearchInput 
+                        <div class="relative flex-1 w-full">
+                            <Search class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input 
                                 v-model="searchQuery" 
+                                type="text"
                                 placeholder="Cari No. Rencana (PP) atau Dokumen PR..." 
+                                class="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                             />
                         </div>
 
                         <!-- Method Filter -->
                         <select 
                             v-model="selectedMethod"
-                            class="text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer shadow-xs transition-colors shrink-0"
+                            class="text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-2xs transition-colors shrink-0"
                         >
                             <option v-for="opt in methodOptions" :key="opt.value" :value="opt.value">
                                 {{ opt.label }}
@@ -1017,12 +1030,13 @@ onMounted(async () => {
                         </select>
 
                         <button 
+                            type="button"
                             @click="fetchPlans(searchQuery, 1)"
                             :disabled="isLoadingPlans"
-                            class="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all border border-slate-200 hover:border-blue-200 shrink-0 self-center cursor-pointer"
+                            class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer shrink-0 self-center sm:self-auto"
                             title="Segarkan Data"
                         >
-                            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoadingPlans }" />
+                            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoadingPlans }" />
                         </button>
                     </div>
 
@@ -1047,31 +1061,31 @@ onMounted(async () => {
                 <BaseTable :columns="tableColumns">
                     <!-- Loading State -->
                     <tr v-if="isLoadingPlans">
-                        <td colspan="8" class="py-16 text-center text-slate-500">
-                            <div class="flex flex-col items-center justify-center gap-3">
-                                <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                <span class="text-sm font-medium text-slate-600">Memuat rencana pengadaan...</span>
+                        <td colspan="8" class="px-6 py-14 text-center text-sm text-slate-500">
+                            <div class="inline-flex items-center gap-2 font-medium">
+                                <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
+                                Memuat rencana pengadaan...
                             </div>
                         </td>
                     </tr>
 
                     <!-- Empty State -->
                     <tr v-else-if="plans.length === 0">
-                        <td colspan="8" class="py-16 text-center text-slate-500">
-                            <div class="flex flex-col items-center justify-center max-w-md mx-auto">
-                                <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 border border-blue-100">
-                                    <Layers class="w-8 h-8" />
+                        <td colspan="8" class="px-6 py-14 text-center text-slate-500">
+                            <div class="flex flex-col items-center justify-center max-w-md mx-auto space-y-2.5">
+                                <div class="p-3 bg-slate-100 rounded-xl border border-slate-200/80">
+                                    <Layers class="w-6 h-6 text-slate-400" />
                                 </div>
-                                <h4 class="text-lg font-bold text-slate-900 mb-1">Belum Ada Rencana Pengadaan</h4>
-                                <p class="text-xs text-slate-500 leading-relaxed mb-5">
+                                <h4 class="text-sm font-bold text-slate-900 mb-1">Belum Ada Rencana Pengadaan</h4>
+                                <p class="text-xs text-slate-500 leading-relaxed mb-4">
                                     Pilih Purchase Requisition (PR) yang telah disetujui di tab "Purchase Siap Diplanning" untuk membuat rencana pengadaan.
                                 </p>
                                 <button
                                     type="button"
                                     @click="activeMainTab = 'pending'"
-                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-200 transition-all cursor-pointer"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-all cursor-pointer"
                                 >
-                                    <Plus class="w-4 h-4 mr-1.5" />
+                                    <Plus class="w-3.5 h-3.5" />
                                     <span>Pilih PR untuk Dibuat Rencana</span>
                                 </button>
                             </div>
@@ -1083,83 +1097,72 @@ onMounted(async () => {
                         v-else 
                         v-for="(plan, index) in plans" 
                         :key="plan.id"
-                        class="hover:bg-slate-50/80 transition-colors"
+                        class="hover:bg-slate-50/80 transition-colors group border-b border-slate-100 last:border-b-0"
                     >
                         <!-- No -->
-                        <td class="px-6 py-4 text-sm text-slate-500 text-center font-medium font-mono">
+                        <td class="px-6 py-4.5 whitespace-nowrap text-sm font-mono font-semibold text-slate-500 text-center">
                             {{ ((pagination.current_page - 1) * pagination.per_page) + index + 1 }}
                         </td>
 
-                        <!-- PP Number & Date -->
-                        <td class="px-6 py-4">
-                            <div class="flex flex-col gap-1">
-                                <RouterLink 
-                                    :to="{ name: 'user.purchasing.plans.detail', params: { id: plan.id } }"
-                                    class="font-bold text-blue-600 hover:text-blue-800 hover:underline text-sm font-mono flex items-center gap-1.5"
-                                >
-                                    <Layers class="w-3.5 h-3.5 text-blue-500" />
-                                    {{ plan.pp_number || 'PP #' + plan.id }}
-                                </RouterLink>
-                                <span class="text-xs text-slate-500 flex items-center gap-1">
-                                    <Calendar class="w-3 h-3 text-slate-400" />
-                                    {{ formatDate(plan.created_at) }}
-                                </span>
+                        <!-- No. Rencana & Tanggal -->
+                        <td class="px-6 py-4.5 whitespace-nowrap">
+                            <RouterLink 
+                                :to="{ name: 'user.purchasing.plans.detail', params: { id: plan.id } }"
+                                class="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors group/link text-left"
+                                title="Lihat detail rencana pengadaan"
+                            >
+                                <span class="group-hover/link:underline">{{ plan.pp_number || 'PP #' + plan.id }}</span>
+                                <ArrowUpRight class="w-4 h-4 text-slate-400 group-hover/link:text-blue-600 opacity-0 group-hover/link:opacity-100 transition-all shrink-0" />
+                            </RouterLink>
+                            <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
+                                <Calendar class="w-4 h-4 text-slate-400 shrink-0" />
+                                <span>{{ formatDate(plan.created_at) }}</span>
                             </div>
                         </td>
 
-                        <!-- PR Info -->
-                        <td class="px-6 py-4">
+                        <!-- Dokumen PR Asal (Max 2 lines) -->
+                        <td class="px-6 py-4.5 whitespace-nowrap">
                             <!-- Multi-PR Consolidated Plan -->
-                            <div v-if="isMultiPrPlan(plan)" class="flex flex-col gap-1.5">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <button
-                                        type="button"
-                                        @click.stop="openPrModal(plan)"
-                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 border border-indigo-200/90 shadow-2xs transition-all cursor-pointer group"
-                                        title="Klik untuk melihat rincian dokumen PR asal"
-                                    >
-                                        <Layers class="w-3.5 h-3.5 text-indigo-500 group-hover:scale-110 transition-transform" />
-                                        <span>{{ getMultiPrCount(plan) }} PR Terkonsolidasi</span>
-                                    </button>
-                                </div>
-                                <div class="flex items-center justify-between gap-1.5">
-                                    <span class="text-xs text-slate-500 truncate max-w-[130px]" :title="getMultiPrSubtitle(plan)">
-                                        {{ getMultiPrSubtitle(plan) }}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        @click.stop="openPrModal(plan)"
-                                        class="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-0.5 shrink-0 cursor-pointer"
-                                    >
-                                        Rincian <ChevronRight class="w-3 h-3" />
-                                    </button>
+                            <div v-if="isMultiPrPlan(plan)">
+                                <button
+                                    type="button"
+                                    @click.stop="openPrModal(plan)"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 transition-colors cursor-pointer group/modal"
+                                    title="Klik untuk melihat rincian dokumen PR asal"
+                                >
+                                    <Layers class="w-3.5 h-3.5 text-indigo-500 group-hover/modal:scale-110 transition-transform" />
+                                    <span>{{ getMultiPrCount(plan) }} PR Terkonsolidasi</span>
+                                </button>
+                                <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5 truncate max-w-[200px]" :title="getMultiPrSubtitle(plan)">
+                                    <FileText class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span class="truncate">{{ getMultiPrSubtitle(plan) }}</span>
                                 </div>
                             </div>
 
                             <!-- Single PR Plan -->
-                            <div v-else class="flex flex-col gap-1">
-                                <span class="font-bold text-slate-900 text-sm flex items-center gap-1.5 font-mono">
-                                    <FileText class="w-3.5 h-3.5 text-slate-400" />
-                                    {{ getSinglePrNumber(plan) }}
-                                </span>
-                                <span class="text-xs text-slate-500">
-                                    {{ getSinglePrSubtitle(plan) }}
-                                </span>
+                            <div v-else>
+                                <div class="text-sm font-mono font-bold text-slate-900 flex items-center gap-2">
+                                    <FileText class="w-4 h-4 text-slate-400 shrink-0" />
+                                    <span>{{ getSinglePrNumber(plan) }}</span>
+                                </div>
+                                <div class="text-xs text-slate-500 font-medium mt-1 truncate max-w-[200px]" :title="getSinglePrSubtitle(plan)">
+                                    <span>{{ getSinglePrSubtitle(plan) }}</span>
+                                </div>
                             </div>
                         </td>
 
-                        <!-- Sourcing Method Badge -->
-                        <td class="px-6 py-4 text-center">
+                        <!-- Metode Pengadaan -->
+                        <td class="px-6 py-4.5 whitespace-nowrap text-center">
                             <span 
                                 v-if="plan.procurement_method === 'direct_purchase'"
-                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             >
                                 <ShoppingCart class="w-3.5 h-3.5" />
                                 Direct Purchase
                             </span>
                             <span 
                                 v-else-if="plan.procurement_method === 'rfq'"
-                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"
                             >
                                 <Scale class="w-3.5 h-3.5" />
                                 Tender RFQ
@@ -1167,54 +1170,37 @@ onMounted(async () => {
                             <span v-else class="text-xs text-slate-400">-</span>
                         </td>
 
-                        <!-- Items Count -->
-                        <td class="px-6 py-4 text-center font-bold text-slate-700 text-sm font-mono">
-                            {{ plan.items?.length || 0 }} Item
+                        <!-- Alokasi Item -->
+                        <td class="px-6 py-4.5 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80">
+                                {{ plan.items?.length || 0 }} Item
+                            </span>
                         </td>
 
-                        <!-- Status Badge -->
-                        <td class="px-6 py-4 text-center">
-                            <span 
-                                v-if="plan.status === 'draft'"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200"
-                            >
-                                <Clock class="w-3 h-3 text-amber-600" /> Draft
-                            </span>
-                            <span 
-                                v-else-if="plan.status === 'active'"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200"
-                            >
-                                <CheckCircle2 class="w-3 h-3 text-blue-600" /> Aktif
-                            </span>
-                            <span 
-                                v-else-if="plan.status === 'completed'"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            >
-                                <CheckCheck class="w-3 h-3 text-emerald-600" /> Selesai
-                            </span>
-                            <span 
-                                v-else-if="plan.status === 'cancelled'"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200"
-                            >
-                                <XCircle class="w-3 h-3 text-rose-600" /> Dibatalkan
-                            </span>
-                            <span v-else class="text-xs text-slate-500 font-bold uppercase">{{ plan.status }}</span>
+                        <!-- Status -->
+                        <td class="px-6 py-4.5 whitespace-nowrap text-center">
+                            <div class="inline-flex items-center justify-center">
+                                <StatusBadge :status="plan.status" size="md" class="min-w-[110px]" />
+                            </div>
                         </td>
 
-                        <!-- Creator -->
-                        <td class="px-6 py-4">
-                            <span class="text-xs font-semibold text-slate-700 block">
+                        <!-- Dibuat Oleh (Max 2 lines) -->
+                        <td class="px-6 py-4.5 whitespace-nowrap">
+                            <div class="text-sm font-semibold text-slate-900">
                                 {{ plan.created_by_user?.name || plan.created_by_user?.employee?.name || 'Staff Purchasing' }}
-                            </span>
+                            </div>
+                            <div class="text-xs text-slate-500 font-medium mt-0.5">
+                                {{ plan.created_by_user?.employee?.division?.name || 'Purchasing Dept' }}
+                            </div>
                         </td>
 
-                        <!-- Actions -->
-                        <td class="px-6 py-4 text-center">
+                        <!-- Aksi -->
+                        <td class="px-6 py-4.5 whitespace-nowrap text-center">
                             <div class="flex items-center justify-center gap-1.5">
                                 <!-- View Detail -->
                                 <RouterLink 
                                     :to="{ name: 'user.purchasing.plans.detail', params: { id: plan.id } }"
-                                    class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                    class="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200"
                                     title="Lihat Rincian Rencana"
                                 >
                                     <Eye class="w-4 h-4" />
@@ -1224,7 +1210,7 @@ onMounted(async () => {
                                 <button 
                                     v-if="plan.status === 'draft'"
                                     @click="handleActivate(plan)"
-                                    class="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200 cursor-pointer"
+                                    class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200 cursor-pointer"
                                     title="Aktifkan Rencana Ini"
                                 >
                                     <Play class="w-4 h-4" />
@@ -1234,7 +1220,7 @@ onMounted(async () => {
                                 <button 
                                     v-if="['draft', 'active'].includes(plan.status)"
                                     @click="handleCancel(plan)"
-                                    class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200 cursor-pointer"
+                                    class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200 cursor-pointer"
                                     title="Batalkan Rencana"
                                 >
                                     <Ban class="w-4 h-4" />

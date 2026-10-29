@@ -388,6 +388,17 @@ onMounted(() => {
                         </p>
                     </div>
                 </div>
+
+                <RouterLink 
+                    v-if="plan.status === 'active'"
+                    :to="{ name: 'user.purchasing.rfq.create', query: { plan_id: plan.id } }" 
+                    class="shrink-0"
+                >
+                    <BaseButton variant="primary">
+                        <span>Buat Tender RFQ</span>
+                        <ArrowRight class="w-4 h-4 ml-1" />
+                    </BaseButton>
+                </RouterLink>
             </div>
 
             <!-- Two-Column Information Cards -->

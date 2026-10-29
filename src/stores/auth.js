@@ -3,7 +3,7 @@ import {
     getCurrentUser,
     getProfile,
     logout as logoutRequest,
-} from '../services/authServices'
+} from '../services/authServices.js'
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({

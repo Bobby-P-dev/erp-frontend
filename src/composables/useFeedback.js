@@ -4,7 +4,7 @@ export const dialogState = ref({
     isOpen: false,
     title: '',
     text: '',
-    type: 'confirm', // 'confirm' | 'danger' | 'prompt' | 'loading'
+    type: 'confirm', // 'confirm' | 'danger' | 'prompt' | 'loading' | 'success' | 'error' | 'info'
     confirmText: 'Ya, Lanjutkan',
     cancelText: 'Batal',
     showCancel: true,
@@ -15,6 +15,54 @@ export const dialogState = ref({
     resolve: null,
 })
 
+let autoCloseTimer = null
+
+const clearAutoCloseTimer = () => {
+    if (autoCloseTimer) {
+        clearTimeout(autoCloseTimer)
+        autoCloseTimer = null
+    }
+}
+
+export const openAlertDialog = ({
+    title = 'Informasi',
+    text = '',
+    type = 'info', // 'success' | 'error' | 'info'
+    confirmText = 'Tutup',
+    autoCloseMs = 0
+} = {}) => {
+    clearAutoCloseTimer()
+    return new Promise((resolve) => {
+        dialogState.value = {
+            isOpen: true,
+            title,
+            text,
+            type,
+            confirmText: confirmText || (type === 'success' ? 'OK, Mengerti' : 'Tutup'),
+            cancelText: '',
+            showCancel: false,
+            placeholder: '',
+            inputValue: '',
+            validationError: '',
+            validator: null,
+            resolve: (val) => {
+                clearAutoCloseTimer()
+                dialogState.value.isOpen = false
+                resolve(val)
+            }
+        }
+
+        if (autoCloseMs && autoCloseMs > 0) {
+            autoCloseTimer = setTimeout(() => {
+                if (dialogState.value.isOpen && dialogState.value.type === type) {
+                    dialogState.value.isOpen = false
+                    resolve(true)
+                }
+            }, autoCloseMs)
+        }
+    })
+}
+
 export const openConfirmDialog = ({
     title = 'Apakah Anda yakin?',
     text = 'Tindakan ini akan diproses.',
@@ -24,6 +72,7 @@ export const openConfirmDialog = ({
     type = null
 } = {}) => {
     const isDestructive = isDelete || /hapus|delete|batal/i.test(`${title} ${text}`)
+    clearAutoCloseTimer()
     return new Promise((resolve) => {
         dialogState.value = {
             isOpen: true,
@@ -54,6 +103,7 @@ export const openPromptDialog = ({
     isDestructive = false,
     validator = null
 } = {}) => {
+    clearAutoCloseTimer()
     return new Promise((resolve) => {
         dialogState.value = {
             isOpen: true,
@@ -77,6 +127,7 @@ export const openPromptDialog = ({
 }
 
 export const openLoadingDialog = (title = 'Memproses Data...', text = 'Mohon tunggu sebentar.') => {
+    clearAutoCloseTimer()
     dialogState.value = {
         isOpen: true,
         title,
@@ -94,6 +145,7 @@ export const openLoadingDialog = (title = 'Memproses Data...', text = 'Mohon tun
 }
 
 export const closeGlobalDialog = () => {
+    clearAutoCloseTimer()
     if (dialogState.value.isOpen) {
         if (dialogState.value.resolve) {
             if (dialogState.value.type === 'prompt') {
@@ -109,6 +161,7 @@ export const closeGlobalDialog = () => {
 export const useFeedback = () => {
     return {
         dialogState,
+        openAlertDialog,
         openConfirmDialog,
         openPromptDialog,
         openLoadingDialog,

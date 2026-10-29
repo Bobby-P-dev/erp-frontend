@@ -90,8 +90,9 @@ describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
 
         assert.equal(purchasingMenuItems[4].id, 'rfq');
         assert.equal(purchasingMenuItems[4].title, 'RFQ (Request for Quotation)');
-        assert.equal(purchasingMenuItems[4].status, 'coming_soon');
-        assert.equal(purchasingMenuItems[4].routeName, null);
+        assert.equal(purchasingMenuItems[4].status, 'active');
+        assert.equal(purchasingMenuItems[4].routeName, 'user.purchasing.rfq');
+        assert.equal(purchasingMenuItems[4].permission, 'rfq.read');
     });
 
     it('correctly calculates authorization and restricted state for users', () => {
@@ -122,23 +123,22 @@ describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
         assert.equal(directItem.isAuthorized, false);
         assert.equal(directItem.restricted, true);
 
-        // RFQ remains coming_soon
+        // RFQ is restricted for standard employee
         const rfqItem = employeeItems.find(i => i.id === 'rfq');
-        assert.equal(rfqItem.status, 'coming_soon');
+        assert.equal(rfqItem.isAuthorized, false);
+        assert.equal(rfqItem.restricted, true);
     });
 
     it('unlocks operations for authorized purchasing officer', () => {
         // Purchasing officer with full procurement permissions
         const purchasingOfficer = {
-            hasPermission: (perm) => ['procurement-plan.read', 'direct-purchase.read'].includes(perm)
+            hasPermission: (perm) => ['procurement-plan.read', 'direct-purchase.read', 'rfq.read'].includes(perm)
         };
 
         const officerItems = getAuthorizedPurchasingMenuItems(purchasingOfficer);
         for (const item of officerItems) {
-            if (item.id !== 'rfq') {
-                assert.equal(item.isAuthorized, true, `Item ${item.id} should be authorized`);
-                assert.equal(item.restricted, false, `Item ${item.id} should not be restricted`);
-            }
+            assert.equal(item.isAuthorized, true, `Item ${item.id} should be authorized`);
+            assert.equal(item.restricted, false, `Item ${item.id} should not be restricted`);
         }
     });
 
@@ -150,10 +150,8 @@ describe('2. Purchasing Menu Registry (src/config/purchasingMenu.js)', () => {
 
         const adminItems = getAuthorizedPurchasingMenuItems(superAdminStore);
         for (const item of adminItems) {
-            if (item.id !== 'rfq') {
-                assert.equal(item.isAuthorized, true, `Item ${item.id} should be authorized for Super Admin`);
-                assert.equal(item.restricted, false, `Item ${item.id} should not be restricted for Super Admin`);
-            }
+            assert.equal(item.isAuthorized, true, `Item ${item.id} should be authorized for Super Admin`);
+            assert.equal(item.restricted, false, `Item ${item.id} should not be restricted for Super Admin`);
         }
     });
 });
@@ -164,7 +162,8 @@ describe('3. Route Contract Verification', () => {
             'user.purchasing.requisitions',
             'user.purchasing.approvals',
             'user.purchasing.plans',
-            'user.purchasing.direct'
+            'user.purchasing.direct',
+            'user.purchasing.rfq'
         ];
 
         const configuredRoutes = purchasingMenuItems

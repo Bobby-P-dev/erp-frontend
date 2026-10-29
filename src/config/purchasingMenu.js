@@ -71,15 +71,15 @@ export const purchasingMenuItems = [
         id: 'rfq',
         title: 'RFQ (Request for Quotation)',
         subtitle: 'Tahap 5: Penawaran Rekanan',
-        description: 'Request quotation ke beberapa supplier. Fitur komparasi penawaran multi-vendor sedang dipersiapkan.',
-        routeName: null,
+        description: 'Request quotation ke beberapa supplier, komparasi penawaran harga, dan negosiasi tender pengadaan.',
+        routeName: 'user.purchasing.rfq',
         icon: Scale,
-        color: 'slate',
-        badge: 'Coming Soon',
-        badgeVariant: 'slate',
-        actionText: 'Segera Hadir',
-        status: 'coming_soon',
-        permission: null
+        color: 'blue',
+        badge: 'Multi-Vendor',
+        badgeVariant: 'blue',
+        actionText: 'Kelola Tender',
+        status: 'active',
+        permission: 'rfq.read'
     }
 ]
 

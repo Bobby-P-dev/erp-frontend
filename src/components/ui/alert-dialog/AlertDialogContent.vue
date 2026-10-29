@@ -42,7 +42,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
   <AlertDialogPortal>
     <AlertDialogOverlay
       data-slot="alert-dialog-overlay"
-      class="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-slate-900/40 duration-150 fixed inset-0 z-50"
+      class="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-slate-900/40 duration-150 fixed inset-0 z-[100]"
     />
     <AlertDialogContent
       data-slot="alert-dialog-content"
@@ -50,7 +50,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
       v-bind="{ ...$attrs, ...forwarded }"
       :class="
         cn(
-          'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 bg-white text-slate-900 ring-slate-200 gap-6 rounded-2xl p-6 ring-1 duration-150 data-[size=default]:max-w-md data-[size=default]:sm:max-w-xl data-[size=sm]:max-w-sm data-[size=lg]:max-w-2xl group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 outline-none shadow-2xl',
+          'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 bg-white text-slate-900 ring-slate-200 gap-6 rounded-2xl p-6 ring-1 duration-150 data-[size=default]:max-w-md data-[size=default]:sm:max-w-xl data-[size=sm]:max-w-sm data-[size=lg]:max-w-2xl group/alert-dialog-content fixed top-1/2 left-1/2 z-[100] grid w-full -translate-x-1/2 -translate-y-1/2 outline-none shadow-2xl',
           props.class,
         )
       "

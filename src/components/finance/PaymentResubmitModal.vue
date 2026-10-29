@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import BaseModal from '../ui/BaseModal.vue'
 import { resubmitPaymentRequest } from '../../services/financeServices.js'
-import { showSuccess, showError, showConfirm } from '../../utils/swal.js'
+import { showSuccess, showError } from '../../utils/swal.js'
 import { RotateCcw, Send } from '@lucide/vue'
 
 const props = defineProps({
@@ -47,14 +47,6 @@ const handleSubmit = async () => {
         showError('Validasi Gagal', 'Lengkapi seluruh data rekening bank penerima.')
         return
     }
-
-    const confirmed = await showConfirm(
-        'Ajukan Ulang Permohonan?',
-        `Apakah Anda yakin data rekening untuk tagihan ${props.item?.prq_number} sudah sesuai?`,
-        'Ya, Ajukan Ulang'
-    )
-
-    if (!confirmed) return
 
     isSubmitting.value = true
     try {

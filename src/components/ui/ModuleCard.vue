@@ -74,88 +74,102 @@ const badgeClass = computed(() => {
         case 'amber':
             return 'bg-amber-50 text-amber-800 border border-amber-200'
         case 'blue':
-            return 'bg-blue-50 text-blue-700 border border-blue-200'
+            return 'bg-[#EAF2FF] text-[#014BAA] border border-[#014BAA]/20'
         case 'neutral':
             return 'bg-gray-100 text-gray-600 border border-gray-200'
         case 'slate':
             return 'bg-slate-100 text-slate-600 border border-slate-200'
         default:
-            return 'bg-blue-50 text-blue-700 border border-blue-200'
+            return 'bg-[#EAF2FF] text-[#014BAA] border border-[#014BAA]/20'
     }
 })
 </script>
 
 <template>
-    <!-- Interactive Active Minimalist Card (Matching Reference Layout) -->
+    <!-- Interactive Active Minimalist Card (SAP Fiori Launchpad Pattern) -->
     <RouterLink
         v-if="isInteractive"
         :to="to"
-        class="group relative bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between focus-visible:ring-2 focus-visible:ring-blue-600 outline-none select-none cursor-pointer"
+        class="group relative bg-white rounded-[14px] border border-[#E5EAF1] p-6 hover:border-[#014BAA]/45 hover:shadow-xs transition-all duration-150 motion-reduce:transition-none flex flex-col justify-between h-full focus-visible:ring-2 focus-visible:ring-[#014BAA] focus-visible:ring-offset-2 outline-none select-none cursor-pointer"
     >
-        <div class="flex items-center gap-4 min-w-0 pr-2">
-            <!-- Icon Box -->
-            <div 
-                class="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 shrink-0 bg-blue-50/90 text-blue-600 border border-blue-100/70 group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-xs group-hover:scale-105"
-            >
-                <component :is="icon" class="w-6 h-6 transition-colors" />
+        <div class="space-y-4">
+            <!-- Top Row: Icon & Meaningful Status Badge (if any) -->
+            <div class="flex items-start justify-between gap-3">
+                <div 
+                    class="w-11 h-11 rounded-[10px] flex items-center justify-center transition-colors duration-150 shrink-0 bg-[#EAF2FF] text-[#014BAA] group-hover:bg-[#014BAA] group-hover:text-white"
+                >
+                    <component :is="icon" class="w-5 h-5 transition-colors" />
+                </div>
+
+                <span 
+                    v-if="badge"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium shrink-0"
+                    :class="badgeClass"
+                >
+                    <span 
+                        v-if="badgeVariant === 'amber' || badgeVariant === 'emerald'" 
+                        class="w-1.5 h-1.5 rounded-full"
+                        :class="badgeVariant === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'"
+                    ></span>
+                    {{ badge }}
+                </span>
             </div>
 
-            <!-- Title & Subtitle Group -->
-            <div class="min-w-0 flex flex-col justify-center">
-                <div class="flex items-center gap-2">
-                    <h3 class="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight truncate">
+            <!-- Title, Subtitle & Description -->
+            <div class="space-y-1.5">
+                <div>
+                    <h3 class="text-[16px] sm:text-[17px] font-semibold text-[#111827] group-hover:text-[#014BAA] transition-colors leading-snug">
                         {{ title }}
                     </h3>
-                    <span 
-                        v-if="badge"
-                        class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide shrink-0"
-                        :class="badgeClass"
-                    >
-                        <span 
-                            v-if="badgeVariant === 'amber' || badgeVariant === 'emerald'" 
-                            class="w-1.5 h-1.5 rounded-full"
-                            :class="badgeVariant === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'"
-                        ></span>
-                        {{ badge }}
-                    </span>
+                    <p v-if="subtitle" class="text-[13px] font-medium text-[#667085] mt-0.5">
+                        {{ subtitle }}
+                    </p>
                 </div>
-                <p v-if="subtitle" class="text-xs text-slate-500 font-normal mt-1 truncate">
-                    {{ subtitle }}
+
+                <p v-if="description" class="text-[14px] text-[#667085] leading-relaxed line-clamp-2 pt-1">
+                    {{ description }}
                 </p>
             </div>
         </div>
 
-        <!-- Right Arrow Navigation Icon -->
-        <div class="shrink-0 pl-2">
-            <ArrowRight class="w-4 h-4 text-blue-600 transition-transform duration-200 group-hover:translate-x-1" />
+        <!-- Footer CTA -->
+        <div class="mt-6 pt-4 border-t border-[#E5EAF1]/80 flex items-center justify-between text-[13px] font-semibold text-[#014BAA] group-hover:text-[#013E8C] transition-colors min-h-[28px]">
+            <span>{{ actionText }}</span>
+            <ArrowRight class="w-4 h-4 transition-transform duration-150 motion-reduce:transition-none group-hover:translate-x-1" />
         </div>
     </RouterLink>
 
     <!-- Coming Soon State -->
     <div
         v-else-if="status === 'coming_soon'"
-        class="bg-slate-50/60 border border-dashed border-slate-200/90 rounded-2xl p-5 sm:p-6 relative cursor-not-allowed select-none opacity-80 flex items-center justify-between"
+        class="bg-slate-50/70 border border-dashed border-[#E5EAF1] rounded-[14px] p-6 relative cursor-not-allowed select-none flex flex-col justify-between h-full"
         aria-disabled="true"
     >
-        <div class="flex items-center gap-4 min-w-0 pr-2">
-            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 border border-slate-200/80 flex items-center justify-center shrink-0">
-                <component :is="icon" class="w-6 h-6 text-slate-400" />
+        <div class="space-y-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="w-11 h-11 rounded-[10px] bg-slate-100 text-slate-400 border border-slate-200/80 flex items-center justify-center shrink-0">
+                    <component :is="icon" class="w-5 h-5 text-slate-400" />
+                </div>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                    {{ badge || 'Segera Hadir' }}
+                </span>
             </div>
-            <div class="min-w-0 flex flex-col justify-center">
-                <div class="flex items-center gap-2">
-                    <h3 class="text-base font-bold text-slate-700 leading-tight truncate">
+            <div class="space-y-1.5">
+                <div>
+                    <h3 class="text-[16px] sm:text-[17px] font-semibold text-slate-600 leading-snug">
                         {{ title }}
                     </h3>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
-                        {{ badge || 'Segera Hadir' }}
-                    </span>
+                    <p v-if="subtitle" class="text-[13px] font-medium text-slate-400 mt-0.5">
+                        {{ subtitle }}
+                    </p>
                 </div>
-                <p v-if="subtitle" class="text-xs text-slate-400 font-normal mt-1 truncate">
-                    {{ subtitle }}
+                <p v-if="description" class="text-[14px] text-slate-400 leading-relaxed line-clamp-2 pt-1">
+                    {{ description }}
                 </p>
             </div>
         </div>
-        <div class="shrink-0 pl-2">
+        <div class="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-[13px] font-medium text-slate-400 min-h-[28px]">
+            <span>Belum Tersedia</span>
             <Lock class="w-4 h-4 text-slate-400" />
         </div>
     </div>
@@ -163,23 +177,34 @@ const badgeClass = computed(() => {
     <!-- Restricted / No Permission State -->
     <div
         v-else-if="restricted"
-        class="bg-slate-50/60 border border-slate-200/80 rounded-2xl p-5 sm:p-6 relative cursor-not-allowed select-none opacity-75 flex items-center justify-between"
+        class="bg-slate-50/70 border border-[#E5EAF1] rounded-[14px] p-6 relative cursor-not-allowed select-none flex flex-col justify-between h-full"
         aria-disabled="true"
     >
-        <div class="flex items-center gap-4 min-w-0 pr-2">
-            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 border border-slate-200/80 flex items-center justify-center shrink-0">
-                <component :is="icon" class="w-6 h-6 text-slate-400" />
+        <div class="space-y-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="w-11 h-11 rounded-[10px] bg-slate-100 text-slate-400 border border-slate-200/80 flex items-center justify-center shrink-0">
+                    <component :is="icon" class="w-5 h-5 text-slate-400" />
+                </div>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
+                    Akses Terbatas
+                </span>
             </div>
-            <div class="min-w-0 flex flex-col justify-center">
-                <h3 class="text-base font-bold text-slate-700 leading-tight truncate">
-                    {{ title }}
-                </h3>
-                <p class="text-xs text-slate-400 font-normal mt-1 truncate">
+            <div class="space-y-1.5">
+                <div>
+                    <h3 class="text-[16px] sm:text-[17px] font-semibold text-slate-600 leading-snug">
+                        {{ title }}
+                    </h3>
+                    <p v-if="subtitle" class="text-[13px] font-medium text-slate-400 mt-0.5">
+                        {{ subtitle }}
+                    </p>
+                </div>
+                <p class="text-[14px] text-slate-400 leading-relaxed line-clamp-2 pt-1">
                     {{ restrictedMessage }}
                 </p>
             </div>
         </div>
-        <div class="shrink-0 pl-2">
+        <div class="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-[13px] font-medium text-slate-400 min-h-[28px]">
+            <span>Tidak Diizinkan</span>
             <Lock class="w-4 h-4 text-slate-400" />
         </div>
     </div>
@@ -187,20 +212,22 @@ const badgeClass = computed(() => {
     <!-- Fallback Disabled State -->
     <div
         v-else
-        class="bg-slate-50 border border-slate-200/70 rounded-2xl p-5 sm:p-6 opacity-75 flex items-center justify-between select-none"
+        class="bg-slate-50/70 border border-[#E5EAF1] rounded-[14px] p-6 select-none flex flex-col justify-between h-full cursor-not-allowed"
         aria-disabled="true"
     >
-        <div class="flex items-center gap-4 min-w-0 pr-2">
-            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                <component :is="icon" class="w-6 h-6 text-slate-400" />
+        <div class="space-y-4">
+            <div class="w-11 h-11 rounded-[10px] bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                <component :is="icon" class="w-5 h-5 text-slate-400" />
             </div>
-            <div class="min-w-0">
-                <h3 class="text-base font-bold text-slate-700 leading-tight truncate">{{ title }}</h3>
-                <p v-if="subtitle" class="text-xs text-slate-400 mt-1 truncate">{{ subtitle }}</p>
+            <div class="space-y-1.5">
+                <h3 class="text-[16px] sm:text-[17px] font-semibold text-slate-600 leading-snug">{{ title }}</h3>
+                <p v-if="subtitle" class="text-[13px] text-slate-400 mt-0.5">{{ subtitle }}</p>
+                <p v-if="description" class="text-[14px] text-slate-400 leading-relaxed line-clamp-2 pt-1">{{ description }}</p>
             </div>
         </div>
-        <div class="text-xs text-slate-400">
-            Tidak aktif
+        <div class="mt-6 pt-4 border-t border-slate-200/60 flex items-center justify-between text-[13px] font-medium text-slate-400 min-h-[28px]">
+            <span>Tidak Aktif</span>
+            <Lock class="w-4 h-4 text-slate-400" />
         </div>
     </div>
 </template>

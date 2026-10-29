@@ -15,7 +15,9 @@ import {
     Loader2,
     MessageSquareQuote,
     AlertCircle,
-    Check
+    CheckCircle2,
+    XCircle,
+    Info
 } from '@lucide/vue'
 import { dialogState, closeGlobalDialog } from '@/composables/useFeedback'
 
@@ -115,7 +117,25 @@ const handleKeydown = (e) => {
                 <div class="flex items-start gap-5">
                     <!-- Contextual Icon Badge -->
                     <div
-                        v-if="dialogState.type === 'danger'"
+                        v-if="dialogState.type === 'success'"
+                        class="size-13 shrink-0 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shadow-xs"
+                    >
+                        <CheckCircle2 class="size-6.5" />
+                    </div>
+                    <div
+                        v-else-if="dialogState.type === 'error'"
+                        class="size-13 shrink-0 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shadow-xs"
+                    >
+                        <XCircle class="size-6.5" />
+                    </div>
+                    <div
+                        v-else-if="dialogState.type === 'info'"
+                        class="size-13 shrink-0 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shadow-xs"
+                    >
+                        <Info class="size-6.5" />
+                    </div>
+                    <div
+                        v-else-if="dialogState.type === 'danger'"
                         class="size-13 shrink-0 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shadow-xs"
                     >
                         <Trash2 class="size-6.5" />
@@ -188,9 +208,11 @@ const handleKeydown = (e) => {
                         type="button"
                         :class="[
                             'px-5 py-2.5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all cursor-pointer select-none active:scale-[0.98]',
-                            dialogState.type === 'danger' || (dialogState.type === 'prompt' && dialogState.isDestructive)
-                                ? 'bg-rose-600 hover:bg-rose-700 focus:ring-2 focus:ring-rose-500/40'
-                                : 'bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500/40'
+                            dialogState.type === 'success'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500/40'
+                                : dialogState.type === 'danger' || dialogState.type === 'error' || (dialogState.type === 'prompt' && dialogState.isDestructive)
+                                    ? 'bg-rose-600 hover:bg-rose-700 focus:ring-2 focus:ring-rose-500/40'
+                                    : 'bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500/40'
                         ]"
                         @click="handleConfirm"
                     >

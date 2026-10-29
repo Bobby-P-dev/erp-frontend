@@ -42,7 +42,7 @@ const props = defineProps({
     },
     showBackdrop: {
         type: Boolean,
-        default: false
+        default: true
     },
     closeOnEscape: {
         type: Boolean,
@@ -128,7 +128,7 @@ onUnmounted(() => {
                 v-if="modelValue"
                 :class="[
                     'fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto',
-                    showBackdrop ? 'bg-slate-900/50' : ''
+                    showBackdrop ? 'bg-slate-950/60 backdrop-blur-xs' : ''
                 ]"
                 @click.self="onBackdropClick"
             >

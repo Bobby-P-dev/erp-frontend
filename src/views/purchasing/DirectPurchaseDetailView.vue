@@ -990,7 +990,7 @@ onMounted(() => {
             <!-- MODAL 2: Disburse Payment Modal (Finance) -->
             <div 
                 v-if="showDisburseModal"
-                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
             >
                 <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-200">
                     <div class="flex items-center justify-between pb-3 border-b border-gray-100">

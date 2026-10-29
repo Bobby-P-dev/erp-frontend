@@ -45,6 +45,52 @@ const router = createRouter({
             }
         },
         {
+            path: '/portal/rfq/:token',
+            name: 'public.portal.rfq',
+            component: () => import('../views/public/SupplierPortalRfqView.vue'),
+            meta: {
+                requiresAuth: false
+            }
+        },
+        {
+            path: '/portal/supplier',
+            component: () => import('../layouts/SupplierPortalLayout.vue'),
+            meta: {
+                requiresAuth: true,
+                accountType: 'supplier'
+            },
+            children: [
+                {
+                    path: '',
+                    redirect: { name: 'supplier.portal.dashboard' }
+                },
+                {
+                    path: 'dashboard',
+                    name: 'supplier.portal.dashboard',
+                    component: () => import('../views/portal/supplier/SupplierDashboardView.vue'),
+                    meta: {
+                        title: 'Dashboard Rekanan'
+                    }
+                },
+                {
+                    path: 'rfqs',
+                    name: 'supplier.portal.rfqs',
+                    component: () => import('../views/portal/supplier/SupplierRfqListView.vue'),
+                    meta: {
+                        title: 'Tender & RFQ Saya'
+                    }
+                },
+                {
+                    path: 'quotations',
+                    name: 'supplier.portal.quotations',
+                    component: () => import('../views/portal/supplier/SupplierQuotationListView.vue'),
+                    meta: {
+                        title: 'Riwayat Penawaran'
+                    }
+                }
+            ]
+        },
+        {
             path: '/dashboard',
             name: 'user',
             component: () => import('../layouts/UserLayouts.vue'),
@@ -163,6 +209,38 @@ const router = createRouter({
                     component: () => import('../views/purchasing/DirectPurchaseEditView.vue'),
                     meta: {
                         permission: 'direct-purchase.create'
+                    }
+                },
+                {
+                    path: 'rfqs',
+                    name: 'user.purchasing.rfq',
+                    component: () => import('../views/purchasing/RfqListView.vue'),
+                    meta: {
+                        permission: 'rfq.read'
+                    }
+                },
+                {
+                    path: 'rfqs/create',
+                    name: 'user.purchasing.rfq.create',
+                    component: () => import('../views/purchasing/RfqCreateView.vue'),
+                    meta: {
+                        permission: 'rfq.create'
+                    }
+                },
+                {
+                    path: 'rfqs/:id',
+                    name: 'user.purchasing.rfq.detail',
+                    component: () => import('../views/purchasing/RfqDetailView.vue'),
+                    meta: {
+                        permission: 'rfq.read'
+                    }
+                },
+                {
+                    path: 'rfqs/:id/comparison',
+                    name: 'user.purchasing.rfq.comparison',
+                    component: () => import('../views/purchasing/RfqComparisonView.vue'),
+                    meta: {
+                        permission: 'rfq.read'
                     }
                 },
             ],
@@ -407,8 +485,27 @@ router.beforeEach((to) => {
     }
 
     if (to.meta.guest && authStore.isAuthenticated) {
+        if (authStore.user?.account_type === 'supplier') {
+            return {
+                name: 'supplier.portal.dashboard',
+            }
+        }
         return {
             name: 'user.dashboard',
+        }
+    }
+
+    // 1. Jika akun supplier mencoba mengakses menu internal karyawan (/dashboard, /purchasing, /inventory, /finance, /admin)
+    if (authStore.isAuthenticated && authStore.user?.account_type === 'supplier') {
+        if (!to.path.startsWith('/portal/supplier') && to.name !== 'public.portal.rfq') {
+            return { name: 'supplier.portal.dashboard' }
+        }
+    }
+
+    // 2. Jika akun karyawan mencoba mengakses rute portal rekanan
+    if (authStore.isAuthenticated && authStore.user?.account_type !== 'supplier') {
+        if (to.meta.accountType === 'supplier' || to.matched?.some(record => record.meta?.accountType === 'supplier')) {
+            return { name: 'user.dashboard' }
         }
     }
 

@@ -17,10 +17,10 @@ const approvalStore = useApprovalStore()
 // Dynamic greeting based on current local time
 const timeGreeting = computed(() => {
     const hour = new Date().getHours()
-    if (hour >= 4 && hour < 11) return 'SELAMAT PAGI'
-    if (hour >= 11 && hour < 15) return 'SELAMAT SIANG'
-    if (hour >= 15 && hour < 18) return 'SELAMAT SORE'
-    return 'SELAMAT MALAM'
+    if (hour >= 4 && hour < 11) return 'Selamat pagi'
+    if (hour >= 11 && hour < 15) return 'Selamat siang'
+    if (hour >= 15 && hour < 18) return 'Selamat sore'
+    return 'Selamat malam'
 })
 
 // Current date formatted in Indonesian locale (e.g. "Kamis, 15 Oktober 2026")
@@ -117,60 +117,76 @@ const activeModules = computed(() => {
 </script>
 
 <template>
-    <section class="w-full space-y-8 py-2">
-        <!-- 1. Header Greeting & Localized Date Lockup -->
-        <div class="space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div>
-                    <div class="text-xs font-bold text-slate-500 tracking-wider uppercase">
-                        {{ timeGreeting }}
-                    </div>
-                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight mt-1">
-                        {{ formattedUserName }}
+    <section class="w-full space-y-8 py-1">
+        <!-- 1. Compact Welcome Section & Inline Metadata -->
+        <div class="bg-white border border-[#E5EAF1] rounded-[14px] p-6 sm:p-7">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div class="space-y-1">
+                    <h1 class="text-[22px] sm:text-[26px] font-semibold text-[#111827] tracking-tight leading-[1.25]">
+                        {{ timeGreeting }}, {{ formattedUserName }}
                     </h1>
-                    <p class="text-xs sm:text-sm text-slate-500 mt-1">
-                        Pilih modul ERP untuk melanjutkan pekerjaan Anda.
+                    <p class="text-[14px] sm:text-[15px] text-[#667085] leading-normal">
+                        Akses modul ERP sesuai tugas dan wewenang Anda.
                     </p>
                 </div>
 
-                <!-- Right Aligned Live Calendar Date -->
-                <div class="text-xs sm:text-sm font-medium text-slate-500 sm:text-right pt-1 select-none">
+                <!-- Secondary Calendar Date -->
+                <div class="text-[13px] font-medium text-[#667085] sm:text-right shrink-0 select-none">
                     {{ currentDateFormatted }}
                 </div>
             </div>
 
-            <!-- 2. Horizontal Metadata Pills Bar (Rounded-Full Minimalist Chips) -->
-            <div class="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
+            <!-- Inline Metadata Chips -->
+            <div class="flex flex-wrap items-center gap-2 pt-5 mt-5 border-t border-[#E5EAF1]/80 text-[13px]">
                 <!-- Entitas Perusahaan -->
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-slate-300 transition-colors">
-                    <Building2 class="size-3.5 text-blue-600 shrink-0" />
-                    <span class="font-medium text-slate-800">{{ companyName }}</span>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#F7F9FC] border border-[#E5EAF1] text-[#111827]">
+                    <Building2 class="size-3.5 text-[#014BAA] shrink-0" />
+                    <span class="font-medium">{{ companyName }}</span>
                 </div>
 
                 <!-- Divisi Kerja -->
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-slate-300 transition-colors">
-                    <Layers class="size-3.5 text-blue-600 shrink-0" />
-                    <span class="font-medium text-slate-800">{{ divisionName }}</span>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#F7F9FC] border border-[#E5EAF1] text-[#111827]">
+                    <Layers class="size-3.5 text-[#014BAA] shrink-0" />
+                    <span class="font-medium">{{ divisionName }}</span>
                 </div>
 
                 <!-- Jabatan & Level -->
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-slate-300 transition-colors">
-                    <Briefcase class="size-3.5 text-blue-600 shrink-0" />
-                    <span class="font-medium text-slate-800">{{ positionName }}</span>
-                    <span v-if="jobLevel" class="text-slate-400 font-normal">({{ jobLevel }})</span>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#F7F9FC] border border-[#E5EAF1] text-[#111827]">
+                    <Briefcase class="size-3.5 text-[#014BAA] shrink-0" />
+                    <span class="font-medium">{{ positionName }}</span>
+                    <span v-if="jobLevel" class="text-[#667085] font-normal">({{ jobLevel }})</span>
                 </div>
 
-                <!-- NIK (Metadata Karyawan) -->
-                <div v-if="nik" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 text-slate-700 font-mono shadow-2xs hover:border-slate-300 transition-colors">
-                    <IdCard class="size-3.5 text-blue-600 shrink-0" />
-                    <span>NIK: <strong class="font-semibold text-slate-900">{{ nik }}</strong></span>
+                <!-- NIK (Metadata Sekunder) -->
+                <div v-if="nik" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-[#F7F9FC] border border-[#E5EAF1] text-[#667085]">
+                    <IdCard class="size-3.5 text-[#667085] shrink-0" />
+                    <span>NIK: <strong class="font-medium text-[#111827] font-mono">{{ nik }}</strong></span>
                 </div>
             </div>
         </div>
 
-        <!-- 3. Minimalist Launcher Grid (Purchasing, Finance, Warehouse) -->
-        <div class="pt-2">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
+        <!-- 2. ERP Modules Launcher Section -->
+        <div class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                    <h2 class="text-[18px] sm:text-[19px] font-semibold text-[#111827] tracking-tight leading-snug">
+                        Modul ERP
+                    </h2>
+                    <p class="text-[14px] text-[#667085] mt-0.5">
+                        Pilih modul untuk mulai bekerja.
+                    </p>
+                </div>
+
+                <div v-if="activeModules.length > 0" class="text-[13px] font-medium text-[#667085] select-none">
+                    {{ activeModules.length }} modul tersedia
+                </div>
+            </div>
+
+            <!-- Responsive Grid: 1 col mobile (<768px), 2 cols tablet (768-1199px), 3 cols desktop (>=1200px) -->
+            <div
+                v-if="activeModules.length > 0"
+                class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch"
+            >
                 <ModuleCard
                     v-for="moduleItem in activeModules"
                     :key="moduleItem.id"
@@ -183,7 +199,21 @@ const activeModules = computed(() => {
                     :badge="moduleItem.badge"
                     :badge-variant="moduleItem.badgeVariant || 'default'"
                     :status="moduleItem.status"
+                    action-text="Buka Modul"
                 />
+            </div>
+
+            <!-- Neutral Empty State if no modules match user permissions -->
+            <div
+                v-else
+                class="bg-white border border-[#E5EAF1] rounded-[14px] p-8 text-center"
+            >
+                <p class="text-[15px] font-medium text-[#111827]">
+                    Belum ada modul yang tersedia untuk akun Anda
+                </p>
+                <p class="text-[13px] text-[#667085] mt-1">
+                    Silakan hubungi administrator sistem apabila Anda memerlukan akses ke modul operasional.
+                </p>
             </div>
         </div>
     </section>

@@ -84,6 +84,25 @@ const ROUTE_BREADCRUMBS = {
         { label: 'Direct Purchases', to: { name: 'user.purchasing.direct' } },
         { label: 'Detail Direct Purchase' }
     ],
+    'user.purchasing.rfq': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Request for Quotation (RFQ)' }
+    ],
+    'user.purchasing.rfq.create': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Request for Quotation (RFQ)', to: { name: 'user.purchasing.rfq' } },
+        { label: 'Buat Tender Baru' }
+    ],
+    'user.purchasing.rfq.detail': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Request for Quotation (RFQ)', to: { name: 'user.purchasing.rfq' } },
+        { label: 'Detail Tender' }
+    ],
+    'user.purchasing.rfq.comparison': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Request for Quotation (RFQ)', to: { name: 'user.purchasing.rfq' } },
+        { label: 'Matriks Komparasi Penawaran' }
+    ],
     'user.finance.payment-requests': [
         { label: 'Finance' },
         { label: 'Permohonan Pembayaran (Payment Requests)' }

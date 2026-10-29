@@ -40,6 +40,7 @@ const close = () => {
 }
 
 const handleDisburse = () => {
+    close()
     emit('disburse', props.item)
 }
 
