@@ -1,25 +1,20 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router'
-import { 
-    Building2, 
-    ArrowLeft, 
-    Users, 
-    CreditCard, 
-    FileText, 
-    Package, 
+import {
+    Building2,
+    ArrowLeft,
+    Users,
+    CreditCard,
+    FileText,
+    Package,
     Info,
-    CheckCircle,
-    Clock,
-    XCircle,
-    Calendar,
-    Mail,
-    Phone,
     MapPin,
     AlertCircle
 } from '@lucide/vue'
 import { showSupplier } from '../../../../services/supplierServices.js'
 import { showError, showSuccess, showLoading } from '../../../../utils/swal.js'
+import BaseBreadcrumb from '../../../../components/ui/BaseBreadcrumb.vue'
 import StatusBadge from '../../../../components/ui/StatusBadge.vue'
 import ApprovalBadge from '../../../../components/approval/ApprovalBadge.vue'
 import ApprovalRevisionBanner from '../../../../components/approval/ApprovalRevisionBanner.vue'
@@ -133,19 +128,19 @@ const handleResubmitApproval = async () => {
         </div>
 
         <!-- Loading State -->
-        <div v-if="isLoading" class="bg-white rounded-3xl p-12 border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-3 text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            <div class="text-sm font-medium text-gray-500">Memuat profil supplier...</div>
+        <div v-if="isLoading" class="bg-white rounded-2xl p-12 border border-slate-200/80 shadow-2xs flex flex-col items-center justify-center gap-3 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div class="text-sm font-medium text-slate-500">Memuat profil supplier...</div>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="fetchError || !supplier" class="bg-white rounded-3xl p-12 border border-gray-100 shadow-sm text-center">
+        <div v-else-if="fetchError || !supplier" class="bg-white rounded-2xl p-12 border border-slate-200/80 shadow-2xs text-center">
             <AlertCircle class="w-12 h-12 text-rose-500 mx-auto mb-3" />
-            <h3 class="text-lg font-bold text-gray-900">{{ isForbidden ? 'Akses Ditolak (403 Forbidden)' : 'Supplier Not Found' }}</h3>
-            <p class="text-sm text-gray-500 mt-1">{{ fetchError || 'Data supplier tidak dapat ditemukan pada sistem.' }}</p>
+            <h3 class="text-lg font-bold text-slate-900">{{ isForbidden ? 'Akses Ditolak (403 Forbidden)' : 'Supplier Not Found' }}</h3>
+            <p class="text-sm text-slate-500 mt-1">{{ fetchError || 'Data supplier tidak dapat ditemukan pada sistem.' }}</p>
             <button 
                 @click="goBack" 
-                class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
             >
                 Kembali ke Daftar Supplier
             </button>
@@ -153,30 +148,30 @@ const handleResubmitApproval = async () => {
 
         <!-- Header Card -->
         <div v-else class="space-y-6">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm">
+            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div class="flex items-start gap-4">
-                        <div class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 text-indigo-600">
+                        <div class="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-blue-600">
                             <Building2 class="w-8 h-8" />
                         </div>
 
                         <div class="space-y-1.5">
                             <div class="flex flex-wrap items-center gap-2.5">
-                                <h1 class="text-2xl font-bold text-gray-900">{{ supplier.name }}</h1>
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200 font-mono">
+                                <h1 class="text-2xl font-bold text-slate-900">{{ supplier.name }}</h1>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 font-mono">
                                     {{ supplier.supplier_code }}
                                 </span>
                             </div>
 
-                            <div class="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-                                <div v-if="supplier.company?.name" class="flex items-center gap-1.5 text-indigo-600 font-medium">
+                            <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                                <div v-if="supplier.company?.name" class="flex items-center gap-1.5 text-blue-600 font-medium">
                                     <Building2 class="w-3.5 h-3.5" />
                                     <span>{{ supplier.company.name }}</span>
                                 </div>
-                                <div v-if="supplier.supplier_type" class="text-gray-600 font-medium bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                                <div v-if="supplier.supplier_type" class="text-slate-600 font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
                                     {{ supplier.supplier_type }}
                                 </div>
-                                <div v-if="supplier.city" class="flex items-center gap-1 text-gray-400">
+                                <div v-if="supplier.city" class="flex items-center gap-1 text-slate-400">
                                     <MapPin class="w-3.5 h-3.5" />
                                     <span>{{ supplier.city }}, {{ supplier.country || 'Indonesia' }}</span>
                                 </div>
@@ -191,7 +186,7 @@ const handleResubmitApproval = async () => {
                             <StatusBadge :isActive="Boolean(supplier.is_active)" />
                         </div>
 
-                        <div v-if="supplier.tax_id" class="text-xs text-gray-400 font-mono">
+                        <div v-if="supplier.tax_id" class="text-xs text-slate-400 font-mono">
                             NPWP: {{ supplier.tax_id }}
                         </div>
                     </div>
@@ -209,7 +204,7 @@ const handleResubmitApproval = async () => {
                 </div>
 
                 <!-- Navigation Tabs -->
-                <div class="mt-8 pt-4 border-t border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <div class="mt-8 pt-4 border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
                     <RouterLink
                         v-for="tab in tabs"
                         :key="tab.name"
@@ -217,8 +212,8 @@ const handleResubmitApproval = async () => {
                         class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap"
                         :class="[
                             isTabActive(tab.routeName)
-                                ? 'bg-indigo-600 text-white shadow-sm font-semibold'
-                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80'
+                                ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                         ]"
                     >
                         <component :is="tab.icon" class="w-4 h-4" />

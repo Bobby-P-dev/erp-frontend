@@ -1,4 +1,5 @@
 import api from './api.js'
+import { buildBracketFilterParams, buildQuery } from './core/httpQuery.js'
 
 /**
  * Mengambil daftar master pajak dengan paginasi, pencarian, dan filter.
@@ -10,19 +11,7 @@ import api from './api.js'
  * @returns {Promise<object>}
  */
 export const getTaxes = async (search = '', page = 1, filter = {}, perPage = 10) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-    if (perPage) params.append('per_page', perPage)
-
-    for (const key in filter) {
-        if (filter[key] !== null && filter[key] !== undefined && filter[key] !== '') {
-            params.append(`filter[${key}]`, filter[key])
-        }
-    }
-
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/taxes/get-all${queryString}`)
+    const response = await api.get(`/api/v1/taxes/get-all${buildBracketFilterParams(search, page, filter, perPage)}`)
     return response.data
 }
 
@@ -35,13 +24,7 @@ export const getTaxes = async (search = '', page = 1, filter = {}, perPage = 10)
  * @returns {Promise<object>}
  */
 export const searchTaxes = async (search = '', type = null, limit = 50) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (type) params.append('type', type)
-    if (limit) params.append('limit', limit)
-
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/taxes/search${queryString}`)
+    const response = await api.get(`/api/v1/taxes/search${buildQuery({ search, type, limit })}`)
     return response.data
 }
 
@@ -52,11 +35,7 @@ export const searchTaxes = async (search = '', type = null, limit = 50) => {
  * @returns {Promise<object>}
  */
 export const getDefaultTax = async (type = null) => {
-    const params = new URLSearchParams()
-    if (type) params.append('type', type)
-
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/taxes/default${queryString}`)
+    const response = await api.get(`/api/v1/taxes/default${buildQuery({ type })}`)
     return response.data
 }
 

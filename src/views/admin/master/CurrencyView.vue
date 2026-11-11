@@ -7,7 +7,6 @@ import {
     Trash2,
     RefreshCw,
     Check,
-    AlertCircle,
     Globe,
     CheckCircle2,
     Info,
@@ -30,7 +29,7 @@ import BaseModal from '../../../components/ui/BaseModal.vue'
 import KpiCard from '../../../components/ui/KpiCard.vue'
 import StatusBadge from '../../../components/ui/StatusBadge.vue'
 import ToggleSwitch from '../../../components/ui/ToggleSwitch.vue'
-import { formatCurrency, formatNumber, formatDate } from '../../../composables/useFormatter.js'
+import { formatCurrency } from '../../../composables/useFormatter.js'
 
 // State
 const currencies = ref([])

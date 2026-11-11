@@ -1,16 +1,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { 
-    Plus, 
-    Trash2, 
-    ArrowUp, 
-    ArrowDown, 
-    AlertCircle, 
-    ChevronDown, 
+import {
+    Plus,
+    Trash2,
+    ArrowUp,
+    ArrowDown,
+    ChevronDown,
     ChevronUp,
-    Shield,
     Users,
-    Clock,
     Sliders,
     GitBranch
 } from '@lucide/vue'

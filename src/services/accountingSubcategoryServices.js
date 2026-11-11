@@ -1,30 +1,19 @@
 import api from './api'
+import { buildQueryParams, buildQuery } from './core/httpQuery.js'
 
 export const getAccountingSubcategories = async (search = '', page = 1, filter = {}) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-
-    if (filter.is_active !== undefined && filter.is_active !== null && filter.is_active !== '') {
-        params.append('is_active', filter.is_active)
-    }
-
-    if (filter.accounting_category_id) {
-        params.append('accounting_category_id', filter.accounting_category_id)
-    }
-
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/accounting-subcategory/get-all${queryString}`)
+    const response = await api.get(`/api/v1/accounting-subcategory/get-all${buildQueryParams(search, page, null, {
+        is_active: filter.is_active,
+        accounting_category_id: filter.accounting_category_id
+    })}`)
     return response.data
 }
 
 export const searchAccountingSubcategories = async (search = '', categoryId = '') => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (categoryId) params.append('accounting_category_id', categoryId)
-
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/accounting-subcategory/search${queryString}`)
+    const response = await api.get(`/api/v1/accounting-subcategory/search${buildQuery({
+        search,
+        accounting_category_id: categoryId
+    })}`)
     return response.data
 }
 

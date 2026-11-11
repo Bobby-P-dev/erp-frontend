@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { Search, Plus, Edit, Trash2, Layers, X, Check, MoreVertical } from '@lucide/vue'
+import { Search, Plus, Edit, Trash2, Layers, X, Check } from '@lucide/vue'
 import { getJobLevels, createJobLevel, updateJobLevel, deleteJobLevel } from '../../../services/jobLevelServices'
 import { showLoading, showSuccess, showError, showConfirm } from '../../../utils/swal'
 import PageHeader from '../../../components/ui/PageHeader.vue'

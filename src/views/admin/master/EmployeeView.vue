@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { Plus, Edit, Trash2, Users, X, Check, MoreVertical } from '@lucide/vue'
+import { Plus, Edit, Trash2, Users, X, Check } from '@lucide/vue'
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee, getEmployeeDivisions, getEmployeePositions } from '../../../services/employeeServices'
 import { searchCompanies } from '../../../services/companyServices'
 import { searchJobLevels } from '../../../services/jobLevelServices'

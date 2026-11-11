@@ -1,7 +1,7 @@
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { 
+import {
     createPurchaseRequisition,
     showPurchaseRequisition,
     updatePurchaseRequisition
@@ -9,13 +9,11 @@ import {
 import { getCompanies } from '@/services/companyServices.js'
 import { searchItems } from '@/services/itemServices.js'
 import { searchUnits } from '@/services/unitServices.js'
-import { 
-    getApprovalConfigurations, 
-    getApprovalOptions 
+import {
+    getApprovalConfigurations,
+    getApprovalOptions
 } from '@/services/approvalServices.js'
 import { searchAccountingCategories } from '@/services/accountingCategoryServices.js'
-import { searchAccountingSubcategories } from '@/services/accountingSubcategoryServices.js'
-import { searchAccountingAccounts } from '@/services/accountingAccountServices.js'
 import { searchCurrencies } from '@/services/currencyServices.js'
 import { showLoading, showSuccess, showError, showConfirm, closeSwal } from '@/utils/swal.js'
 

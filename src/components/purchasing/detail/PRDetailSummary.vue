@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import {
     Calendar,
     Clock,
-    FileText,
     Building2,
     Briefcase,
     Mail,

@@ -40,3 +40,22 @@ export const buildQuery = (params = {}) => {
     const str = q.toString()
     return str ? `?${str}` : ''
 }
+
+export const buildBracketFilterParams = (search = '', page = 1, filter = {}, perPage = null) => {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (page) params.append('page', page)
+    if (perPage) params.append('per_page', perPage)
+
+    if (filter && typeof filter === 'object') {
+        for (const key in filter) {
+            const val = filter[key]
+            if (val !== null && val !== undefined && val !== '') {
+                params.append(`filter[${key}]`, val)
+            }
+        }
+    }
+
+    const str = params.toString()
+    return str ? `?${str}` : ''
+}

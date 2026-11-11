@@ -56,6 +56,11 @@ export const updateRfq = async (id, data) => {
     return response.data
 }
 
+export const extendRfqDeadline = async (id, data) => {
+    const response = await api.post(`/api/v1/rfqs/${id}/extend-deadline`, data)
+    return response.data
+}
+
 /**
  * Menerbitkan tender RFQ dan mengaktifkan Magic Token portal vendor.
  *
@@ -64,6 +69,11 @@ export const updateRfq = async (id, data) => {
  */
 export const publishRfq = async (id) => {
     const response = await api.post(`/api/v1/rfqs/${id}/publish`)
+    return response.data
+}
+
+export const sendRfqInvitation = async (id, invitationId, data = {}) => {
+    const response = await api.post(`/api/v1/rfqs/${id}/suppliers/${invitationId}/send-invitation`, data)
     return response.data
 }
 
@@ -132,6 +142,34 @@ export const recordSupplierQuotation = async (data) => {
  */
 export const showSupplierQuotation = async (id) => {
     const response = await api.get(`/api/v1/supplier-quotations/${id}`)
+    return response.data
+}
+
+export const confirmSupplierQuotationReview = async (id, version) => {
+    const response = await api.post(`/api/v1/supplier-quotations/${id}/confirm-review`, { expected_review_version: version })
+    return response.data
+}
+
+export const submitSupplierQuotationReview = async (id, version) => {
+    const response = await api.post(`/api/v1/supplier-quotations/${id}/submit-review`, { expected_review_version: version })
+    return response.data
+}
+
+export const getSupplierQuotationHistory = async id => (await api.get(`/api/v1/supplier-quotations/${id}/history`)).data
+export const requestSupplierQuotationRevision = async (id, payload) => (await api.post(`/api/v1/supplier-quotations/${id}/request-revision`, payload)).data
+export const reviseSupplierQuotation = async (id, payload) => (await api.post(`/api/v1/supplier-quotations/${id}/revise`, payload)).data
+
+// Quotation review must surface API failures, including expired sessions and missing requests.
+export const getQuotationApprovalTracker = async (id) => {
+    const response = await api.get(`/api/v1/approvals/requests/${id}/tracker`)
+    return response.data
+}
+
+export const decideQuotationApproval = async (id, decision, notes, expectedStep) => {
+    const response = await api.post(`/api/v1/approvals/requests/${id}/decision`, {
+        decision: decision === 'revision' ? 'request_revision' : decision,
+        notes, expected_step_order: expectedStep,
+    })
     return response.data
 }
 

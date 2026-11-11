@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import {
-    getDisbursedPayments,
-    getDisbursedPaymentDetail
+    getDisbursedPayments
 } from '../../services/financeServices.js'
 import { getAccountingAccounts } from '../../services/accountingAccountServices.js'
 import { formatCurrency } from '../../utils/stringUtils.js'
@@ -13,14 +13,9 @@ import {
     Receipt,
     Search,
     X,
-    Building2,
-    Calendar,
-    CheckCircle2,
     DollarSign,
     UserCheck,
     Eye,
-    Landmark,
-    FileText,
     ArrowDownRight,
     Paperclip,
     ExternalLink,
@@ -155,17 +150,17 @@ onMounted(() => {
         />
 
         <!-- 1. Header & Segmented Sub-Navigation -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
                         <CreditCard class="w-5 h-5" />
                     </span>
                     <div>
-                        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+                        <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                             Riwayat Kas Keluar (Disbursed Payments)
                         </h1>
-                        <p class="text-sm text-slate-500 mt-0.5">
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
                             Audit trail dan rekapitulasi realisasi pencairan dana kas/bank oleh kasir keuangan.
                         </p>
                     </div>

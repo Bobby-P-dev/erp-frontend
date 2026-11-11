@@ -8,6 +8,16 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --navy: #0F172A;        /* teks utama & tombol primer */
+  --blue: #3B82F6;        /* aksen brand */
+  --blue-dark: #2563EB;
+  --powder: #BFDBFE;      /* latar ikon info */
+  --bg: #F8FAFF;
+  --muted: #64748B;       /* teks deskripsi */
+  --line: #E2E8F0;        /* border kartu */
+  --green: #16A34A;  --green-bg: #DCFCE7;
+  --red: #DC2626;    --red-bg: #FEE2E2;
+  --amber: #D97706;  --amber-bg: #FEF3C7;
   --color-primary: #014BAA;
   --color-primary-hover: #013C89;
   --color-primary-subtle: #EEF4FC;
@@ -149,4 +159,143 @@ body {
     @apply bg-background text-foreground;
     @apply font-sans;
   }
+}
+
+/* ============================================================================
+   Panduan Alert Modern: Keyframes & SweetAlert2 Modern Styling
+   ============================================================================ */
+@keyframes rl-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes rl-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+}
+
+.rl-in {
+  animation: rl-in 0.22s cubic-bezier(0.21, 1.02, 0.55, 1.01) forwards !important;
+}
+
+.rl-out {
+  animation: rl-out 0.18s ease forwards !important;
+}
+
+/* SweetAlert2 Popup Card */
+.rl-swal-popup {
+  border-radius: 24px !important;
+  padding: 34px 30px 28px !important;
+  font-family: inherit !important;
+  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.35) !important;
+  background: #ffffff !important;
+  border: 1px solid var(--line) !important;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.rl-swal-title {
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  color: var(--navy) !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 8px !important;
+}
+
+.rl-swal-text {
+  font-size: 14px !important;
+  color: var(--muted) !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+}
+
+.rl-swal-actions {
+  gap: 12px !important;
+  margin-top: 24px !important;
+}
+
+/* Soft-Circle Icon Styling (Tanpa border kartun & tanpa animasi mantul berulang) */
+.rl-swal-icon {
+  width: 76px !important;
+  height: 76px !important;
+  border: none !important;
+  border-radius: 50% !important;
+  margin: 4px auto 16px !important;
+}
+
+.rl-swal-icon.swal2-success { background: var(--green-bg) !important; color: var(--green) !important; }
+.rl-swal-icon.swal2-error   { background: var(--red-bg) !important; color: var(--red) !important; }
+.rl-swal-icon.swal2-warning { background: var(--amber-bg) !important; color: var(--amber) !important; }
+.rl-swal-icon.swal2-info    { background: var(--powder) !important; color: var(--blue-dark) !important; }
+.rl-swal-icon.swal2-question{ background: var(--powder) !important; color: var(--blue-dark) !important; }
+
+.rl-swal-icon .swal2-success-line-tip,
+.rl-swal-icon .swal2-success-line-long {
+  background-color: var(--green) !important;
+}
+.rl-swal-icon.swal2-success [class^='swal2-success-line'] {
+  background-color: var(--green) !important;
+}
+.rl-swal-icon .swal2-x-mark-line-left,
+.rl-swal-icon .swal2-x-mark-line-right {
+  background-color: var(--red) !important;
+}
+
+/* Modern Buttons */
+.rl-btn {
+  appearance: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+  outline: none;
+}
+.rl-btn:active {
+  transform: scale(0.98);
+}
+.rl-btn-navy {
+  background: var(--navy) !important;
+  color: #ffffff !important;
+}
+.rl-btn-navy:hover {
+  background: var(--blue-dark) !important;
+}
+.rl-btn-danger {
+  background: var(--red) !important;
+  color: #ffffff !important;
+}
+.rl-btn-danger:hover {
+  background: #B91C1C !important;
+}
+.rl-btn-ghost {
+  background: #ffffff !important;
+  border-color: var(--line) !important;
+  color: #1E293B !important;
+}
+.rl-btn-ghost:hover {
+  background: #F8FAFC !important;
+}
+
+/* Global SweetAlert2 Backdrop Override (Zero backdrop-blur for buttery smooth 60fps) */
+.swal2-container.swal2-backdrop-show {
+  background: rgba(15, 23, 42, 0.48) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

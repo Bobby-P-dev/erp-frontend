@@ -103,7 +103,7 @@ onUnmounted(() => {
                         :class="[
                             'text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer py-1',
                             activeSection === 'beranda' 
-                                ? 'text-indigo-600 font-semibold' 
+                                ? 'text-blue-600 font-semibold' 
                                 : 'text-slate-500 hover:text-slate-900'
                         ]"
                     >
@@ -115,7 +115,7 @@ onUnmounted(() => {
                         :class="[
                             'text-xs sm:text-sm font-medium transition-colors duration-200 cursor-pointer py-1',
                             activeSection === 'modul' 
-                                ? 'text-indigo-600 font-semibold' 
+                                ? 'text-blue-600 font-semibold' 
                                 : 'text-slate-500 hover:text-slate-900'
                         ]"
                     >
@@ -128,7 +128,7 @@ onUnmounted(() => {
                 <RouterLink
                     v-if="route.name !== 'login'"
                     :to="{ name: 'login' }"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs shadow-xs hover:shadow-sm transition-all duration-200 group"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs shadow-xs hover:shadow-sm transition-all duration-200 group"
                 >
                     <LogIn class="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                     <span>Login</span>

@@ -1,12 +1,10 @@
 <script setup>
 import { RouterLink } from 'vue-router'
-import { 
-    Home, 
-    ChevronRight, 
-    ArrowLeft, 
-    Construction, 
-    Clock, 
-    Info 
+import {
+    ArrowLeft,
+    Construction,
+    Clock,
+    Info
 } from '@lucide/vue'
 
 defineProps({

@@ -71,9 +71,9 @@ const handleSecondaryClick = () => {
             "
         ></div>
 
-        <!-- Efek Aurora Mesh Glow Kanan Atas (Aksen Ungu / Indigo Lembut) -->
+        <!-- Efek Aurora Mesh Glow Kanan Atas (Aksen Biru Lembut) -->
         <div 
-            class="absolute -top-12 -right-12 w-96 h-96 rounded-full bg-gradient-to-br from-indigo-500/25 to-purple-500/25 blur-[100px] pointer-events-none z-0"
+            class="absolute -top-12 -right-12 w-96 h-96 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 blur-[100px] pointer-events-none z-0"
             aria-hidden="true"
         ></div>
 
@@ -90,7 +90,7 @@ const handleSecondaryClick = () => {
 
         <!-- Kartu Melayang 1: Indikator SLA Approval (Area Kiri Atas - Di bawah batas Navbar) -->
         <div 
-            class="absolute top-24 xl:top-28 left-6 xl:left-14 z-20 hidden lg:flex items-center gap-3.5 bg-white/90 backdrop-blur-md rounded-2xl border border-white/60 shadow-xl shadow-slate-200/50 p-4 transition-all duration-300 hover:scale-105 hover:shadow-2xl select-none"
+            class="absolute top-24 xl:top-28 left-6 xl:left-14 z-20 hidden lg:flex items-center gap-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-4 transition-all duration-300 hover:scale-105 hover:shadow-2xl select-none"
         >
             <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 shadow-xs">
                 <ClockAlert class="w-5 h-5" />
@@ -110,7 +110,7 @@ const handleSecondaryClick = () => {
 
         <!-- Kartu Melayang 2: Keamanan & Hak Akses Sesuai Peran (Area Kanan Atas - Di bawah batas Navbar) -->
         <div 
-            class="absolute top-28 xl:top-32 right-6 xl:right-14 z-20 hidden lg:flex items-center gap-3.5 bg-white/90 backdrop-blur-md rounded-2xl border border-white/60 shadow-xl shadow-slate-200/50 p-4 transition-all duration-300 hover:scale-105 hover:shadow-2xl select-none"
+            class="absolute top-28 xl:top-32 right-6 xl:right-14 z-20 hidden lg:flex items-center gap-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-4 transition-all duration-300 hover:scale-105 hover:shadow-2xl select-none"
         >
             <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-emerald-600 shadow-xs">
                 <ShieldCheck class="w-5 h-5" />
@@ -128,15 +128,15 @@ const handleSecondaryClick = () => {
 
         <!-- Kartu Melayang 3: Ekosistem Modular (Area Kanan Bawah) -->
         <div 
-            class="absolute bottom-16 right-10 xl:right-20 z-20 hidden lg:flex items-center gap-3.5 bg-white/90 backdrop-blur-md rounded-2xl border border-white/60 shadow-xl shadow-slate-200/50 p-4 transition-all duration-300 hover:scale-105 hover:shadow-2xl select-none"
+            class="absolute bottom-16 right-10 xl:right-20 z-20 hidden lg:flex items-center gap-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-4 transition-all duration-300 hover:scale-105 hover:shadow-2xl select-none"
         >
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-600 shadow-xs">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-blue-600 shadow-xs">
                 <Layers class="w-5 h-5" />
             </div>
             <div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-slate-900">Ekosistem Modular</span>
-                    <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
                         Multi Modul
                     </span>
                 </div>
@@ -154,7 +154,7 @@ const handleSecondaryClick = () => {
             
             <!-- Badge Bersih & Minimalis (Bebas dari Klise AI Sparkles) -->
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 mb-8 select-none">
-                <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                 <span class="text-xs font-medium tracking-wide">
                     {{ badgeText }}
                 </span>
@@ -163,7 +163,7 @@ const handleSecondaryClick = () => {
             <!-- Headline Utama yang Bersih & Manusiawi -->
             <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
                 Satu Portal Terpadu untuk Seluruh
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600">
+                <span class="text-[#014BAA]">
                     Operasional
                 </span>
                 Perusahaan
@@ -177,11 +177,11 @@ const handleSecondaryClick = () => {
             <!-- Call To Action (CTA) Dua Tombol Sejajar -->
             <div class="mt-10 flex flex-wrap items-center justify-center gap-4 w-full sm:w-auto">
                 
-                <!-- Tombol Utama: Aksen Indigo dengan Shadow Lembut -->
+                <!-- Tombol Utama: Aksen Royal Blue dengan Shadow Lembut -->
                 <button
                     type="button"
                     @click="handlePrimaryClick"
-                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/35 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer group"
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm shadow-md shadow-blue-600/20 hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer group"
                 >
                     <span>{{ primaryCtaText }}</span>
                     <ArrowRight class="w-4 h-4 group-hover:translate-x-1 transition-transform" />

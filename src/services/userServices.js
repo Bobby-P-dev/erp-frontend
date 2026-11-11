@@ -1,17 +1,8 @@
 import api from './api.js'
+import { buildBracketFilterParams, buildQuery } from './core/httpQuery.js'
 
 export const getUsers = async (search = '', page = 1, filters = {}) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-    
-    for (const [key, value] of Object.entries(filters)) {
-        if (value) {
-            params.append(`filter[${key}]`, value)
-        }
-    }
-    
-    const response = await api.get(`/api/v1/user/get-all?${params.toString()}`)
+    const response = await api.get(`/api/v1/user/get-all${buildBracketFilterParams(search, page, filters)}`)
     return response.data
 }
 
@@ -26,9 +17,7 @@ export const updateUserPassword = async (id, payload) => {
 }
 
 export const searchUsers = async (search = '') => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    const queryString = params.toString() ? `?${params.toString()}` : ''
+    const queryString = buildQuery({ search })
     try {
         const response = await api.get(`/api/v1/user/search${queryString}`)
         return response.data
@@ -45,12 +34,7 @@ export const searchUsers = async (search = '') => {
 }
 
 export const getAvailableUserCandidates = async ({ type = 'employee', search = '', limit = 20 } = {}) => {
-    const params = new URLSearchParams()
-    if (type) params.append('type', type)
-    if (search) params.append('search', search)
-    if (limit) params.append('limit', limit)
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/user/available-candidates${queryString}`)
+    const response = await api.get(`/api/v1/user/available-candidates${buildQuery({ type, search, limit })}`)
     return response.data
 }
 

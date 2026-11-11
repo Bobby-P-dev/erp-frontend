@@ -128,7 +128,7 @@ onUnmounted(() => {
                 v-if="modelValue"
                 :class="[
                     'fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto',
-                    showBackdrop ? 'bg-slate-950/60 backdrop-blur-xs' : ''
+                    showBackdrop ? 'bg-slate-950/60' : ''
                 ]"
                 @click.self="onBackdropClick"
             >

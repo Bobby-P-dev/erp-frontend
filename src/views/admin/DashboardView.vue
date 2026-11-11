@@ -37,7 +37,7 @@ const coreModules = [
         description: 'Bagan akun buku besar (Chart of Accounts) dan klasifikasi.',
         to: 'admin.master.accounting-account',
         icon: Landmark,
-        color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
+        color: 'text-blue-600 bg-blue-50 border-blue-200'
     },
     {
         name: 'Perusahaan (Companies)',
@@ -51,7 +51,7 @@ const coreModules = [
         description: 'Data pegawai, NIK, jabatan, dan divisi penempatan.',
         to: 'admin.master.employee',
         icon: Users,
-        color: 'text-purple-600 bg-purple-50 border-purple-200'
+        color: 'text-blue-600 bg-blue-50 border-blue-200'
     },
     {
         name: 'Pengguna & Akun (Users)',
@@ -89,7 +89,7 @@ const procurementModules = [
         description: 'Pengaturan multi-tier approval matrix dan peninjau dokumen.',
         to: 'admin.settings.approval',
         icon: GitMerge,
-        color: 'text-violet-600 bg-violet-50 border-violet-200'
+        color: 'text-blue-600 bg-blue-50 border-blue-200'
     }
 ]
 </script>

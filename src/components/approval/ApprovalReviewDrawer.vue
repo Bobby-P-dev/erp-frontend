@@ -1,15 +1,14 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { 
-    X, 
-    ExternalLink, 
-    Building2, 
-    FileText, 
-    Clock, 
-    DollarSign, 
-    User, 
-    CheckCircle2, 
-    RotateCcw, 
+import {
+    X,
+    ExternalLink,
+    Building2,
+    FileText,
+    Clock,
+    User,
+    CheckCircle2,
+    RotateCcw,
     XCircle,
     AlertCircle,
     Calendar,
@@ -34,6 +33,8 @@ import {
 import { showSuccess, showError, showLoading } from '../../utils/swal.js'
 import { useApprovalStore } from '../../stores/approvalStore.js'
 import { useAuthStore } from '../../stores/auth.js'
+import { getQuotationApprovalTracker, decideQuotationApproval } from '../../services/rfqServices.js'
+import { formatCurrency as formatQuotationCurrency } from '../../composables/useFormatter.js'
 
 const props = defineProps({
     isOpen: {
@@ -50,7 +51,7 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(['close', 'acted', 'action-success'])
+const emit = defineEmits(['close', 'acted', 'action-success', 'refresh-requested'])
 
 const isDrawerVisible = computed(() => props.isOpen || props.show)
 
@@ -58,6 +59,9 @@ const approvalStore = useApprovalStore()
 const authStore = useAuthStore()
 const isLoadingTracker = ref(false)
 const trackerData = ref(null)
+const trackerError = ref('')
+let trackerLoad = 0
+const isQuotationReview = computed(() => props.task?.document_type === 'supplier_quotation')
 const activeWorkflowTab = ref('lifecycle') // 'lifecycle' | 'tiers'
 
 const effectiveDoc = computed(() => {
@@ -65,6 +69,9 @@ const effectiveDoc = computed(() => {
 })
 
 const effectiveItems = computed(() => {
+    if (isQuotationReview.value) return (effectiveDoc.value?.items || []).map(item => ({
+        ...item, estimated_price: item.unit_price, estimated_subtotal: item.subtotal,
+    }))
     return effectiveDoc.value?.items || []
 })
 
@@ -78,6 +85,9 @@ const isCurrentRequester = computed(() => {
 })
 
 const canUserAct = computed(() => {
+    if (isQuotationReview.value) return !isLoadingTracker.value && !trackerError.value
+        && Number(trackerData.value?.request?.id) === Number(props.task?.id)
+        && trackerData.value?.can_current_user_approve === true
     if (trackerData.value?.can_current_user_approve !== undefined) {
         return Boolean(trackerData.value.can_current_user_approve)
     }
@@ -211,14 +221,20 @@ const toggleItemRejection = (itemId, shouldReject) => {
 
 const fetchTracker = async (requestId) => {
     if (!requestId) return
+    const loadId = ++trackerLoad
+    trackerData.value = null
+    trackerError.value = ''
     try {
         isLoadingTracker.value = true
-        const response = await getApprovalTracker(requestId)
+        const response = await (isQuotationReview.value ? getQuotationApprovalTracker : getApprovalTracker)(requestId)
+        if (loadId !== trackerLoad || props.task?.id !== requestId) return
         trackerData.value = response.data
     } catch (err) {
+        if (loadId !== trackerLoad || props.task?.id !== requestId) return
+        trackerError.value = err.response?.data?.message || 'Gagal memuat approval. Buka kembali untuk memperbarui data.'
         console.error('Failed to fetch approval tracker:', err)
     } finally {
-        isLoadingTracker.value = false
+        if (loadId === trackerLoad) isLoadingTracker.value = false
     }
 }
 
@@ -245,12 +261,19 @@ const openDecision = (actionType) => {
 
 const handleActionConfirm = async ({ action, notes, done, fail }) => {
     if (!props.task) return
+    if (isQuotationReview.value && !canUserAct.value) {
+        fail('Data atau izin approval belum tersedia. Muat ulang approval.')
+        return
+    }
     try {
         showLoading('Memproses Keputusan...', 'Mohon tunggu sebentar.')
 
         const expectedStep = trackerData.value?.request?.current_step_order || props.task.current_step_order
 
-        if (action === 'approve') {
+        if (isQuotationReview.value) {
+            await decideQuotationApproval(props.task.id, action, notes, expectedStep)
+            showSuccess('Keputusan review tercatat', 'Status quotation telah diperbarui.')
+        } else if (action === 'approve') {
             const rejectedDecisions = isDocPurchaseRequisition.value
                 ? effectiveItems.value
                     .filter(it => itemRejectionStates.value[it.id]?.isRejected && !itemRejectionStates.value[it.id]?.isPermanentlyLocked)
@@ -283,6 +306,14 @@ const handleActionConfirm = async ({ action, notes, done, fail }) => {
         emit('action-success')
         emit('close')
     } catch (error) {
+        if (isQuotationReview.value) {
+            const message = error.response?.data?.message || 'Gagal memproses review quotation.'
+            fail(message)
+            await fetchTracker(props.task.id)
+            emit('refresh-requested')
+            showError('Review belum diproses', message)
+            return
+        }
         if (error.response?.status === 409) {
             fail('Tahapan persetujuan telah diselesaikan oleh approver lain. Data akan diperbarui.')
             fetchTracker(props.task.id)
@@ -348,6 +379,15 @@ const formatDate = (dateStr) => {
 
                 <!-- MODAL CONTENT (Scrollable) -->
                 <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 overscroll-contain">
+                    <p v-if="isQuotationReview && trackerError" role="alert" class="text-sm text-rose-800 mb-4">{{ trackerError }}</p>
+                    <div v-if="isQuotationReview && effectiveDoc.supplier_quotation" class="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-4 text-xs text-slate-800 space-y-1">
+                        <p class="font-bold">Quotation versi {{ effectiveDoc.supplier_quotation.review_version }} · {{ effectiveDoc.supplier_quotation.currency }}</p>
+                        <p>Supplier: {{ effectiveDoc.supplier_quotation.supplier?.name || '—' }}</p>
+                        <p>Syarat pembayaran: {{ effectiveDoc.supplier_quotation.payment_terms || '—' }} · Lead time: {{ effectiveDoc.supplier_quotation.lead_time_days ?? '—' }} hari</p>
+                        <p>Berlaku sampai: {{ effectiveDoc.supplier_quotation.valid_until || 'Belum ditentukan' }}</p>
+                        <p>Pajak: {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.tax_amount, effectiveDoc.supplier_quotation.currency) }} · Ongkir: {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.shipping_cost, effectiveDoc.supplier_quotation.currency) }}</p>
+                        <p class="font-semibold">Total: {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.total_amount, effectiveDoc.supplier_quotation.currency) }}</p>
+                    </div>
                     <!-- Overview Card -->
                     <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3.5">
                         <div class="flex items-center justify-between pb-3 border-b border-slate-200">
@@ -413,7 +453,7 @@ const formatDate = (dateStr) => {
                             <div>
                                 <span class="text-slate-400 font-medium block text-[11px]">Total Nilai Pengajuan:</span>
                                 <div class="font-mono font-bold text-slate-900 text-sm mt-1">
-                                    {{ effectiveDoc.total_amount ? formatCurrency(effectiveDoc.total_amount) : '-' }}
+                                    {{ effectiveDoc.total_amount !== null && effectiveDoc.total_amount !== undefined ? formatCurrency(effectiveDoc.total_amount, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') : '-' }}
                                 </div>
                             </div>
 
@@ -482,7 +522,7 @@ const formatDate = (dateStr) => {
                                             <th class="py-2.5 px-3 min-w-[200px]">Item / Barang</th>
                                             <th class="py-2.5 px-3 text-right w-20">Jumlah</th>
                                             <th class="py-2.5 px-3 w-20">Satuan</th>
-                                            <th class="py-2.5 px-3 text-right w-32">Est. Harga Satuan</th>
+                                            <th class="py-2.5 px-3 text-right w-32">{{ isQuotationReview ? 'Harga Satuan' : 'Est. Harga Satuan' }}</th>
                                             <th class="py-2.5 px-3 text-right w-32">Subtotal</th>
                                             <th class="py-2.5 px-3 min-w-[180px]">Catatan / Referensi</th>
                                             <th v-if="isDocPurchaseRequisition" class="py-2.5 px-3 text-center min-w-[210px]">Keputusan Item</th>
@@ -540,7 +580,7 @@ const formatDate = (dateStr) => {
                                                 class="py-3 px-3 text-right font-mono text-slate-700"
                                                 :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
                                             >
-                                                {{ formatCurrency(item.estimated_price || 0) }}
+                                                {{ formatCurrency(item.estimated_price || 0, isQuotationReview ? item.currency || 'IDR' : 'IDR') }}
                                             </td>
                                             <td class="py-3 px-3 text-right font-mono">
                                                 <div v-if="itemRejectionStates[item.id]?.isRejected">
@@ -552,7 +592,7 @@ const formatDate = (dateStr) => {
                                                     </span>
                                                 </div>
                                                 <div v-else class="font-bold text-slate-900">
-                                                    {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0))) }}
+                                                    {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0)), isQuotationReview ? item.currency || 'IDR' : 'IDR') }}
                                                 </div>
                                             </td>
                                             <td class="py-3 px-3">
@@ -675,7 +715,7 @@ const formatDate = (dateStr) => {
                                                 Total Estimasi {{ totalRejectedItemsCount > 0 ? 'Disetujui' : 'Pengadaan' }}:
                                             </td>
                                             <td class="py-2.5 px-3 text-right text-xs font-mono font-bold text-slate-900">
-                                                {{ formatCurrency(dynamicEffectiveTotal) }}
+                                                {{ formatCurrency(dynamicEffectiveTotal, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}
                                             </td>
                                             <td></td>
                                             <td v-if="isDocPurchaseRequisition"></td>

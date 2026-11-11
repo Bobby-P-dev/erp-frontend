@@ -8,7 +8,6 @@ import {
     FileText,
     Users,
     ShoppingBag,
-    CreditCard,
     Banknote,
     Warehouse,
     UserCheck,
@@ -16,10 +15,7 @@ import {
     ChevronRight,
     ExternalLink,
     Paperclip,
-    Building2,
     Calendar,
-    ArrowRight,
-    AlertCircle,
     RefreshCw
 } from '@lucide/vue'
 import { formatCurrency } from '../../utils/stringUtils.js'

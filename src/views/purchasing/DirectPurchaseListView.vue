@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { 
-    getDirectPurchases, 
-    submitDirectPurchaseForPayment, 
-    cancelDirectPurchase 
+import {
+    getDirectPurchases,
+    submitDirectPurchaseForPayment,
+    cancelDirectPurchase
 } from '../../services/directPurchaseServices.js'
 import { getProcurementPlans } from '../../services/procurementPlanServices.js'
 import { showLoading, showSuccess, showError, showConfirm, showPrompt } from '../../utils/swal.js'
@@ -17,17 +17,12 @@ import Pagination from '../../components/ui/Pagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 import {
-    Home,
-    ChevronRight,
     ShoppingCart,
-    Plus,
     RefreshCw,
     Calendar,
     Clock,
     CheckCircle2,
-    XCircle,
     Eye,
-    Send,
     Ban,
     Store,
     Building2,

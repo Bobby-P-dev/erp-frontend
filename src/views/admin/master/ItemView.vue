@@ -1,17 +1,13 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
-import { 
-    Package, 
-    Plus, 
-    Edit, 
-    Trash2, 
-    X, 
-    Check, 
-    Layers, 
-    Tag, 
-    SlidersHorizontal, 
-    RefreshCw,
-    AlertCircle
+import {
+    Package,
+    Plus,
+    Edit,
+    Trash2,
+    X,
+    Tag,
+    RefreshCw
 } from '@lucide/vue'
 import { 
     getItems, 

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import PageHeader from '../../../../components/ui/PageHeader.vue'
+import BaseBreadcrumb from '../../../../components/ui/BaseBreadcrumb.vue'
 import BaseButton from '../../../../components/ui/BaseButton.vue'
 import StatusBadge from '../../../../components/ui/StatusBadge.vue'
 import ApprovalStepper from '../../../../components/approval/ApprovalStepper.vue'
@@ -25,7 +25,6 @@ import {
     AlertCircle,
     CheckCircle2,
     ShieldCheck,
-    Coins,
     GitBranch
 } from '@lucide/vue'
 
@@ -177,8 +176,10 @@ onMounted(() => {
 
 <template>
     <div class="space-y-6">
+        <BaseBreadcrumb />
+
         <!-- Back Navigation & Page Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-start sm:items-center gap-3">
                 <button
                     type="button"

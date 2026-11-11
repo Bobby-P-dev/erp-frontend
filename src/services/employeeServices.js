@@ -1,17 +1,8 @@
 import api from './api'
+import { buildBracketFilterParams } from './core/httpQuery.js'
 
 export const getEmployees = async (search = '', page = 1, filter = {}) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-    
-    for (const key in filter) {
-        if (filter[key] !== null && filter[key] !== '') {
-            params.append(`filter[${key}]`, filter[key])
-        }
-    }
-
-    const response = await api.get(`/api/v1/employee/get-all?${params.toString()}`)
+    const response = await api.get(`/api/v1/employee/get-all${buildBracketFilterParams(search, page, filter)}`)
     return response.data
 }
 

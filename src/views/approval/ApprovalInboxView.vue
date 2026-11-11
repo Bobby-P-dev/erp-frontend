@@ -1,7 +1,5 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
-import BaseButton from '../../components/ui/BaseButton.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import ApprovalBadge from '../../components/approval/ApprovalBadge.vue'
 import ApprovalReviewDrawer from '../../components/approval/ApprovalReviewDrawer.vue'
@@ -14,15 +12,11 @@ import { useApprovalStore } from '../../stores/approvalStore'
 import { formatCurrency } from '../../utils/stringUtils'
 import { showError } from '../../utils/swal'
 import {
-    Home,
     CheckSquare,
     History,
     Clock,
     Eye,
     RefreshCw,
-    Building2,
-    Calendar,
-    ChevronRight,
     Search,
     ShieldAlert,
     X,
@@ -566,6 +560,7 @@ onUnmounted(() => {
             :task="selectedTask"
             @close="handleDrawerClose"
             @acted="handleActionSuccess"
+            @refresh-requested="handleActionSuccess"
         />
     </div>
 </template>

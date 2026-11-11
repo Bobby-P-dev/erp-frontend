@@ -1,16 +1,10 @@
 import api from './api'
+import { buildQueryParams } from './core/httpQuery.js'
 
 export const getAccountingCategories = async (search = '', page = 1, filter = {}) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-
-    if (filter.is_active !== undefined && filter.is_active !== null && filter.is_active !== '') {
-        params.append('is_active', filter.is_active)
-    }
-
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/accounting-category/get-all${queryString}`)
+    const response = await api.get(`/api/v1/accounting-category/get-all${buildQueryParams(search, page, null, {
+        is_active: filter.is_active
+    })}`)
     return response.data
 }
 

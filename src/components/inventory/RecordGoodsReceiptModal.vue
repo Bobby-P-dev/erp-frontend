@@ -10,21 +10,12 @@ import { showSuccess, showError, showConfirm } from '../../utils/swal.js'
 import {
     Boxes,
     Package,
-    Truck,
-    Calendar,
-    FileText,
     CheckCircle2,
-    XCircle,
-    AlertTriangle,
     X,
-    Building2,
-    ChevronDown,
-    Search,
     UploadCloud,
     FileCheck,
     Trash2,
-    ExternalLink,
-    Paperclip
+    ExternalLink
 } from '@lucide/vue'
 
 const props = defineProps({

@@ -6,22 +6,20 @@ import { getPurchaseRequisitions } from '../../services/purchaseRequisitionServi
 import { getProcurementPlans } from '../../services/procurementPlanServices.js'
 import { getDirectPurchases } from '../../services/directPurchaseServices.js'
 import { getRfqs } from '../../services/rfqServices.js'
+import { getPurchaseOrders } from '../../services/purchaseOrderServices.js'
 import { getPendingApprovalCount } from '../../services/approvalServices.js'
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import warehouseHeroImg from '../../assets/purchasing-warehouse-hero.png'
-import { 
-    Plus, 
+import {
+    Plus,
     ArrowRight,
-    ChevronRight,
     FileText,
     CheckCircle2,
-    CheckSquare,
-    Layers, 
-    ShoppingCart, 
-    Scale, 
-    Lock, 
+    Layers,
+    ShoppingCart,
+    Scale,
+    Lock,
     ShieldAlert,
-    Link2,
     Workflow
 } from '@lucide/vue'
 
@@ -33,7 +31,8 @@ const counts = ref({
     approvals: null,
     plans: null,
     direct: null,
-    rfq: null
+    rfq: null,
+    po: null
 })
 
 const fetchSummaryCounts = async () => {
@@ -60,6 +59,11 @@ const fetchSummaryCounts = async () => {
     try {
         const rfqRes = await getRfqs('', 1, {})
         counts.value.rfq = rfqRes?.meta?.total ?? rfqRes?.data?.total ?? null
+    } catch (_) {}
+
+    try {
+        const poRes = await getPurchaseOrders('', 1, {})
+        counts.value.po = poRes?.meta?.total ?? poRes?.data?.total ?? null
     } catch (_) {}
 }
 
@@ -467,6 +471,42 @@ onMounted(() => {
                     <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:text-blue-700 transition-colors">
                         <RouterLink :to="{ name: 'user.purchasing.rfq' }" class="flex items-center justify-between w-full">
                             <span>Kelola Tender RFQ</span>
+                            <ArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </RouterLink>
+                    </div>
+                </div>
+
+                <!-- Card 6: Purchase Orders (PO) -->
+                <div 
+                    v-if="authStore.hasPermission('purchasing.view') || authStore.hasPermission('rfq.read')"
+                    class="bg-white rounded-2xl border border-slate-200/80 hover:border-blue-300 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between group"
+                >
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                                <FileText class="w-5 h-5" />
+                            </div>
+                            <span class="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1 rounded-lg">
+                                {{ counts.po !== null ? counts.po + ' Dokumen PO' : 'Pesanan Resmi' }}
+                            </span>
+                        </div>
+
+                        <div>
+                            <h4 class="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                                Pesanan Pembelian (PO)
+                            </h4>
+                            <p class="text-xs font-medium text-slate-500 mt-0.5">
+                                Purchase Orders
+                            </p>
+                            <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+                                Penerbitan PO resmi dari hasil pemenang tender RFQ, persetujuan manajemen, dan konfirmasi pengiriman vendor.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600 group-hover:text-blue-700 transition-colors">
+                        <RouterLink :to="{ name: 'user.purchasing.orders' }" class="flex items-center justify-between w-full">
+                            <span>Kelola Purchase Order</span>
                             <ArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
                         </RouterLink>
                     </div>

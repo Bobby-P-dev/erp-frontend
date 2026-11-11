@@ -12,7 +12,7 @@ const modules = [
         title: 'Pengadaan & Pembelian',
         description: 'Pengajuan kebutuhan barang operasional (PR), pembelian langsung (Direct Purchase), hingga pencatatan transaksi yang transparan.',
         icon: ShoppingBag,
-        color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+        color: 'text-blue-600 bg-blue-50 border-blue-100',
         status: 'Aktif',
         statusClass: 'bg-emerald-50 text-emerald-700 border-emerald-200'
     },
@@ -54,7 +54,7 @@ const modules = [
                 
                 <!-- Section Header: Sederhana, Jelas, & Tidak Berlebihan -->
                 <div class="max-w-2xl space-y-2">
-                    <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                    <span class="text-xs font-semibold text-blue-600 uppercase tracking-wider">
                         Modul Operasional
                     </span>
                     <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">

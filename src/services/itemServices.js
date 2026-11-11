@@ -1,25 +1,13 @@
 import api from './api'
+import { buildQueryParams, buildQuery } from './core/httpQuery.js'
 
 export const getItems = async (search = '', page = 1, filter = {}) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-    for (const key in filter) {
-        if (filter[key] !== null && filter[key] !== undefined && filter[key] !== '') {
-            params.append(key, filter[key])
-        }
-    }
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/items${queryString}`)
+    const response = await api.get(`/api/v1/items${buildQueryParams(search, page, null, filter)}`)
     return response.data
 }
 
 export const searchItems = async (search = '', limit = 20) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (limit) params.append('limit', limit)
-    const queryString = params.toString() ? `?${params.toString()}` : ''
-    const response = await api.get(`/api/v1/item/search${queryString}`)
+    const response = await api.get(`/api/v1/item/search${buildQuery({ search, limit })}`)
     return response.data
 }
 

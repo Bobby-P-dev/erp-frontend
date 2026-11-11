@@ -1,16 +1,14 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { 
-    Users, 
-    Plus, 
-    Edit, 
-    Trash2, 
-    Star, 
-    Mail, 
-    Phone, 
-    X, 
-    Check, 
-    AlertCircle 
+import {
+    Users,
+    Plus,
+    Edit,
+    Trash2,
+    Star,
+    Phone,
+    X,
+    Check
 } from '@lucide/vue'
 import { 
     getSupplierContacts, 

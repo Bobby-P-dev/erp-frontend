@@ -1,4 +1,5 @@
 import { toast } from 'vue-sonner'
+import SweetAlert2 from 'sweetalert2'
 import {
     openAlertDialog,
     openConfirmDialog,
@@ -6,6 +7,62 @@ import {
     openLoadingDialog,
     closeGlobalDialog
 } from '../composables/useFeedback.js'
+
+export { toast }
+
+/**
+ * Fast, non-blocking toast notifications (Sonner).
+ * Best used for non-critical feedback: save success, network status, quick updates.
+ */
+export const showToast = {
+    success: (title, descriptionOrOptions = {}) => {
+        const options = typeof descriptionOrOptions === 'string'
+            ? { description: descriptionOrOptions }
+            : (descriptionOrOptions || {})
+        return toast.success(title, options)
+    },
+    error: (title, descriptionOrOptions = {}) => {
+        const options = typeof descriptionOrOptions === 'string'
+            ? { description: descriptionOrOptions }
+            : (descriptionOrOptions || {})
+        return toast.error(title, options)
+    },
+    warning: (title, descriptionOrOptions = {}) => {
+        const options = typeof descriptionOrOptions === 'string'
+            ? { description: descriptionOrOptions }
+            : (descriptionOrOptions || {})
+        return toast.warning(title, options)
+    },
+    info: (title, descriptionOrOptions = {}) => {
+        const options = typeof descriptionOrOptions === 'string'
+            ? { description: descriptionOrOptions }
+            : (descriptionOrOptions || {})
+        return toast.info(title, options)
+    },
+    promise: (promise, options = {}) => {
+        return toast.promise(promise, options)
+    },
+    dismiss: (id) => toast.dismiss(id)
+}
+
+/**
+ * Preset SweetAlert2 modern (Panduan Alert Modern).
+ * Digunakan untuk modal serbaguna bertahap dengan styling soft-circle dan animasi halus.
+ */
+export const SwalModern = SweetAlert2.mixin({
+    buttonsStyling: false,
+    customClass: {
+        popup: 'rl-swal-popup',
+        title: 'rl-swal-title',
+        htmlContainer: 'rl-swal-text',
+        icon: 'rl-swal-icon',
+        confirmButton: 'rl-btn rl-btn-navy',
+        cancelButton: 'rl-btn rl-btn-ghost',
+        actions: 'rl-swal-actions'
+    },
+    showClass: { popup: 'rl-in' },
+    hideClass: { popup: 'rl-out' }
+})
 
 /**
  * Centered modal alert for successful operations.
@@ -17,7 +74,7 @@ export const showSuccess = (title = 'Berhasil!', text = 'Data berhasil disimpan.
         title,
         text,
         type: 'success',
-        confirmText: 'OK, Mengerti',
+        confirmText: 'Mengerti',
         autoCloseMs: 3000
     })
 }
@@ -42,7 +99,7 @@ export const showError = (title = 'Gagal!', text = 'Terjadi kesalahan pada siste
         title,
         text: errorMessage,
         type: 'error',
-        confirmText: 'Tutup'
+        confirmText: 'Mengerti'
     })
 }
 

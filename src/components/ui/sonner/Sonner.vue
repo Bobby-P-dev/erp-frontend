@@ -54,40 +54,48 @@ const delegatedProps = reactiveOmit(props, "class", "toastOptions");
     :toast-options="
       props.toastOptions ?? {
         classes: {
-          toast: 'group toast font-sans rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-md shadow-lg shadow-slate-900/5 text-slate-800 p-3.5 text-xs',
-          title: 'font-semibold text-xs text-slate-900 leading-tight',
-          description: 'text-slate-500 text-[11px] leading-relaxed mt-0.5',
-          actionButton: 'bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium px-3 py-1 transition-colors',
-          cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium px-3 py-1 transition-colors',
+          toast: 'group toast font-sans rounded-[14px] border border-[#E2E8F0] bg-white text-[#0F172A] shadow-[0_12px_32px_-8px_rgba(15,23,42,0.18)] p-4 text-xs gap-3 will-change-transform',
+          title: 'font-semibold text-sm text-[#0F172A] leading-snug',
+          description: 'text-[#64748B] text-[13px] leading-relaxed mt-0.5',
+          actionButton: 'bg-[#0F172A] hover:bg-[#2563EB] text-white rounded-[10px] text-xs font-semibold px-3.5 py-1.5 transition-all shadow-2xs cursor-pointer',
+          cancelButton: 'bg-white hover:bg-[#F8FAFC] border border-[#E2E8F0] text-[#1E293B] rounded-[10px] text-xs font-medium px-3.5 py-1.5 transition-colors cursor-pointer',
           closeButton: 'bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-700 rounded-md',
-          success: 'group-[.toaster]:border-emerald-200 group-[.toaster]:bg-emerald-50/95 text-emerald-950',
-          error: 'group-[.toaster]:border-rose-200 group-[.toaster]:bg-rose-50/95 text-rose-950',
-          info: 'group-[.toaster]:border-blue-200 group-[.toaster]:bg-blue-50/95 text-blue-950',
-          warning: 'group-[.toaster]:border-amber-200 group-[.toaster]:bg-amber-50/95 text-amber-950',
+          success: 'group-[.toaster]:border-[#DCFCE7] group-[.toaster]:bg-white text-[#0F172A]',
+          error: 'group-[.toaster]:border-[#FEE2E2] group-[.toaster]:bg-white text-[#0F172A]',
+          info: 'group-[.toaster]:border-[#BFDBFE] group-[.toaster]:bg-white text-[#0F172A]',
+          warning: 'group-[.toaster]:border-[#FEF3C7] group-[.toaster]:bg-white text-[#0F172A]',
         },
       }
     "
     v-bind="delegatedProps"
   >
     <template #success-icon>
-      <CircleCheckIcon class="size-4" />
+      <div class="size-6 rounded-full bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center shrink-0">
+        <CircleCheckIcon class="size-3.5" />
+      </div>
     </template>
     <template #info-icon>
-      <InfoIcon class="size-4" />
+      <div class="size-6 rounded-full bg-[#BFDBFE] text-[#2563EB] flex items-center justify-center shrink-0">
+        <InfoIcon class="size-3.5" />
+      </div>
     </template>
     <template #warning-icon>
-      <TriangleAlertIcon class="size-4" />
+      <div class="size-6 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shrink-0">
+        <TriangleAlertIcon class="size-3.5" />
+      </div>
     </template>
     <template #error-icon>
-      <OctagonXIcon class="size-4" />
+      <div class="size-6 rounded-full bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shrink-0">
+        <OctagonXIcon class="size-3.5" />
+      </div>
     </template>
     <template #loading-icon>
-      <div>
-        <Loader2Icon class="size-4 animate-spin" />
+      <div class="size-6 rounded-full bg-[#BFDBFE] text-[#2563EB] flex items-center justify-center shrink-0">
+        <Loader2Icon class="size-3.5 animate-spin" />
       </div>
     </template>
     <template #close-icon>
-      <XIcon class="size-4" />
+      <XIcon class="size-4 text-slate-400 hover:text-slate-700 transition-colors" />
     </template>
   </Sonner>
 </template>

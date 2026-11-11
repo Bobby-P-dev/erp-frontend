@@ -2,21 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
     Receipt,
-    BadgePercent,
     Plus,
     Edit,
     Trash2,
-    RefreshCw,
     Check,
-    AlertCircle,
     CheckCircle2,
-    Info,
     Percent,
     Landmark,
     ShieldCheck,
-    X,
-    Coins,
-    SlidersHorizontal
+    Coins
 } from '@lucide/vue'
 import {
     getTaxes,
@@ -28,7 +22,6 @@ import { searchAccountingAccounts } from '../../../services/accountingAccountSer
 import { showLoading, showSuccess, showError, showConfirm } from '../../../utils/swal.js'
 import PageHeader from '../../../components/ui/PageHeader.vue'
 import Pagination from '../../../components/ui/Pagination.vue'
-import BaseInput from '../../../components/ui/BaseInput.vue'
 import SearchInput from '../../../components/ui/SearchInput.vue'
 import BaseButton from '../../../components/ui/BaseButton.vue'
 import BaseTable from '../../../components/ui/BaseTable.vue'

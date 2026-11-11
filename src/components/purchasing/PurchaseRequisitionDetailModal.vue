@@ -18,9 +18,6 @@ import {
     Send,
     RefreshCw,
     ChevronDown,
-    ShieldCheck,
-    GitBranch,
-    ShoppingBag,
     Download,
     Loader2
 } from '@lucide/vue'

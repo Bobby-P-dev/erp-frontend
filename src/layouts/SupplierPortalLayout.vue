@@ -11,6 +11,7 @@ import {
     LayoutDashboard,
     FileText,
     ReceiptText,
+    ShoppingBag,
     LogOut,
     ShieldCheck,
     Bell,
@@ -150,6 +151,14 @@ const handleLogout = async () => {
                         >
                             <ReceiptText class="w-4 h-4 text-slate-500" />
                             <span>Riwayat Penawaran</span>
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem 
+                            @click="router.push({ name: 'supplier.portal.purchase-orders' })"
+                            class="flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-xl transition-colors cursor-pointer"
+                        >
+                            <ShoppingBag class="w-4 h-4 text-slate-500" />
+                            <span>Pesanan Pembelian (PO)</span>
                         </DropdownMenuItem>
 
                         <DropdownMenuSeparator class="my-1 border-slate-100" />

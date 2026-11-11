@@ -15,7 +15,10 @@ import {
     closeSwal,
     showConfirm,
     showPrompt,
-    Swal
+    showToast,
+    toast,
+    Swal,
+    SwalModern
 } from '../src/utils/swal.js'
 
 describe('Modern Feedback & Dialog System (shadcn-vue backend)', () => {
@@ -126,6 +129,13 @@ describe('Modern Feedback & Dialog System (shadcn-vue backend)', () => {
         assert.equal(typeof showPrompt, 'function')
         assert.equal(typeof Swal.fire, 'function')
         assert.equal(typeof Swal.close, 'function')
+        assert.equal(typeof showToast.success, 'function')
+        assert.equal(typeof showToast.error, 'function')
+        assert.equal(typeof showToast.warning, 'function')
+        assert.equal(typeof showToast.info, 'function')
+        assert.equal(typeof showToast.promise, 'function')
+        assert.equal(typeof toast.success, 'function')
+        assert.equal(typeof SwalModern.fire, 'function')
     })
 
     it('Swal.fire facade properly routes textarea inputs to prompt mode', async () => {

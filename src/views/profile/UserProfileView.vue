@@ -12,12 +12,11 @@ import {
     AlertTriangle,
     CheckCircle2,
     Briefcase,
-    Hash,
-    Layers,
-    Calendar
+    Hash
 } from '@lucide/vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { deleteUserSignature } from '../../services/userServices.js'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import SignaturePadModal from '../../components/profile/SignaturePadModal.vue'
 import { showConfirm, showSuccess, showError } from '../../utils/swal.js'
 
@@ -58,11 +57,13 @@ const handleDeleteSignature = async () => {
 </script>
 
 <template>
-    <div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+    <div class="w-full space-y-6 pb-12">
+        <BaseBreadcrumb />
+
         <!-- Page Header -->
-        <div class="border-b border-slate-200 pb-5">
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Profil Pengguna</h1>
-            <p class="text-sm text-slate-500 mt-1">Kelola data profil akun dan spesimen tanda tangan digital resmi Anda</p>
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Profil Pengguna</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data profil akun dan spesimen tanda tangan digital resmi Anda</p>
         </div>
 
         <!-- Identity Banner -->

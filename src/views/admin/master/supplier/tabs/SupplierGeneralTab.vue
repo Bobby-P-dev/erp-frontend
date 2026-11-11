@@ -1,14 +1,13 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { 
-    Edit, 
-    Briefcase, 
-    CreditCard, 
-    MapPin, 
-    ShieldCheck, 
-    X, 
-    Check, 
-    Building2 
+import { ref } from 'vue'
+import {
+    Edit,
+    Briefcase,
+    CreditCard,
+    MapPin,
+    ShieldCheck,
+    X,
+    Check
 } from '@lucide/vue'
 import { updateSupplier } from '../../../../../services/supplierServices.js'
 import { showLoading, showSuccess, showError } from '../../../../../utils/swal.js'

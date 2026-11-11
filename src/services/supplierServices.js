@@ -1,16 +1,7 @@
 import api from './api'
+import { buildQueryParams } from './core/httpQuery.js'
 
-const buildQuery = (search = '', page = 1, filter = {}) => {
-    const params = new URLSearchParams()
-    if (search) params.append('search', search)
-    if (page) params.append('page', page)
-    for (const key in filter) {
-        if (filter[key] !== null && filter[key] !== undefined && filter[key] !== '') {
-            params.append(key, filter[key])
-        }
-    }
-    return params.toString() ? `?${params.toString()}` : ''
-}
+const buildQuery = (search = '', page = 1, filter = {}) => buildQueryParams(search, page, null, filter)
 
 // ==========================================
 // SUPPLIER MASTER

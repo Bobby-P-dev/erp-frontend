@@ -22,8 +22,8 @@ defineEmits(['update:modelValue'])
         <button 
             type="button"
             @click="$emit('update:modelValue', !modelValue)"
-            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            :class="modelValue ? 'bg-indigo-600' : 'bg-gray-200'"
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            :class="modelValue ? 'bg-blue-600' : 'bg-slate-200'"
         >
             <span class="sr-only">Toggle</span>
             <span 
@@ -31,7 +31,7 @@ defineEmits(['update:modelValue'])
                 :class="modelValue ? 'translate-x-5' : 'translate-x-0'"
             ></span>
         </button>
-        <span class="text-sm font-bold" :class="modelValue ? 'text-indigo-600' : 'text-gray-500'">
+        <span class="text-sm font-bold" :class="modelValue ? 'text-blue-600' : 'text-slate-500'">
             {{ modelValue ? labelActive : labelInactive }}
         </span>
     </div>

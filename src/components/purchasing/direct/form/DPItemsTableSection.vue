@@ -1,6 +1,6 @@
 <script setup>
 import { reactive } from 'vue'
-import { Package, AlertCircle, Trash2, Link2, MessageSquare, ChevronDown, ChevronUp } from '@lucide/vue'
+import { Package, AlertCircle, Trash2, Link2, MessageSquare, ChevronDown, ChevronUp, Plus } from '@lucide/vue'
 import { formatCurrency } from '@/composables/useFormatter.js'
 
 defineProps({
@@ -12,6 +12,18 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    allowRemoveItem: {
+        type: Boolean,
+        default: false,
+    },
+    extraPlanItemOptions: {
+        type: Array,
+        default: () => [],
+    },
+    selectedExtraPlanItemId: {
+        type: [String, Number],
+        default: '',
+    },
     isPlanFullyExhausted: {
         type: Boolean,
         default: false,
@@ -22,7 +34,7 @@ defineProps({
     },
 })
 
-defineEmits(['remove-bulk-item'])
+defineEmits(['remove-bulk-item', 'remove-item', 'update:selectedExtraPlanItemId', 'add-plan-item'])
 
 const expandedDetails = reactive({})
 
@@ -37,14 +49,37 @@ const hasExtraDetail = (item) => {
 
 <template>
     <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-4">
-        <div class="flex items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
+        <div class="flex items-center justify-between gap-3 pb-3.5 border-b border-slate-100 flex-wrap">
             <div>
                 <h3 class="text-sm font-bold text-slate-900">Rincian Barang & Realisasi Harga Beli</h3>
                 <p class="text-xs text-slate-500">Masukkan kuantitas dan harga satuan aktual sesuai transaksi toko/marketplace.</p>
             </div>
-            <span v-if="form.items.length > 0" class="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                {{ form.items.length }} Baris Item
-            </span>
+            <div class="flex items-center gap-2 flex-wrap">
+                <div v-if="extraPlanItemOptions.length > 0" class="flex items-center gap-1.5">
+                    <select
+                        :value="selectedExtraPlanItemId"
+                        @change="$emit('update:selectedExtraPlanItemId', $event.target.value)"
+                        class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-600 max-w-xs"
+                    >
+                        <option value="">-- Tambah Item dari Rencana --</option>
+                        <option v-for="opt in extraPlanItemOptions" :key="opt.value" :value="opt.value">
+                            {{ opt.label }}
+                        </option>
+                    </select>
+                    <button
+                        type="button"
+                        @click="$emit('add-plan-item')"
+                        :disabled="!selectedExtraPlanItemId"
+                        class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                    >
+                        <Plus class="w-3.5 h-3.5" />
+                        <span>Tambah</span>
+                    </button>
+                </div>
+                <span v-if="form.items.length > 0" class="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                    {{ form.items.length }} Baris Item
+                </span>
+            </div>
         </div>
 
         <div v-if="form.items.length === 0" class="py-10 text-center text-slate-400">
@@ -74,7 +109,7 @@ const hasExtraDetail = (item) => {
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200/80 font-semibold text-slate-600">
-                            <th v-if="isBulkMode" class="px-2.5 py-2.5 text-center w-10"></th>
+                            <th v-if="isBulkMode || (allowRemoveItem && form.items.length > 1)" class="px-2.5 py-2.5 text-center w-10"></th>
                             <th class="px-3.5 py-2.5 min-w-[220px]">Barang / Spesifikasi</th>
                             <th class="px-3 py-2.5 text-right w-28">Kuota</th>
                             <th class="px-3 py-2.5 w-32">Qty Beli</th>
@@ -85,10 +120,10 @@ const hasExtraDetail = (item) => {
                     <tbody class="divide-y divide-slate-100">
                         <template v-for="(item, idx) in form.items" :key="item.purchase_requisition_item_id || item.procurement_plan_item_id || idx">
                             <tr class="hover:bg-slate-50/60 transition-colors" :class="{ 'bg-rose-50/20': Number(item.allocated_qty) <= 0 }">
-                                <td v-if="isBulkMode" class="px-2.5 py-3 text-center align-top">
+                                <td v-if="isBulkMode || (allowRemoveItem && form.items.length > 1)" class="px-2.5 py-3 text-center align-top">
                                     <button 
                                         type="button" 
-                                        @click="$emit('remove-bulk-item', idx)"
+                                        @click="isBulkMode ? $emit('remove-bulk-item', idx) : $emit('remove-item', idx)"
                                         class="text-slate-400 hover:text-rose-600 transition-colors p-1 rounded hover:bg-rose-50 cursor-pointer"
                                         title="Hapus dari daftar"
                                     >
@@ -189,7 +224,7 @@ const hasExtraDetail = (item) => {
 
                             <!-- Collapsible Secondary Item Details (Product URL, Notes, Item Discount) -->
                             <tr v-if="expandedDetails[idx] || hasExtraDetail(item)" class="bg-slate-50/70 border-b border-slate-100">
-                                <td v-if="isBulkMode"></td>
+                                <td v-if="isBulkMode || (allowRemoveItem && form.items.length > 1)"></td>
                                 <td colspan="5" class="px-3.5 py-2.5">
                                     <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
                                         <div class="sm:col-span-5 flex items-center gap-1.5">

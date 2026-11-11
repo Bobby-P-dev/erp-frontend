@@ -1,23 +1,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { 
-    showProcurementPlan, 
-    activateProcurementPlan, 
-    cancelProcurementPlan 
+import {
+    showProcurementPlan,
+    activateProcurementPlan,
+    cancelProcurementPlan
 } from '../../services/procurementPlanServices.js'
 import { getApprovalTrackerByDocument } from '../../services/approvalServices.js'
 import { showLoading, showSuccess, showError, showConfirm, showPrompt } from '../../utils/swal.js'
 import { formatCurrency } from '../../utils/stringUtils.js'
 
-import PageHeader from '../../components/ui/PageHeader.vue'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
 import DocumentWorkflowTracker from '../../components/approval/DocumentWorkflowTracker.vue'
 
 import {
-    Home,
-    ChevronRight,
     ArrowLeft,
     Layers,
     ShoppingCart,
@@ -26,23 +24,13 @@ import {
     CheckCircle2,
     Clock,
     XCircle,
-    Calendar,
-    Building2,
     User,
     Play,
     Ban,
     ExternalLink,
-    Store,
-    Users,
     Package,
     ArrowRight,
-    Info,
-    CheckCheck,
-    GitBranch,
-    History,
-    ChevronDown,
-    ChevronUp,
-    DollarSign
+    CheckCheck
 } from '@lucide/vue'
 
 const router = useRouter()

@@ -1,15 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-    ArrowLeft, 
-    Building2, 
-    Check, 
-    X,
+import {
+    ArrowLeft,
+    Building2,
+    Check,
     Briefcase,
     MapPin,
-    CreditCard,
-    ShieldCheck
+    CreditCard
 } from '@lucide/vue'
 import { createSupplier } from '../../../../services/supplierServices.js'
 import { searchCompanies } from '../../../../services/companyServices.js'
@@ -164,14 +162,14 @@ const handleSubmit = async () => {
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
             <!-- Section 1: General Info -->
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm space-y-6">
-                <div class="flex items-center gap-3 pb-4 border-b border-gray-100">
-                    <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs space-y-6">
+                <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+                    <div class="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
                         <Briefcase class="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-gray-900">General Information</h3>
-                        <p class="text-xs text-gray-400">Basic identification and company categorization</p>
+                        <h3 class="text-base font-bold text-slate-900">General Information</h3>
+                        <p class="text-xs text-slate-500">Basic identification and company categorization</p>
                     </div>
                 </div>
 
@@ -207,10 +205,10 @@ const handleSubmit = async () => {
                     </div>
 
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1.5">Supplier Type</label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1.5">Supplier Type</label>
                         <select
                             v-model="form.supplier_type"
-                            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-gray-700"
+                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-slate-700"
                         >
                             <option v-for="t in supplierTypes" :key="t.value" :value="t.value">
                                 {{ t.label }}

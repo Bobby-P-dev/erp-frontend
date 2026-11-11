@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getPermissions } from '../../../services/permissionServices'
 import { showRole, syncRolePermissions } from '../../../services/roleServices'
 import { showLoading, showSuccess, showError, closeSwal } from '../../../utils/swal'
-import PageHeader from '../../../components/ui/PageHeader.vue'
+import BaseBreadcrumb from '../../../components/ui/BaseBreadcrumb.vue'
 import BaseButton from '../../../components/ui/BaseButton.vue'
 import ToggleSwitch from '../../../components/ui/ToggleSwitch.vue'
 import { ShieldCheck, ArrowLeft, Save } from '@lucide/vue'
@@ -122,21 +122,21 @@ const goBack = () => {
             ]" 
         />
 
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
             <div class="flex items-center gap-4">
-                <button @click="goBack" class="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-500 hover:text-indigo-600 transition-colors">
+                <button @click="goBack" class="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 hover:text-blue-600 transition-colors cursor-pointer">
                     <ArrowLeft class="w-5 h-5" />
                 </button>
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        <ShieldCheck class="w-7 h-7 text-indigo-600" />
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-3">
+                        <ShieldCheck class="w-6 h-6 text-blue-600" />
                         Manage Permissions
                     </h1>
-                    <p class="text-sm text-gray-500 mt-1" v-if="role">Configure access rights for <span class="font-bold text-indigo-600 uppercase">{{ role.name }}</span> role</p>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1" v-if="role">Configure access rights for <span class="font-bold text-blue-600 uppercase">{{ role.name }}</span> role</p>
                 </div>
             </div>
             
-            <BaseButton @click="savePermissions" class="w-full sm:w-auto shadow-md">
+            <BaseButton @click="savePermissions" class="w-full sm:w-auto shadow-xs">
                 <Save class="w-4 h-4" />
                 Save Changes
             </BaseButton>
@@ -147,7 +147,7 @@ const goBack = () => {
             <div 
                 v-for="(permissions, categoryName) in groupedPermissions" 
                 :key="categoryName"
-                class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:border-indigo-100 transition-colors duration-300"
+                class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col hover:border-blue-200 transition-colors duration-200"
             >
                 <div class="px-5 py-4 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between">
                     <h3 class="font-bold text-gray-800 capitalize">{{ categoryName.replace('_', ' ') }}</h3>

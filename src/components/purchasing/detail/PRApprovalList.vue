@@ -3,11 +3,7 @@ import { computed, ref } from 'vue'
 import {
     ShieldCheck,
     UserCheck,
-    Clock,
     ChevronDown,
-    CheckCircle2,
-    XCircle,
-    RotateCcw,
     MessageSquareQuote
 } from '@lucide/vue'
 import ApprovalBadge from '../../approval/ApprovalBadge.vue'

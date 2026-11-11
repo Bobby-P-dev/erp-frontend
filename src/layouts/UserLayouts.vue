@@ -1,7 +1,6 @@
 <script setup>
 import { onMounted } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { RouterLink } from 'vue-router'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import UserProfileDropdown from '../components/layout/UserProfileDropdown.vue'

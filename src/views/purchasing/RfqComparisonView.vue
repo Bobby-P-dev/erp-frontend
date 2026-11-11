@@ -2,37 +2,31 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getRfqComparisonMatrix, awardRfq } from '../../services/rfqServices.js'
+import { createPurchaseOrderFromRfq } from '../../services/purchaseOrderServices.js'
 import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
 import { formatCurrency, formatDate } from '../../composables/useFormatter.js'
+import { comparisonNumber, awardSubtotal, sumComparisonAmounts, isLowestUnitPrice, isLowestTotalCost, remainingAwardQuantity, defaultSplitOffer, totalCostExclusionText } from '../../utils/rfqComparison.js'
+import { quotationValidityLabel, quotationValidityReason, canAwardQuotation, purchaseOrderValidityErrors } from '../../utils/quotationValidity.js'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import QuotationReviewSection from '../../components/purchasing/rfq/detail/QuotationReviewSection.vue'
+import AwardEvaluationFields from '../../components/purchasing/rfq/AwardEvaluationFields.vue'
+import RfqAwardHistory from '../../components/purchasing/rfq/RfqAwardHistory.vue'
+import { quotationReviewLabel, quotationReviewReason } from '../../utils/quotationReview.js'
 
 import {
     Home,
     ChevronRight,
     ArrowLeft,
-    Scale,
-    Trophy,
-    Award,
     RefreshCw,
-    TrendingDown,
-    TrendingUp,
-    Clock,
-    Zap,
     CheckCircle2,
     AlertTriangle,
     FileText,
-    ExternalLink,
+    ArrowRight,
     Check,
-    X,
-    Building2,
-    Package,
-    Users,
-    Info,
-    Split,
-    Layers
+    X
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -42,6 +36,7 @@ const rfqId = computed(() => route.params.id)
 
 const loading = ref(false)
 const matrixData = ref(null)
+const matrixLoadError = ref(false)
 
 // Awarding Modal State
 const isAwardModalOpen = ref(false)
@@ -50,20 +45,28 @@ const awardMode = ref('split') // 'full' | 'split'
 
 // Full awarding form
 const selectedFullSupplierId = ref('')
-const fullAwardNotes = ref('')
+const emptyEvaluation = () => ({ technical_compliance: 'not_verified', technical_notes: '', commercial_notes: '', warranty_terms: '', evidence_reference: '', selection_reason: '' })
+const fullEvaluation = ref(emptyEvaluation())
+const fullAwardVersion = ref(null)
+const onFullVendorChange = () => {
+    fullEvaluation.value = emptyEvaluation()
+    fullAwardVersion.value = quotationFor(selectedFullSupplierId.value)?.review_version
+}
 
 // Split awarding form
 // keyed by rfq_item_id: { quotation_id, quotation_item_id, awarded_quantity, unit_price, max_offered, notes }
 const splitAwards = ref({})
 
 // Fetch Matrix Data
-const fetchMatrix = async () => {
+const fetchMatrix = async (options = {}) => {
     loading.value = true
     try {
         const response = await getRfqComparisonMatrix(rfqId.value)
         matrixData.value = response.data || response
+        matrixLoadError.value = false
     } catch (err) {
-        showError(err.response?.data?.message || 'Gagal memuat matriks komparasi penawaran RFQ')
+        matrixLoadError.value = true
+        if (!options.silent) showError(err.response?.data?.message || 'Gagal memuat matriks komparasi penawaran RFQ')
     } finally {
         loading.value = false
     }
@@ -77,14 +80,110 @@ const rfq = computed(() => matrixData.value?.rfq || null)
 const statistics = computed(() => matrixData.value?.statistics || {})
 const suppliers = computed(() => matrixData.value?.suppliers || [])
 const itemsMatrix = computed(() => matrixData.value?.items_matrix || [])
+const quotationFor = id => suppliers.value.find(supplier => String(supplier.quotation_id) === String(id))
+const eligibleQuotation = id => !matrixLoadError.value && canAwardQuotation(quotationFor(id))
+const poValidityErrors = computed(() => matrixLoadError.value
+    ? ['Data validitas gagal dimuat. Muat ulang sebelum membuat PO.']
+    : purchaseOrderValidityErrors(awardedSummaryList.value, suppliers.value))
+
+const comparisonCurrency = computed(() => matrixData.value?.comparison_currency || 'IDR')
+const formatBaseCurrency = value => formatCurrency(value, comparisonCurrency.value)
+const awardedGoodsTotal = computed(() => sumComparisonAmounts(awardedSummaryList.value.map(item => item.subtotal)))
+
+// Plain-language price difference vs HPS (Target Price) for non-technical users
+const formatPriceDiffText = (_item, offer) => {
+    const diff = comparisonNumber(offer?.delta_target_price)
+    if (diff === null) return null
+    if (diff === 0) {
+        return { text: 'Sesuai harga perkiraan', type: 'neutral' }
+    }
+    if (diff < 0) {
+        return {
+            text: `Lebih hemat ${formatBaseCurrency(Math.abs(diff))} dari perkiraan`,
+            type: 'saving'
+        }
+    }
+    return {
+        text: `Lebih mahal ${formatBaseCurrency(diff)} dari perkiraan`,
+        type: 'higher'
+    }
+}
+
+// Summary list of awarded items for easy reading at a glance
+const awardedSummaryList = computed(() => {
+    const list = []
+    for (const item of itemsMatrix.value) {
+        for (const sup of suppliers.value) {
+            const offer = item.vendor_offers?.[sup.quotation_id]
+            if (offer && offer.is_awarded) {
+                const qty = Number(offer.awarded_quantity || 0)
+                const price = comparisonNumber(offer.base_unit_price)
+                list.push({
+                    rfq_item_id: item.rfq_item_id,
+                    item_name: item.item_name,
+                    unit_name: item.unit_name || 'Unit',
+                    supplier_id: sup.supplier_id,
+                    supplier_name: sup.supplier_name,
+                    quotation_id: sup.quotation_id,
+                    awarded_quantity: qty,
+                    unit_price: price,
+                    subtotal: awardSubtotal(qty, price),
+                    purchase_order_id: offer.purchase_order_id || null,
+                    purchase_order_number: offer.purchase_order_number || null
+                })
+            }
+        }
+    }
+    return list
+})
+
+const generatedPurchaseOrders = computed(() => {
+    return rfq.value?.purchase_orders || []
+})
+
+const hasUnconvertedAwards = computed(() => {
+    return awardedSummaryList.value.some(w => !w.purchase_order_id)
+})
+
+const generatingPo = ref(false)
+
+const handleGeneratePurchaseOrders = async () => {
+    if (generatingPo.value || loading.value) return
+    if (poValidityErrors.value.length) {
+        showError(poValidityErrors.value[0])
+        return
+    }
+    const confirmed = await showConfirm(
+        'Terbitkan Purchase Order (PO)?',
+        'Sistem akan membuat dokumen Purchase Order resmi secara otomatis untuk vendor pemenang tender ini.'
+    )
+    if (!confirmed) return
+
+    generatingPo.value = true
+    showLoading('Menerbitkan Purchase Order...')
+    try {
+        const res = await createPurchaseOrderFromRfq(rfqId.value, {})
+        const createdList = res.data || []
+        await showSuccess(
+            'Purchase Order Berhasil Dibuat!',
+            `${createdList.length || 1} dokumen Purchase Order telah berhasil diterbitkan.`
+        )
+        await fetchMatrix()
+    } catch (err) {
+        if ([403, 409, 422].includes(err.response?.status)) await fetchMatrix({ silent: true })
+        showError(err.response?.data?.message || 'Gagal menerbitkan Purchase Order dari hasil tender')
+    } finally {
+        generatingPo.value = false
+    }
+}
 
 // Check if awarding can be performed
 const canAward = computed(() => {
     if (!rfq.value) return false
     const status = rfq.value.status
     const isAllowedStatus = status === 'published' || status === 'evaluation'
-    const hasQuotations = suppliers.value.length > 0
-    return isAllowedStatus && hasQuotations
+    const hasQuotations = suppliers.value.some(supplier => eligibleQuotation(supplier.quotation_id))
+    return !loading.value && !matrixLoadError.value && isAllowedStatus && hasQuotations && itemsMatrix.value.some(item => remainingAwardQuantity(item) > 0)
 })
 
 // Initialize Awarding Modal
@@ -95,40 +194,31 @@ const openAwardModal = () => {
     }
 
     // Preselect first supplier for Full Awarding
-    selectedFullSupplierId.value = suppliers.value[0]?.quotation_id || ''
-    fullAwardNotes.value = ''
+    selectedFullSupplierId.value = suppliers.value.find(supplier => eligibleQuotation(supplier.quotation_id))?.quotation_id || ''
+    fullEvaluation.value = emptyEvaluation()
+    fullAwardVersion.value = quotationFor(selectedFullSupplierId.value)?.review_version
 
     // Initialize Split Awarding state for each RFQ Item
     const splits = {}
     itemsMatrix.value.forEach(item => {
-        // Find best quote (lowest price or already awarded)
-        let defaultQuotationId = ''
-        let defaultQuoteItemId = null
-        let defaultUnitPrice = 0
-        let defaultMaxOffered = 0
-        let defaultQty = item.target_quantity
-
-        // Prioritize vendor that quoted lowest price
-        for (const [quoteIdStr, offer] of Object.entries(item.vendor_offers || {})) {
-            if (offer.quoted) {
-                if (!defaultQuotationId || offer.is_lowest_price || offer.is_awarded) {
-                    defaultQuotationId = Number(quoteIdStr)
-                    defaultQuoteItemId = offer.supplier_quotation_item_id
-                    defaultUnitPrice = offer.unit_price
-                    defaultMaxOffered = offer.offered_quantity
-                    defaultQty = offer.is_awarded ? offer.awarded_quantity : Math.min(item.target_quantity, offer.offered_quantity)
-                }
-            }
-        }
+        const remaining = remainingAwardQuantity(item)
+        const [quoteId, offer] = remaining > 0 ? (defaultSplitOffer(item, eligibleQuotation) || []) : []
+        const defaultQuotationId = quoteId ? Number(quoteId) : ''
+        const defaultQuoteItemId = offer?.supplier_quotation_item_id || null
+        const defaultUnitPrice = comparisonNumber(offer?.base_unit_price)
+        const defaultMaxOffered = offer?.offered_quantity || 0
+        const defaultQty = offer ? Math.min(remaining, offer.offered_quantity, offer.is_awarded ? offer.awarded_quantity : remaining) : 0
 
         splits[item.rfq_item_id] = {
             quotation_id: defaultQuotationId,
             quotation_item_id: defaultQuoteItemId,
+            expected_review_version: quotationFor(defaultQuotationId)?.review_version,
             awarded_quantity: defaultQty,
             unit_price: defaultUnitPrice,
             max_offered: defaultMaxOffered,
-            target_quantity: item.target_quantity,
-            notes: ''
+            target_quantity: remaining,
+            notes: '',
+            evaluation: emptyEvaluation()
         }
     })
 
@@ -144,11 +234,13 @@ const closeAwardModal = () => {
 const onSplitVendorChange = (rfqItemId) => {
     const split = splitAwards.value[rfqItemId]
     if (!split) return
+    split.evaluation = emptyEvaluation()
+    split.expected_review_version = quotationFor(split.quotation_id)?.review_version
 
     if (!split.quotation_id) {
         split.quotation_item_id = null
         split.awarded_quantity = 0
-        split.unit_price = 0
+        split.unit_price = null
         split.max_offered = 0
         return
     }
@@ -157,11 +249,14 @@ const onSplitVendorChange = (rfqItemId) => {
     if (!item) return
 
     const offer = item.vendor_offers?.[split.quotation_id]
-    if (offer && offer.quoted) {
+    if (offer && offer.quoted && !offer.purchase_order_id && eligibleQuotation(split.quotation_id)) {
         split.quotation_item_id = offer.supplier_quotation_item_id
-        split.unit_price = offer.unit_price
+        split.unit_price = comparisonNumber(offer.base_unit_price)
         split.max_offered = offer.offered_quantity
-        split.awarded_quantity = Math.min(item.target_quantity, offer.offered_quantity)
+        split.awarded_quantity = Math.min(remainingAwardQuantity(item), offer.offered_quantity)
+    } else {
+        split.quotation_item_id = null
+        split.awarded_quantity = 0
     }
 }
 
@@ -177,11 +272,15 @@ const splitValidationErrors = computed(() => {
         }
 
         const qty = Number(split.awarded_quantity) || 0
-        if (qty <= 0) {
+        if (!eligibleQuotation(split.quotation_id)) {
+            errors.push(quotationValidityReason(quotationFor(split.quotation_id)) || 'Quotation tidak tersedia untuk award baru.')
+            continue
+        }
+        if (!Number.isFinite(qty) || qty <= 0) {
             errors.push(`Kuantitas pemenang untuk item '${item.item_name}' harus lebih dari 0.`)
-        } else if (qty > item.target_quantity) {
-            errors.push(`Kuantitas pemenang (${qty}) melebihi target kebutuhan (${item.target_quantity}) untuk '${item.item_name}'.`)
-        } else if (split.max_offered && qty > split.max_offered) {
+        } else if (qty > remainingAwardQuantity(item)) {
+            errors.push(`Kuantitas pemenang (${qty}) melebihi target kebutuhan (${remainingAwardQuantity(item)}) untuk '${item.item_name}'.`)
+        } else if (qty > Number(split.max_offered)) {
             errors.push(`Kuantitas pemenang (${qty}) melebihi kuantitas yang ditawarkan vendor (${split.max_offered}) untuk '${item.item_name}'.`)
         }
     }
@@ -196,14 +295,9 @@ const fullAwardSummary = computed(() => {
 })
 
 const splitAwardTotalCost = computed(() => {
-    let total = 0
-    for (const rfqItemId in splitAwards.value) {
-        const split = splitAwards.value[rfqItemId]
-        if (split && split.quotation_id && split.awarded_quantity > 0) {
-            total += Number(split.awarded_quantity) * Number(split.unit_price)
-        }
-    }
-    return total
+    return sumComparisonAmounts(Object.values(splitAwards.value)
+        .filter(split => split.quotation_id && Number(split.awarded_quantity) > 0)
+        .map(split => awardSubtotal(split.awarded_quantity, split.unit_price)))
 })
 
 const splitAwardCount = computed(() => {
@@ -219,6 +313,11 @@ const splitAwardCount = computed(() => {
 
 // Submit Awarding
 const submitAward = async () => {
+    if (awardingSubmitting.value || loading.value) return
+    if (matrixLoadError.value) {
+        showError('Data validitas gagal dimuat. Muat ulang sebelum menetapkan pemenang.')
+        return
+    }
     let awardsPayload = []
 
     if (awardMode.value === 'full') {
@@ -228,13 +327,18 @@ const submitAward = async () => {
         }
 
         const quoteId = Number(selectedFullSupplierId.value)
+        if (!eligibleQuotation(quoteId)) {
+            showError(quotationValidityReason(quotationFor(quoteId)) || 'Quotation tidak tersedia untuk award baru.')
+            return
+        }
         for (const item of itemsMatrix.value) {
             const offer = item.vendor_offers?.[quoteId]
-            if (offer && offer.quoted && offer.supplier_quotation_item_id) {
+            if (offer && offer.quoted && !offer.purchase_order_id && offer.supplier_quotation_item_id && remainingAwardQuantity(item) > 0) {
                 awardsPayload.push({
                     supplier_quotation_item_id: offer.supplier_quotation_item_id,
-                    awarded_quantity: Math.min(item.target_quantity, offer.offered_quantity),
-                    notes: fullAwardNotes.value || 'Pemenang Tunggal (Full Awarding)'
+                    awarded_quantity: Math.min(remainingAwardQuantity(item), offer.offered_quantity),
+                    expected_review_version: fullAwardVersion.value,
+                    ...fullEvaluation.value
                 })
             }
         }
@@ -256,7 +360,8 @@ const submitAward = async () => {
                 awardsPayload.push({
                     supplier_quotation_item_id: split.quotation_item_id,
                     awarded_quantity: Number(split.awarded_quantity),
-                    notes: split.notes || 'Penetapan Pembagian Item (Split Awarding)'
+                    expected_review_version: split.expected_review_version,
+                    ...split.evaluation
                 })
             }
         }
@@ -265,6 +370,11 @@ const submitAward = async () => {
             showError('Setidaknya harus ada satu item barang yang dimenangkan!')
             return
         }
+    }
+
+    if (awardsPayload.some(award => !award.selection_reason?.trim())) {
+        showError('Alasan pemilihan wajib diisi untuk setiap item yang dipilih.')
+        return
     }
 
     const confirmed = await showConfirm(
@@ -280,6 +390,7 @@ const submitAward = async () => {
         closeAwardModal()
         fetchMatrix()
     } catch (err) {
+        if ([403, 409, 422].includes(err.response?.status)) await fetchMatrix({ silent: true })
         showError(err.response?.data?.message || 'Gagal menetapkan pemenang tender')
     } finally {
         awardingSubmitting.value = false
@@ -288,33 +399,33 @@ const submitAward = async () => {
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="space-y-5">
         <!-- Page Header & Action Bar -->
         <PageHeader
-            :title="matrixData?.rfq ? `Matriks Komparasi Penawaran — ${matrixData.rfq.rfq_number}` : 'Matriks Komparasi Tender RFQ'"
-            subtitle="Komparasi penawaran harga sisi-ke-sisi, deviasi HPS, dan penetapan pemenang tender"
+            :title="matrixData?.rfq ? `Perbandingan Harga Vendor — ${matrixData.rfq.rfq_number}` : 'Perbandingan Harga Vendor'"
+            subtitle="Bandingkan harga penawaran dari setiap vendor dan pilih pemenang pengadaan"
         >
             <template #breadcrumbs>
-                <div class="flex items-center gap-2 text-xs text-slate-500">
-                    <RouterLink :to="{ name: 'user.dashboard' }" class="hover:text-blue-600">
+                <div class="flex items-center gap-2 text-xs text-slate-600">
+                    <RouterLink :to="{ name: 'user.dashboard' }" class="hover:text-blue-700">
                         <Home class="w-3.5 h-3.5" />
                     </RouterLink>
                     <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
                     <span>Purchasing</span>
                     <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <RouterLink :to="{ name: 'user.purchasing.rfq' }" class="hover:text-blue-600">
+                    <RouterLink :to="{ name: 'user.purchasing.rfq' }" class="hover:text-blue-700">
                         Tender RFQ
                     </RouterLink>
                     <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
                     <RouterLink 
                         v-if="matrixData?.rfq"
                         :to="{ name: 'user.purchasing.rfq.detail', params: { id: matrixData.rfq.id } }" 
-                        class="hover:text-blue-600"
+                        class="hover:text-blue-700"
                     >
                         {{ matrixData.rfq.rfq_number }}
                     </RouterLink>
                     <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <span class="text-slate-800 font-medium">Matriks Komparasi</span>
+                    <span class="text-slate-900 font-semibold">Perbandingan Harga</span>
                 </div>
             </template>
 
@@ -324,10 +435,10 @@ const submitAward = async () => {
                         variant="outline"
                         size="sm"
                         @click="router.push({ name: 'user.purchasing.rfq.detail', params: { id: rfqId } })"
-                        class="text-slate-600"
+                        class="text-slate-700"
                     >
                         <ArrowLeft class="w-4 h-4 mr-1.5" />
-                        Detail RFQ
+                        Kembali ke Detail RFQ
                     </BaseButton>
 
                     <BaseButton
@@ -337,7 +448,7 @@ const submitAward = async () => {
                         :disabled="loading"
                     >
                         <RefreshCw class="w-4 h-4 mr-1.5" :class="{ 'animate-spin': loading }" />
-                        Segarkan
+                        Muat Ulang
                     </BaseButton>
 
                     <!-- Awarding CTA Button -->
@@ -346,78 +457,162 @@ const submitAward = async () => {
                         variant="primary"
                         size="sm"
                         @click="openAwardModal"
-                        class="bg-blue-600 hover:bg-blue-700 shadow-sm"
+                        class="bg-blue-600 hover:bg-blue-700"
                     >
-                        <Trophy class="w-4 h-4 mr-1.5 text-amber-300" />
-                        Tentukan Pemenang Tender (Awarding)
+                        <Check class="w-4 h-4 mr-1.5" />
+                        Pilih Vendor Pemenang
                     </BaseButton>
 
-                    <div v-else-if="rfq?.is_awarded" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <Award class="w-4 h-4 text-emerald-600" />
-                        Pemenang Telah Ditetapkan
+                    <div v-else-if="rfq?.is_awarded" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                        <CheckCircle2 class="w-4 h-4 text-emerald-700" />
+                        Vendor Pemenang Sudah Dipilih
                     </div>
                 </div>
             </template>
         </PageHeader>
 
+        <QuotationReviewSection v-if="matrixData" :key="rfqId" :quotations="suppliers" :disabled="loading || matrixLoadError" :reload="fetchMatrix" />
+
         <!-- Loading State -->
         <div v-if="loading && !matrixData" class="p-12 text-center bg-white rounded-xl border border-slate-200">
-            <RefreshCw class="w-8 h-8 mx-auto text-blue-600 animate-spin mb-3" />
-            <p class="text-sm text-slate-500 font-medium">Mempersiapkan matriks komparasi penawaran vendor...</p>
+            <RefreshCw class="w-7 h-7 mx-auto text-blue-600 animate-spin mb-3" />
+            <p class="text-sm text-slate-700 font-medium">Memuat tabel perbandingan harga vendor...</p>
         </div>
 
         <template v-else-if="matrixData">
-            <!-- Top Metrics Bento Dock -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <p v-if="matrixLoadError" role="alert" class="p-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-900">Data terbaru gagal dimuat. Muat ulang sebelum menetapkan pemenang atau membuat PO.</p>
+            <!-- Compact & Clear Document Info Bar -->
+            <div class="bg-white rounded-xl border border-slate-200 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-6 text-sm">
                     <div>
-                        <span class="text-xs text-slate-400 block font-medium">Status Tender</span>
+                        <span class="text-xs text-slate-600 block">Status Tender</span>
                         <div class="mt-1 flex items-center gap-2">
                             <StatusBadge :status="rfq.status" />
-                            <span v-if="rfq.is_awarded" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                Awarded
+                            <span v-if="rfq.is_awarded" class="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300">
+                                Selesai Dipilih
                             </span>
                         </div>
                     </div>
-                    <Scale class="w-7 h-7 text-blue-500/30" />
+
+                    <div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
+
+                    <div>
+                        <span class="text-xs text-slate-600 block">Jumlah Barang</span>
+                        <span class="text-base font-bold text-slate-900">{{ statistics.total_items || itemsMatrix.length }} Jenis Barang</span>
+                    </div>
+
+                    <div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
+
+                    <div>
+                        <span class="text-xs text-slate-600 block">Vendor yang Mengajukan Harga</span>
+                        <span class="text-base font-bold text-slate-900">
+                            {{ statistics.total_quotations_received || suppliers.length }} dari {{ statistics.total_suppliers_invited || suppliers.length }} Vendor
+                        </span>
+                    </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <!-- Legend that is simple and clear -->
+                <div class="flex flex-wrap items-center gap-4 text-xs text-slate-700 bg-slate-50 px-3.5 py-2 rounded-lg border border-slate-200">
+                    <span class="font-semibold text-slate-800">Keterangan:</span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-sm bg-emerald-600 inline-block"></span>
+                        <span>Vendor Terpilih (Pemenang)</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 font-semibold text-[11px]">Termurah</span>
+                        <span>Harga Paling Rendah</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Plain-Language Winner Summary Box (Shown once awarded so senior users immediately understand who won what) -->
+            <RfqAwardHistory :decisions="matrixData?.award_decisions || []" />
+            <div v-if="awardedSummaryList.length > 0" class="bg-emerald-50/70 border border-emerald-300 rounded-xl p-5 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <span class="text-xs text-slate-400 block font-medium">Total Rincian Item</span>
-                        <div class="text-lg font-bold text-slate-800 mt-0.5 font-mono">
-                            {{ statistics.total_items || itemsMatrix.length }} Item
-                        </div>
+                        <h3 class="text-sm font-bold text-emerald-950 flex items-center gap-2">
+                            <CheckCircle2 class="w-4 h-4 text-emerald-700 shrink-0" />
+                            Ringkasan Keputusan Pemenang Tender
+                        </h3>
+                        <p class="text-xs text-emerald-800 mt-0.5">
+                            Nilai Barang Terpilih (sebelum pajak & ongkir): <strong>{{ formatBaseCurrency(awardedGoodsTotal) }}</strong>
+                        </p>
                     </div>
-                    <Package class="w-7 h-7 text-indigo-500/30" />
+
+                    <div class="flex items-center gap-2.5">
+                        <BaseButton
+                            v-if="hasUnconvertedAwards"
+                            variant="primary"
+                            size="sm"
+                            :disabled="generatingPo || loading || poValidityErrors.length > 0"
+                            @click="handleGeneratePurchaseOrders"
+                            class="bg-emerald-700 hover:bg-emerald-800 text-white"
+                        >
+                            <FileText class="w-4 h-4 mr-1.5" />
+                            Terbitkan Purchase Order (PO)
+                        </BaseButton>
+                        <RouterLink
+                            v-else-if="generatedPurchaseOrders.length === 1"
+                            :to="{ name: 'user.purchasing.orders.detail', params: { id: generatedPurchaseOrders[0].id } }"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                        >
+                            <FileText class="w-4 h-4" />
+                            <span>Buka Dokumen PO ({{ generatedPurchaseOrders[0].po_number }})</span>
+                            <ArrowRight class="w-3.5 h-3.5" />
+                        </RouterLink>
+                        <RouterLink
+                            v-else-if="generatedPurchaseOrders.length > 1"
+                            :to="{ name: 'user.purchasing.orders', query: { rfq_id: rfqId } }"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                        >
+                            <FileText class="w-4 h-4" />
+                            <span>Lihat {{ generatedPurchaseOrders.length }} Dokumen PO</span>
+                            <ArrowRight class="w-3.5 h-3.5" />
+                        </RouterLink>
+                    </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-xs text-slate-400 block font-medium">Vendor Diundang</span>
-                        <div class="text-lg font-bold text-slate-800 mt-0.5 font-mono">
-                            {{ statistics.total_suppliers_invited || 0 }} Rekanan
-                        </div>
-                    </div>
-                    <Users class="w-7 h-7 text-blue-500/30" />
+                <div v-if="hasUnconvertedAwards && poValidityErrors.length" role="alert" class="text-xs text-rose-800 space-y-1">
+                    <p>PO baru belum dapat dibuat. Seluruh quotation terpilih harus memenuhi masa berlaku.</p>
+                    <p v-for="reason in poValidityErrors" :key="reason">{{ reason }}</p>
                 </div>
-
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                    <div>
-                        <span class="text-xs text-slate-400 block font-medium">Penawaran Masuk</span>
-                        <div class="text-lg font-bold text-emerald-700 mt-0.5 font-mono">
-                            {{ statistics.total_quotations_received || suppliers.length }} Penawaran
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div
+                        v-for="win in awardedSummaryList"
+                        :key="`${win.rfq_item_id}-${win.supplier_name}`"
+                        class="bg-white border border-emerald-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3"
+                    >
+                        <div>
+                            <div class="text-sm font-bold text-slate-900">
+                                {{ win.item_name }}
+                                <span class="font-normal text-slate-600">({{ Number(win.awarded_quantity).toLocaleString('id-ID') }} {{ win.unit_name }})</span>
+                            </div>
+                            <div class="text-xs text-slate-700 mt-0.5 flex flex-wrap items-center gap-2">
+                                <span>Vendor Terpilih: <strong class="text-emerald-800">{{ win.supplier_name }}</strong></span>
+                                <span>{{ quotationValidityLabel(quotationFor(win.quotation_id)) }}</span>
+                                <span v-if="win.purchase_order_id" class="text-slate-600">Komitmen PO tetap berlaku.</span>
+                                <RouterLink
+                                    v-if="win.purchase_order_id"
+                                    :to="{ name: 'user.purchasing.orders.detail', params: { id: win.purchase_order_id } }"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono text-[11px] font-bold hover:bg-blue-100"
+                                >
+                                    {{ win.purchase_order_number || `PO #${win.purchase_order_id}` }}
+                                    <ArrowRight class="w-3 h-3" />
+                                </RouterLink>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="text-xs text-slate-600">{{ formatBaseCurrency(win.unit_price) }} / {{ win.unit_name }}</div>
+                            <div class="text-sm font-bold text-slate-900">{{ formatBaseCurrency(win.subtotal) }}</div>
                         </div>
                     </div>
-                    <CheckCircle2 class="w-7 h-7 text-emerald-500/30" />
                 </div>
             </div>
 
             <!-- Empty State if no quotations -->
             <div v-if="suppliers.length === 0" class="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                <Scale class="w-12 h-12 mx-auto text-slate-300 mb-3" />
                 <h3 class="text-base font-bold text-slate-800">Belum Ada Penawaran Masuk</h3>
-                <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                <p class="text-sm text-slate-600 mt-1 max-w-md mx-auto">
                     Vendor yang diundang belum mengirimkan surat penawaran harga. Anda dapat mencatat penawaran secara manual di halaman Detail RFQ.
                 </p>
                 <div class="mt-4">
@@ -431,272 +626,269 @@ const submitAward = async () => {
                 </div>
             </div>
 
-            <!-- Matrix Comparison Table (ERPNext Horizontal Scrollable with Sticky Left Columns) -->
-            <div v-else class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                <div class="p-4 border-b border-slate-200 bg-slate-50/60 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Matriks Komparasi Penawaran Sisi-ke-Sisi</span>
-                        <span class="text-xs text-slate-500">
-                            (Harga dalam IDR, membandingkan rincian item terhadap HPS dan penawaran rekanan)
-                        </span>
-                    </div>
-
-                    <!-- Legend -->
-                    <div class="flex items-center gap-4 text-[11px]">
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-                            <span class="text-slate-600 font-medium">Harga Terendah</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-                            <span class="text-slate-600 font-medium">Terkirim Tercepat</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-                            <span class="text-slate-600 font-medium">Pemenang Ditetapkan</span>
-                        </div>
+            <!-- Clean Side-by-Side Comparison Table -->
+            <div v-else class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Tabel Perbandingan Harga Antar Vendor</h3>
+                        <p class="text-xs text-slate-600 mt-0.5">
+                            Perbandingan dalam {{ comparisonCurrency }}. Harga satuan sebelum pajak/ongkir; ranking total mencakup pajak/ongkir hanya untuk seluruh item dan kuantitas tepat sesuai target RFQ.
+                        </p>
+                        <p v-if="matrixData.total_cost_comparison" class="text-xs text-slate-600 mt-1">
+                            {{ matrixData.total_cost_comparison.eligible_quotations_count }} quotation memenuhi syarat ranking total.
+                            Total minimum: {{ formatBaseCurrency(matrixData.total_cost_comparison.lowest_base_total_amount) }}.
+                            Ranking ini tidak menentukan total kombinasi split award.
+                        </p>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse min-w-[900px]">
-                        <!-- Column Grouping Header -->
+                    <table class="w-full text-left border-collapse min-w-[860px]">
                         <thead>
-                            <tr class="bg-slate-100 border-b border-slate-200 text-slate-700">
-                                <!-- Sticky Left Column Headers -->
-                                <th class="py-3 px-3 text-xs font-semibold w-10 text-center sticky left-0 bg-slate-100 z-20 shadow-xs">
+                            <tr class="bg-slate-100 border-b-2 border-slate-300 text-slate-800">
+                                <th class="py-3.5 px-3 text-xs font-bold w-12 text-center sticky left-0 bg-slate-100 z-20">
                                     No
                                 </th>
-                                <th class="py-3 px-3 text-xs font-semibold w-64 sticky left-10 bg-slate-100 z-20 shadow-xs">
-                                    Deskripsi Barang / Spesifikasi
+                                <th class="py-3.5 px-4 text-xs font-bold w-64 sticky left-12 bg-slate-100 z-20">
+                                    Nama Barang & Kebutuhan
                                 </th>
-                                <th class="py-3 px-3 text-xs font-semibold w-16 text-center sticky left-74 bg-slate-100 z-20 shadow-xs">
-                                    Satuan
+                                <th class="py-3.5 px-3 text-xs font-bold w-28 text-right sticky left-76 bg-slate-100 z-20">
+                                    Jumlah Dicari
                                 </th>
-                                <th class="py-3 px-3 text-xs font-semibold w-24 text-right sticky left-90 bg-slate-100 z-20 shadow-xs">
-                                    Target Qty
-                                </th>
-                                <th class="py-3 px-3 text-xs font-semibold w-32 text-right sticky left-114 bg-slate-100 z-20 shadow-r border-r-2 border-slate-300">
-                                    HPS Satuan
+                                <th class="py-3.5 px-4 text-xs font-bold w-36 text-right sticky left-104 bg-slate-100 z-20 border-r-2 border-slate-300">
+                                    Harga Perkiraan (HPS)
                                 </th>
 
                                 <!-- Dynamic Columns for Each Supplier Quotation -->
                                 <th 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-3 px-4 text-xs font-semibold min-w-[240px] max-w-[280px] border-r border-slate-200"
+                                    class="py-3.5 px-4 text-xs min-w-[260px] max-w-[320px] border-r border-slate-200 align-top"
                                 >
                                     <div class="flex items-start justify-between gap-2">
                                         <div>
-                                            <div class="font-bold text-slate-900 line-clamp-1">{{ sup.supplier_name }}</div>
-                                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">
-                                                {{ sup.vendor_quotation_reference || sup.quotation_number }}
+                                            <div class="text-sm font-bold text-slate-900">{{ sup.supplier_name }}</div>
+                                            <div class="text-xs text-slate-600 mt-0.5">
+                                                No. Penawaran: {{ sup.vendor_quotation_reference || sup.quotation_number || '-' }}
                                             </div>
+                                            <div class="text-xs mt-1" :class="eligibleQuotation(sup.quotation_id) ? 'text-slate-700' : 'text-rose-800'">{{ quotationValidityLabel(sup) }}</div>
+                                            <p class="text-xs mt-1">{{ quotationReviewLabel(sup) }}</p>
+                                            <p v-if="quotationReviewReason(sup)" class="text-xs font-normal text-amber-800 mt-1">{{ quotationReviewReason(sup) }}</p>
+                                            <p v-if="quotationValidityReason(sup)" class="text-xs font-normal text-rose-800 mt-1">{{ quotationValidityReason(sup) }}</p>
                                         </div>
                                         <span 
                                             v-if="sup.evaluation_status === 'awarded'" 
-                                            class="shrink-0 text-[10px] uppercase font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300"
+                                            class="shrink-0 text-xs font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300"
                                         >
-                                            Menang
+                                            Terpilih Semua
                                         </span>
                                         <span 
                                             v-else-if="sup.evaluation_status === 'partially_awarded'" 
-                                            class="shrink-0 text-[10px] uppercase font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-300"
+                                            class="shrink-0 text-xs font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300"
                                         >
-                                            Parsial
+                                            Terpilih Sebagian
                                         </span>
                                     </div>
-                                    <div class="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                                        <span>TOP: {{ sup.payment_terms || '-' }}</span>
-                                        <span v-if="sup.lead_time_days !== null">LT: {{ sup.lead_time_days }} hr</span>
+                                    <p class="text-xs font-normal text-slate-600 mt-2">
+                                        Mata uang asli: {{ sup.currency }} · Kurs quotation: 1 {{ sup.currency }} = {{ sup.comparison_exchange_rate ?? '-' }} {{ comparisonCurrency }}
+                                    </p>
+                                    <p v-if="sup.comparison_error" class="text-xs font-normal text-amber-800 mt-1">
+                                        Kurs tidak valid; nilai konversi tidak tersedia.
+                                    </p>
+                                    <div class="text-xs text-slate-700 mt-2 pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 font-normal">
+                                        <span>Pembayaran: <strong class="text-slate-900">{{ sup.payment_terms || '-' }}</strong></span>
+                                        <span v-if="sup.lead_time_days !== null">Pengiriman: <strong class="text-slate-900">{{ sup.lead_time_days }} hari</strong></span>
                                     </div>
                                 </th>
                             </tr>
                         </thead>
 
                         <!-- Item Matrix Rows -->
-                        <tbody class="divide-y divide-slate-100 text-xs">
+                        <tbody class="divide-y divide-slate-200 text-sm">
                             <tr 
                                 v-for="(item, idx) in itemsMatrix" 
                                 :key="item.rfq_item_id"
-                                class="hover:bg-slate-50/70 transition-colors"
+                                class="hover:bg-slate-50/60 transition-colors"
                             >
                                 <!-- Sticky Left Cells -->
-                                <td class="py-3 px-3 text-center text-slate-500 font-medium sticky left-0 bg-white z-10 shadow-xs">
+                                <td class="py-4 px-3 text-center text-slate-700 font-semibold sticky left-0 bg-white z-10 align-top">
                                     {{ idx + 1 }}
                                 </td>
-                                <td class="py-3 px-3 sticky left-10 bg-white z-10 shadow-xs">
-                                    <div class="font-semibold text-slate-900">{{ item.item_name }}</div>
-                                    <div class="text-[11px] text-slate-500 font-mono">{{ item.item_code || '-' }}</div>
-                                    <div v-if="item.item_specifications" class="text-[11px] text-slate-400 italic line-clamp-1 mt-0.5">
-                                        {{ item.item_specifications }}
+                                <td class="py-4 px-4 sticky left-12 bg-white z-10 align-top">
+                                    <div class="font-bold text-slate-900 text-sm">{{ item.item_name }}</div>
+                                    <div v-if="item.item_code" class="text-xs text-slate-600 font-mono mt-0.5">{{ item.item_code }}</div>
+                                    <div v-if="item.item_specifications" class="text-xs text-slate-600 mt-1">
+                                        Spesifikasi: {{ item.item_specifications }}
                                     </div>
                                 </td>
-                                <td class="py-3 px-3 text-center text-slate-600 sticky left-74 bg-white z-10 shadow-xs">
-                                    {{ item.unit_name || 'Unit' }}
+                                <td class="py-4 px-3 text-right font-bold text-slate-900 sticky left-76 bg-white z-10 align-top">
+                                    {{ Number(item.target_quantity).toLocaleString('id-ID') }} {{ item.unit_name || 'Unit' }}
                                 </td>
-                                <td class="py-3 px-3 text-right font-mono font-semibold text-slate-800 sticky left-90 bg-white z-10 shadow-xs">
-                                    {{ Number(item.target_quantity).toLocaleString('id-ID') }}
-                                </td>
-                                <td class="py-3 px-3 text-right font-mono text-slate-700 sticky left-114 bg-white z-10 shadow-r border-r-2 border-slate-300">
-                                    {{ item.target_price ? formatCurrency(item.target_price) : '-' }}
+                                <td class="py-4 px-4 text-right text-slate-800 sticky left-104 bg-white z-10 border-r-2 border-slate-300 align-top">
+                                    <template v-if="item.target_price">
+                                        <div class="font-semibold">{{ formatCurrency(item.target_price, matrixData.target_price_currency || comparisonCurrency) }}</div>
+                                        <div class="text-xs text-slate-600 mt-0.5">per {{ item.unit_name || 'Unit' }}</div>
+                                    </template>
+                                    <span v-else class="text-xs text-slate-500">Tidak ditentukan</span>
                                 </td>
 
                                 <!-- Dynamic Offer Cells per Supplier -->
                                 <td 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-3 px-4 border-r border-slate-200 align-top"
-                                    :class="{
-                                        'bg-emerald-50/30': item.vendor_offers?.[sup.quotation_id]?.is_awarded
-                                    }"
+                                    class="py-4 px-4 border-r border-slate-200 align-top"
+                                    :class="item.vendor_offers?.[sup.quotation_id]?.is_awarded ? 'bg-emerald-50/60' : 'bg-white'"
                                 >
                                     <template v-if="item.vendor_offers?.[sup.quotation_id]?.quoted">
-                                        <div class="space-y-1.5">
-                                            <!-- Price & Badges Row -->
-                                            <div class="flex items-center justify-between gap-1">
-                                                <span class="font-bold font-mono text-slate-900 text-sm">
-                                                    {{ formatCurrency(item.vendor_offers[sup.quotation_id].unit_price) }}
-                                                </span>
-
-                                                <!-- Lowest Price Badge -->
-                                                <span 
-                                                    v-if="item.vendor_offers[sup.quotation_id].is_lowest_price"
-                                                    class="bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded text-[10px] inline-flex items-center gap-1 shrink-0"
-                                                    title="Harga penawaran terendah untuk item ini"
-                                                >
-                                                    <Zap class="w-3 h-3 fill-emerald-600" />
-                                                    Terendah
-                                                </span>
-                                            </div>
-
-                                            <!-- Deviation vs HPS -->
-                                            <div 
-                                                v-if="item.vendor_offers[sup.quotation_id].delta_percentage !== null"
-                                                class="text-[11px] font-medium flex items-center gap-1"
-                                                :class="item.vendor_offers[sup.quotation_id].is_below_target ? 'text-emerald-700' : 'text-rose-600'"
-                                            >
-                                                <TrendingDown v-if="item.vendor_offers[sup.quotation_id].is_below_target" class="w-3 h-3 shrink-0" />
-                                                <TrendingUp v-else class="w-3 h-3 shrink-0" />
-                                                <span>
-                                                    {{ item.vendor_offers[sup.quotation_id].is_below_target ? '▼' : '▲' }}
-                                                    {{ Math.abs(item.vendor_offers[sup.quotation_id].delta_percentage) }}% vs HPS
-                                                </span>
-                                            </div>
-
-                                            <!-- Delivery Speed & Brand -->
-                                            <div class="text-[11px] text-slate-500 flex items-center justify-between pt-0.5">
-                                                <div class="flex items-center gap-1">
-                                                    <Clock class="w-3 h-3 text-slate-400" />
-                                                    <span>{{ item.vendor_offers[sup.quotation_id].lead_time_days !== null ? `${item.vendor_offers[sup.quotation_id].lead_time_days} hari` : '-' }}</span>
+                                        <div class="space-y-2">
+                                            <!-- 1. Unit Price & Lowest Label -->
+                                            <div class="flex items-baseline justify-between gap-2">
+                                                <div>
+                                                    <span class="font-bold text-slate-900 text-base">
+                                                        {{ formatBaseCurrency(item.vendor_offers[sup.quotation_id].base_unit_price) }}
+                                                    </span>
+                                                    <span class="text-xs text-slate-600"> / {{ item.unit_name || 'Unit' }} (sebelum pajak/ongkir)</span>
                                                 </div>
 
                                                 <span 
-                                                    v-if="item.vendor_offers[sup.quotation_id].is_fastest_delivery"
-                                                    class="bg-blue-100 text-blue-800 border border-blue-300 font-bold px-1.5 py-0.5 rounded text-[10px] inline-flex items-center gap-0.5"
-                                                    title="Waktu pengiriman tercepat"
+                                                    v-if="isLowestUnitPrice(item.vendor_offers[sup.quotation_id])"
+                                                    class="bg-slate-200 text-slate-900 font-bold px-2 py-0.5 rounded text-xs shrink-0"
                                                 >
-                                                    Tercepat
+                                                    Satuan terendah
                                                 </span>
                                             </div>
 
-                                            <!-- Brand & Spec notes if any -->
-                                            <div v-if="item.vendor_offers[sup.quotation_id].brand" class="text-[11px] text-slate-600 font-medium truncate">
-                                                Merk: {{ item.vendor_offers[sup.quotation_id].brand }}
+                                            <p class="text-xs text-slate-600">
+                                                Harga asli: {{ formatCurrency(item.vendor_offers[sup.quotation_id].unit_price, sup.currency) }} / {{ item.unit_name || 'Unit' }}
+                                            </p>
+
+                                            <!-- 2. Item Subtotal (Quantity x Unit Price) so user doesn't have to calculate mentally -->
+                                            <div class="text-xs text-slate-800 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200 flex items-center justify-between">
+                                                <span>Total ({{ Number(item.vendor_offers[sup.quotation_id].offered_quantity).toLocaleString('id-ID') }} {{ item.unit_name }}):</span>
+                                                <strong class="font-bold text-slate-900">
+                                                    {{ formatBaseCurrency(item.vendor_offers[sup.quotation_id].base_subtotal) }}
+                                                </strong>
                                             </div>
 
-                                            <!-- Awarded Tag if awarded -->
+                                            <!-- 3. Plain-language comparison vs HPS -->
+                                            <div 
+                                                v-if="formatPriceDiffText(item, item.vendor_offers[sup.quotation_id])"
+                                                class="text-xs font-medium"
+                                                :class="{
+                                                    'text-emerald-800': formatPriceDiffText(item, item.vendor_offers[sup.quotation_id]).type === 'saving',
+                                                    'text-rose-700': formatPriceDiffText(item, item.vendor_offers[sup.quotation_id]).type === 'higher',
+                                                    'text-slate-600': formatPriceDiffText(item, item.vendor_offers[sup.quotation_id]).type === 'neutral'
+                                                }"
+                                            >
+                                                {{ formatPriceDiffText(item, item.vendor_offers[sup.quotation_id]).text }}
+                                            </div>
+
+                                            <!-- 4. Lead time & Brand -->
+                                            <p class="text-xs text-slate-600">Penawaran: {{ item.vendor_offers[sup.quotation_id].item_description || 'Belum tersedia' }}</p>
+                                            <p class="text-xs text-slate-600">Catatan supplier: {{ item.vendor_offers[sup.quotation_id].notes || 'Belum tersedia' }}</p>
+                                            <div class="text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                                                <span v-if="item.vendor_offers[sup.quotation_id].lead_time_days !== null">
+                                                    Waktu kirim: <strong class="text-slate-800">{{ item.vendor_offers[sup.quotation_id].lead_time_days }} hari</strong>
+                                                </span>
+                                                <span v-if="item.vendor_offers[sup.quotation_id].brand">
+                                                    Merk: <strong class="text-slate-800">{{ item.vendor_offers[sup.quotation_id].brand }}</strong>
+                                                </span>
+                                            </div>
+
+                                            <!-- 5. Clear Selected / Winner Indicator (No Trophy Slop) -->
                                             <div 
                                                 v-if="item.vendor_offers[sup.quotation_id].is_awarded"
-                                                class="mt-1 p-1 bg-amber-50 border border-amber-200 rounded text-center text-[11px] font-bold text-amber-800 flex items-center justify-center gap-1"
+                                                class="mt-2 px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-between"
                                             >
-                                                <Trophy class="w-3 h-3 text-amber-600" />
-                                                Menang: {{ item.vendor_offers[sup.quotation_id].awarded_quantity }} {{ item.unit_name }}
+                                                <span class="flex items-center gap-1.5">
+                                                    <Check class="w-4 h-4 stroke-[2.5]" />
+                                                    DIPILIH SEBAGAI PEMENANG
+                                                </span>
+                                                <span>{{ Number(item.vendor_offers[sup.quotation_id].awarded_quantity).toLocaleString('id-ID') }} {{ item.unit_name }}</span>
                                             </div>
                                         </div>
                                     </template>
 
                                     <!-- Not quoted -->
                                     <template v-else>
-                                        <div class="py-4 text-center text-slate-300 text-xs italic">
-                                            Tidak mengajukan
+                                        <div class="py-6 text-center text-slate-500 text-xs">
+                                            Vendor tidak mengajukan harga untuk barang ini
                                         </div>
                                     </template>
                                 </td>
                             </tr>
                         </tbody>
 
-                        <!-- Sticky Commercial Summary Footer -->
+                        <!-- Commercial Summary Footer -->
                         <tfoot class="bg-slate-50 border-t-2 border-slate-300 text-xs">
-                            <!-- Row 1: Subtotal Barang -->
                             <tr class="border-b border-slate-200">
-                                <td colspan="5" class="py-2.5 px-4 font-semibold text-slate-700 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
-                                    Subtotal Penawaran Barang
+                                <td colspan="4" class="py-3 px-4 font-semibold text-slate-800 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
+                                    Total Harga Barang (Sebelum Pajak & Ongkir)
                                 </td>
                                 <td 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-2.5 px-4 font-mono font-medium text-slate-800 border-r border-slate-200"
+                                    class="py-3 px-4 font-semibold text-slate-900 border-r border-slate-200 text-sm"
                                 >
-                                    {{ formatCurrency(sup.subtotal) }}
+                                    {{ formatBaseCurrency(sup.base_subtotal) }}
                                 </td>
                             </tr>
 
-                            <!-- Row 2: Pajak / PPN -->
                             <tr class="border-b border-slate-200">
-                                <td colspan="5" class="py-2.5 px-4 font-semibold text-slate-700 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
+                                <td colspan="4" class="py-3 px-4 font-semibold text-slate-800 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
                                     Pajak Pertambahan Nilai (PPN)
                                 </td>
                                 <td 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-2.5 px-4 font-mono text-slate-600 border-r border-slate-200"
+                                    class="py-3 px-4 text-slate-800 border-r border-slate-200"
                                 >
-                                    {{ formatCurrency(sup.tax_amount) }}
-                                    <span v-if="sup.tax_rate > 0" class="text-[10px] text-slate-400">({{ sup.tax_rate }}%)</span>
+                                    {{ formatBaseCurrency(sup.base_tax_amount) }}
+                                    <span v-if="sup.tax_rate > 0" class="text-xs text-slate-600">({{ sup.tax_rate }}%)</span>
                                 </td>
                             </tr>
 
-                            <!-- Row 3: Biaya Pengiriman -->
                             <tr class="border-b border-slate-200">
-                                <td colspan="5" class="py-2.5 px-4 font-semibold text-slate-700 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
-                                    Biaya Pengiriman (Ongkir)
+                                <td colspan="4" class="py-3 px-4 font-semibold text-slate-800 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
+                                    Biaya Pengiriman (Ongkos Kirim)
                                 </td>
                                 <td 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-2.5 px-4 font-mono text-slate-600 border-r border-slate-200"
+                                    class="py-3 px-4 text-slate-800 border-r border-slate-200"
                                 >
-                                    {{ formatCurrency(sup.shipping_cost) }}
+                                    {{ formatBaseCurrency(sup.base_shipping_cost) }}
                                 </td>
                             </tr>
 
-                            <!-- Row 4: Grand Total Komersial (Landed Cost) -->
-                            <tr class="border-b-2 border-slate-300 bg-blue-50/40">
-                                <td colspan="5" class="py-3 px-4 font-bold text-slate-900 sticky left-0 bg-blue-50/90 z-10 border-r-2 border-slate-300 text-sm">
-                                    Total Komersial (Landed Cost)
+                            <tr class="border-b border-slate-300 bg-slate-100">
+                                <td colspan="4" class="py-3.5 px-4 font-bold text-slate-900 sticky left-0 bg-slate-100 z-10 border-r-2 border-slate-300 text-sm">
+                                    TOTAL AKHIR PENAWARAN (Termasuk Pajak & Ongkir)
                                 </td>
                                 <td 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-3 px-4 font-mono font-bold text-sm text-blue-700 border-r border-slate-200"
+                                    class="py-3.5 px-4 font-bold text-base text-slate-900 border-r border-slate-200"
                                 >
-                                    {{ formatCurrency(sup.total_amount) }}
+                                    {{ formatBaseCurrency(sup.base_total_amount) }}
+                                    <div class="text-xs font-normal text-slate-600 mt-1">Total asli: {{ formatCurrency(sup.total_amount, sup.currency) }}</div>
+                                    <div v-if="isLowestTotalCost(sup)" class="text-xs text-emerald-800 mt-1">Total terendah (cakupan setara)</div>
+                                    <div v-if="totalCostExclusionText(sup)" class="text-xs font-normal text-amber-800 mt-1">Tidak diranking: {{ totalCostExclusionText(sup) }}</div>
                                 </td>
                             </tr>
 
-                            <!-- Row 5: Term of Payment & Validity -->
                             <tr>
-                                <td colspan="5" class="py-2.5 px-4 text-slate-500 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
-                                    Syarat Pembayaran & Masa Berlaku
+                                <td colspan="4" class="py-3 px-4 font-semibold text-slate-700 sticky left-0 bg-slate-50 z-10 border-r-2 border-slate-300">
+                                    Syarat Pembayaran & Batas Berlaku Penawaran
                                 </td>
                                 <td 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id"
-                                    class="py-2.5 px-4 text-[11px] text-slate-600 border-r border-slate-200"
+                                    class="py-3 px-4 text-xs text-slate-700 border-r border-slate-200 space-y-0.5"
                                 >
-                                    <div><span class="text-slate-400">TOP:</span> {{ sup.payment_terms || '-' }}</div>
-                                    <div class="text-[10px] text-slate-500 mt-0.5"><span class="text-slate-400">Berlaku s/d:</span> {{ formatDate(sup.valid_until) || '-' }}</div>
+                                    <div>Pembayaran: <strong class="text-slate-900">{{ sup.payment_terms || '-' }}</strong></div>
+                                    <div>Berlaku sampai: <strong class="text-slate-900">{{ sup.valid_until || '-' }}</strong></div>
+                                    <div>{{ quotationValidityLabel(sup) }}<span v-if="sup.valid_until"> · Akhir hari WIB (Asia/Jakarta)</span></div>
                                 </td>
                             </tr>
                         </tfoot>
@@ -705,120 +897,113 @@ const submitAward = async () => {
             </div>
         </template>
 
-        <!-- Awarding Modal Dialog (Solid overlay, STRICTLY NO backdrop-blur) -->
+        <!-- Awarding Modal Dialog -->
         <div 
             v-if="isAwardModalOpen"
             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto"
             @click.self="closeAwardModal"
         >
-            <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col my-auto overflow-hidden">
                 <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                     <div>
-                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <Trophy class="w-5 h-5 text-amber-500" />
-                            Penetapan Pemenang Tender (Awarding)
+                        <h3 class="text-base font-bold text-slate-900">
+                            Pilih Vendor Pemenang Tender
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">
-                            Pilih skema Pemenang Tunggal (Full Awarding) atau Pembagian Item (Split Awarding).
+                        <p class="text-xs text-slate-600 mt-0.5">
+                            Tentukan vendor yang dipilih untuk memasok barang pada pengadaan ini.
                         </p>
                     </div>
                     <button
                         type="button"
                         @click="closeAwardModal"
-                        class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                        class="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
                     >
                         <X class="w-5 h-5" />
                     </button>
                 </div>
 
                 <!-- Modal Body -->
-                <div class="p-6 overflow-y-auto space-y-6 flex-1">
-                    <!-- Mode Selector Tab/Pills -->
-                    <div class="flex items-center gap-3 p-1.5 bg-slate-100 rounded-xl max-w-md">
+                <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                    <!-- Mode Selector Tab/Pills in Plain Indonesian -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
                             type="button"
                             @click="awardMode = 'split'"
-                            class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5"
-                            :class="awardMode === 'split' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                            class="p-3.5 text-left rounded-xl border-2 transition-all cursor-pointer"
+                            :class="awardMode === 'split' ? 'border-blue-600 bg-blue-50/50 text-slate-900' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'"
                         >
-                            <Split class="w-4 h-4" />
-                            Split Awarding (Pembagian Item)
+                            <div class="text-xs font-bold">Pilih Vendor Per Barang (Bisa Beda Vendor)</div>
+                            <div class="text-xs text-slate-600 mt-0.5">Cocok jika Barang 1 dan Barang 2 ingin dibeli dari vendor yang berbeda.</div>
                         </button>
 
                         <button
                             type="button"
                             @click="awardMode = 'full'"
-                            class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5"
-                            :class="awardMode === 'full' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                            class="p-3.5 text-left rounded-xl border-2 transition-all cursor-pointer"
+                            :class="awardMode === 'full' ? 'border-blue-600 bg-blue-50/50 text-slate-900' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'"
                         >
-                            <Trophy class="w-4 h-4" />
-                            Full Awarding (Pemenang Tunggal)
+                            <div class="text-xs font-bold">Pilih Satu Vendor untuk Semua Barang</div>
+                            <div class="text-xs text-slate-600 mt-0.5">Cocok jika seluruh barang dalam tender ini diborongkan ke 1 vendor saja.</div>
                         </button>
                     </div>
 
                     <!-- Mode A: Full Awarding -->
                     <div v-if="awardMode === 'full'" class="space-y-4">
-                        <div class="p-4 bg-blue-50/50 border border-blue-200 rounded-xl space-y-3">
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                                Pilih Vendor Pemenang Seluruh Item Tender
+                        <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                            <label class="block text-xs font-bold text-slate-800">
+                                Pilih Nama Vendor Pemenang
                             </label>
 
                             <select
                                 v-model="selectedFullSupplierId"
-                                class="w-full text-xs rounded-lg border-slate-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 bg-white"
+                                @change="onFullVendorChange"
+                                class="w-full text-sm rounded-lg border-slate-300 py-2 px-3 focus:border-blue-600 focus:ring-blue-600 bg-white"
                             >
+                                <option value="">-- Pilih quotation yang tersedia --</option>
                                 <option 
                                     v-for="sup in suppliers" 
                                     :key="sup.quotation_id" 
                                     :value="sup.quotation_id"
+                                    :disabled="!eligibleQuotation(sup.quotation_id)"
                                 >
-                                    {{ sup.supplier_name }} — Total: {{ formatCurrency(sup.total_amount) }} (TOP: {{ sup.payment_terms || '-' }})
+                                    {{ sup.supplier_name }} — {{ quotationValidityLabel(sup) }} — Total Akhir: {{ formatBaseCurrency(sup.base_total_amount) }} (Pembayaran: {{ sup.payment_terms || '-' }})
                                 </option>
                             </select>
 
-                            <div v-if="fullAwardSummary" class="mt-3 pt-3 border-t border-blue-200/60 grid grid-cols-3 gap-3 text-xs">
+                            <p class="text-xs text-slate-600">Nilai di bawah adalah seluruh quotation. Award baru mengikuti sisa kebutuhan setelah PO terkunci; pajak dan ongkir PO hasil award dihitung pada pesanan.</p>
+                            <p v-if="fullAwardSummary && !eligibleQuotation(fullAwardSummary.quotation_id)" role="alert" class="text-xs text-rose-800">{{ quotationValidityReason(fullAwardSummary) || 'Quotation tidak tersedia untuk award baru.' }}</p>
+                            <p v-if="fullAwardSummary && totalCostExclusionText(fullAwardSummary)" class="text-xs text-amber-800">Tidak diranking: {{ totalCostExclusionText(fullAwardSummary) }}</p>
+
+                            <div v-if="fullAwardSummary" class="mt-3 pt-3 border-t border-slate-200 grid grid-cols-3 gap-3 text-xs">
                                 <div>
-                                    <span class="text-slate-500 block">Subtotal Penawaran:</span>
-                                    <span class="font-bold text-slate-800 font-mono">{{ formatCurrency(fullAwardSummary.subtotal) }}</span>
+                                    <span class="text-slate-600 block">Total Harga Barang:</span>
+                                    <span class="font-bold text-slate-900 text-sm">{{ formatBaseCurrency(fullAwardSummary.base_subtotal) }}</span>
                                 </div>
                                 <div>
-                                    <span class="text-slate-500 block">Biaya Ongkir & Pajak:</span>
-                                    <span class="font-bold text-slate-800 font-mono">{{ formatCurrency(fullAwardSummary.tax_amount + fullAwardSummary.shipping_cost) }}</span>
+                                    <span class="text-slate-600 block">Pajak & Ongkos Kirim:</span>
+                                    <span class="font-bold text-slate-900 text-sm">{{ formatBaseCurrency(sumComparisonAmounts([fullAwardSummary.base_tax_amount, fullAwardSummary.base_shipping_cost])) }}</span>
                                 </div>
                                 <div>
-                                    <span class="text-slate-500 block">Grand Total:</span>
-                                    <span class="font-bold text-blue-700 font-mono">{{ formatCurrency(fullAwardSummary.total_amount) }}</span>
+                                    <span class="text-slate-600 block">Total Quotation (pajak & ongkir):</span>
+                                    <span class="font-bold text-blue-700 text-sm">{{ formatBaseCurrency(fullAwardSummary.base_total_amount) }}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">
-                                Catatan Penetapan Pemenang
-                            </label>
-                            <textarea
-                                v-model="fullAwardNotes"
-                                rows="2"
-                                placeholder="Contoh: Ditetapkan berdasarkan pertimbangan harga terendah dan ketersediaan stok tercepat."
-                                class="w-full text-xs rounded-lg border-slate-300 shadow-xs focus:border-blue-500 focus:ring-blue-500"
-                            ></textarea>
-                        </div>
+                        <p class="text-xs text-slate-600">Evaluasi berikut berlaku untuk seluruh item supplier yang dipilih. Gunakan split award untuk evaluasi per item.</p>
+                        <AwardEvaluationFields v-model="fullEvaluation" />
                     </div>
 
                     <!-- Mode B: Split Awarding -->
                     <div v-if="awardMode === 'split'" class="space-y-4">
-                        <div class="text-xs text-slate-600">
-                            Pilih vendor pemenang dan alokasi kuantitas untuk masing-masing item pengadaan.
-                        </div>
-
                         <!-- Validation Error Alert -->
                         <div v-if="splitValidationErrors.length > 0" class="p-3 bg-rose-50 border border-rose-200 rounded-lg space-y-1">
                             <div class="text-xs font-bold text-rose-800 flex items-center gap-1.5">
                                 <AlertTriangle class="w-4 h-4 text-rose-600" />
-                                Peringatan Validasi Alokasi Kuantitas:
+                                Periksa Kembali Pilihan dan Jumlah Barang:
                             </div>
-                            <ul class="text-[11px] text-rose-700 list-disc list-inside space-y-0.5">
+                            <ul class="text-xs text-rose-700 list-disc list-inside space-y-0.5">
                                 <li v-for="(err, idx) in splitValidationErrors" :key="idx">{{ err }}</li>
                             </ul>
                         </div>
@@ -826,80 +1011,93 @@ const submitAward = async () => {
                         <!-- Items Split Allocation Table -->
                         <div class="border border-slate-200 rounded-xl overflow-hidden">
                             <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-slate-100 text-slate-700">
+                                <thead class="bg-slate-100 text-slate-800 border-b border-slate-200">
                                     <tr>
-                                        <th class="py-2.5 px-3 font-semibold">Deskripsi Item</th>
-                                        <th class="py-2.5 px-3 font-semibold text-center w-24">Target Qty</th>
-                                        <th class="py-2.5 px-3 font-semibold w-56">Vendor Pemenang</th>
-                                        <th class="py-2.5 px-3 font-semibold text-right w-32">Kuantitas Menang</th>
-                                        <th class="py-2.5 px-3 font-semibold text-right w-32">Harga Satuan</th>
-                                        <th class="py-2.5 px-3 font-semibold text-right w-36">Subtotal</th>
+                                        <th class="py-3 px-3 font-bold">Nama Barang</th>
+                                        <th class="py-3 px-3 font-bold text-center w-28">Kebutuhan</th>
+                                        <th class="py-3 px-3 font-bold w-64">Pilih Vendor Pemenang</th>
+                                        <th class="py-3 px-3 font-bold text-right w-32">Jumlah Diambil</th>
+                                        <th class="py-3 px-3 font-bold text-right w-32">Harga Satuan</th>
+                                        <th class="py-3 px-3 font-bold text-right w-36">Total Harga</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100">
+                                <tbody class="divide-y divide-slate-200">
                                     <tr v-for="item in itemsMatrix" :key="item.rfq_item_id" class="hover:bg-slate-50">
-                                        <td class="py-2.5 px-3">
-                                            <div class="font-semibold text-slate-900">{{ item.item_name }}</div>
-                                            <div class="text-[11px] text-slate-400 font-mono">{{ item.item_code || '-' }}</div>
+                                        <td class="py-3 px-3">
+                                            <div class="font-bold text-slate-900">{{ item.item_name }}</div>
+                                            <div class="text-xs text-slate-600 font-mono">{{ item.item_code || '-' }}</div>
                                         </td>
-                                        <td class="py-2.5 px-3 text-center font-mono font-medium text-slate-700">
-                                            {{ item.target_quantity }} {{ item.unit_name }}
+                                        <td class="py-3 px-3 text-center font-semibold text-slate-800">
+                                            {{ Number(item.target_quantity).toLocaleString('id-ID') }} {{ item.unit_name }}
+                                            <div class="text-xs font-normal text-slate-600">Sisa setelah PO: {{ remainingAwardQuantity(item) }}</div>
                                         </td>
-                                        <td class="py-2.5 px-3">
+                                        <td class="py-3 px-3">
                                             <select
                                                 v-if="splitAwards[item.rfq_item_id]"
                                                 v-model="splitAwards[item.rfq_item_id].quotation_id"
+                                                :disabled="remainingAwardQuantity(item) <= 0"
                                                 @change="onSplitVendorChange(item.rfq_item_id)"
-                                                class="w-full text-xs rounded border-slate-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                                class="w-full text-xs rounded-lg border-slate-300 py-1.5 px-2.5 focus:ring-blue-600 focus:border-blue-600 bg-white font-medium text-slate-900"
                                             >
-                                                <option value="">-- Tidak Dimenangkan --</option>
+                                                <option value="">{{ remainingAwardQuantity(item) <= 0 ? 'Sudah terikat PO' : '-- Belum Dipilih --' }}</option>
                                                 <template v-for="sup in suppliers" :key="sup.quotation_id">
                                                     <option 
-                                                        v-if="item.vendor_offers?.[sup.quotation_id]?.quoted" 
+                                                        v-if="item.vendor_offers?.[sup.quotation_id]?.quoted && !item.vendor_offers[sup.quotation_id].purchase_order_id"
                                                         :value="sup.quotation_id"
+                                                        :disabled="!eligibleQuotation(sup.quotation_id)"
                                                     >
-                                                        {{ sup.supplier_name }} ({{ formatCurrency(item.vendor_offers[sup.quotation_id].unit_price) }})
+                                                        {{ sup.supplier_name }} — {{ quotationValidityLabel(sup) }} ({{ formatBaseCurrency(item.vendor_offers[sup.quotation_id].base_unit_price) }} / {{ item.unit_name }})
                                                     </option>
                                                 </template>
                                             </select>
                                         </td>
-                                        <td class="py-2.5 px-3 text-right">
+                                        <td class="py-3 px-3 text-right">
                                             <input 
                                                 v-if="splitAwards[item.rfq_item_id]?.quotation_id"
                                                 type="number"
                                                 v-model.number="splitAwards[item.rfq_item_id].awarded_quantity"
                                                 min="0.0001"
-                                                :max="item.target_quantity"
+                                                :max="Math.min(remainingAwardQuantity(item), splitAwards[item.rfq_item_id].max_offered)"
                                                 step="any"
-                                                class="w-full text-right text-xs rounded border-slate-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                                                class="w-full text-right text-xs rounded-lg border-slate-300 py-1.5 px-2.5 focus:ring-blue-600 focus:border-blue-600 font-semibold text-slate-900"
                                             />
-                                            <span v-else class="text-slate-400">-</span>
+                                            <span v-else class="text-slate-500">-</span>
                                         </td>
-                                        <td class="py-2.5 px-3 text-right font-mono text-slate-700">
-                                            {{ splitAwards[item.rfq_item_id]?.quotation_id ? formatCurrency(splitAwards[item.rfq_item_id].unit_price) : '-' }}
+                                        <td class="py-3 px-3 text-right font-medium text-slate-800">
+                                            {{ splitAwards[item.rfq_item_id]?.quotation_id ? formatBaseCurrency(splitAwards[item.rfq_item_id].unit_price) : '-' }}
                                         </td>
-                                        <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
-                                            {{ splitAwards[item.rfq_item_id]?.quotation_id ? formatCurrency((Number(splitAwards[item.rfq_item_id].awarded_quantity) || 0) * (Number(splitAwards[item.rfq_item_id].unit_price) || 0)) : '-' }}
+                                        <td class="py-3 px-3 text-right font-bold text-slate-900">
+                                            {{ splitAwards[item.rfq_item_id]?.quotation_id ? formatBaseCurrency(awardSubtotal(splitAwards[item.rfq_item_id].awarded_quantity, splitAwards[item.rfq_item_id].unit_price)) : '-' }}
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
+                        <template v-for="item in itemsMatrix" :key="`evaluation-${item.rfq_item_id}`">
+                            <div v-if="splitAwards[item.rfq_item_id]?.quotation_id && Number(splitAwards[item.rfq_item_id].awarded_quantity) > 0" class="rounded-lg border border-slate-200 p-3 space-y-3">
+                                <p class="text-sm font-semibold">Evaluasi {{ item.item_name }} — {{ quotationFor(splitAwards[item.rfq_item_id].quotation_id)?.supplier_name }}</p>
+                                <AwardEvaluationFields v-model="splitAwards[item.rfq_item_id].evaluation" />
+                            </div>
+                        </template>
+
+                        <p class="text-xs text-slate-600">Award yang sudah memiliki PO tetap terkunci. Pilihan baru dibatasi sisa kebutuhan; batalkan PO melalui proses yang sah untuk menggantinya. Nilai '-' berarti konversi belum tersedia, bukan nol.</p>
+                        <p class="text-xs text-slate-600">Quotation kedaluwarsa tidak tersedia untuk award baru. Masa berlaku kosong berarti belum ditentukan dan tetap dapat dipilih. Harga termurah tidak menjamin quotation masih berlaku.</p>
+
                         <!-- Split Summary -->
-                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
-                            <span class="text-slate-600 font-medium">
-                                Total Item Dimenangkan: <strong class="text-slate-900 font-mono">{{ splitAwardCount }}</strong> dari {{ itemsMatrix.length }} Item
+                        <div class="bg-slate-100 px-4 py-3 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
+                            <span class="text-slate-800 font-medium">
+                                Barang yang sudah dipilih vendornya: <strong class="text-slate-900">{{ splitAwardCount }} dari {{ itemsMatrix.length }} Barang</strong>
                             </span>
-                            <span class="text-slate-600 font-medium">
-                                Total Nilai Awarded: <strong class="text-blue-700 font-mono text-sm">{{ formatCurrency(splitAwardTotalCost) }}</strong>
+                            <span class="text-slate-800 font-medium">
+                                Nilai Barang Pilihan Baru (sebelum pajak & ongkir): <strong class="text-slate-900 text-sm">{{ formatBaseCurrency(splitAwardTotalCost) }}</strong>
                             </span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3 bg-slate-50/70">
+                <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3 bg-slate-50">
                     <BaseButton
                         variant="outline"
                         size="sm"
@@ -912,12 +1110,12 @@ const submitAward = async () => {
                         variant="primary"
                         size="sm"
                         @click="submitAward"
-                        :disabled="awardingSubmitting || (awardMode === 'split' && splitValidationErrors.length > 0)"
+                        :disabled="awardingSubmitting || loading || matrixLoadError || (awardMode === 'full' ? !eligibleQuotation(selectedFullSupplierId) : splitValidationErrors.length > 0 || splitAwardCount === 0)"
                         class="bg-blue-600 hover:bg-blue-700"
                     >
                         <RefreshCw v-if="awardingSubmitting" class="w-4 h-4 mr-1.5 animate-spin" />
                         <Check v-else class="w-4 h-4 mr-1.5" />
-                        Konfirmasi & Tetapkan Pemenang
+                        Simpan Keputusan Pemenang
                     </BaseButton>
                 </div>
             </div>

@@ -3,21 +3,20 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '../../../stores/auth.js'
 import { getSupplierPortalDashboard } from '../../../services/supplierPortalServices.js'
-import { formatCurrency, formatDate } from '../../../composables/useFormatter.js'
+import { formatDate } from '../../../composables/useFormatter.js'
 import { showError } from '../../../utils/swal.js'
 
 import ModuleCard from '../../../components/ui/ModuleCard.vue'
+import { useRfqDeadline } from '@/composables/purchasing/useRfqDeadline.js'
+
+const { getDeadlineInfo } = useRfqDeadline()
 
 import {
     Scale,
     Clock,
     AlertCircle,
     CheckCircle2,
-    Trophy,
-    ArrowUpRight,
     Building2,
-    Calendar,
-    ChevronRight,
     RefreshCw,
     FileText,
     ReceiptText,
@@ -74,6 +73,8 @@ const supplierModules = computed(() => {
     const needAction = Number(metrics.need_action || 0)
     const inEval = Number(metrics.in_evaluation || 0)
     const awarded = Number(metrics.awarded || 0)
+    const poNeedAck = Number(metrics.purchase_orders_need_ack || 0)
+    const poTotal = Number(metrics.purchase_orders_total || 0)
 
     return [
         {
@@ -99,29 +100,21 @@ const supplierModules = computed(() => {
             badge: awarded > 0 ? `${awarded} Menang Tender` : (inEval > 0 ? `${inEval} Dalam Evaluasi` : ''),
             badgeVariant: awarded > 0 ? 'emerald' : 'blue',
             actionText: 'Lihat Hasil Penawaran'
+        },
+        {
+            id: 'purchase_orders',
+            title: 'Pesanan Pembelian Resmi (PO)',
+            subtitle: 'Konfirmasi PO & Pengiriman Barang',
+            description: 'Daftar dokumen Purchase Order resmi dari hasil tender yang Anda menangkan beserta formulir konfirmasi kesanggupan pengiriman.',
+            icon: CheckCircle2,
+            to: { name: 'supplier.portal.purchase-orders' },
+            color: 'blue',
+            badge: poNeedAck > 0 ? `${poNeedAck} Perlu Konfirmasi` : (poTotal > 0 ? `${poTotal} PO Aktif` : ''),
+            badgeVariant: poNeedAck > 0 ? 'amber' : 'emerald',
+            actionText: 'Buka Pesanan (PO)'
         }
     ]
 })
-
-// Menghitung status countdown tenggat waktu tender
-const getDeadlineInfo = (deadlineDateStr) => {
-    if (!deadlineDateStr) return { label: '-', class: 'bg-slate-100 text-slate-600' }
-    const deadline = new Date(deadlineDateStr)
-    deadline.setHours(23, 59, 59, 999)
-    const now = new Date()
-    const diffMs = deadline - now
-
-    if (diffMs <= 0) {
-        return { label: 'Batas Berakhir', class: 'bg-rose-50 text-rose-700 border-rose-200' }
-    }
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-
-    if (diffDays === 0) {
-        return { label: `Hari Ini (${diffHours} jam lagi)`, class: 'bg-amber-50 text-amber-800 border-amber-200 font-bold' }
-    }
-    return { label: `Sisa ${diffDays} hari`, class: 'bg-blue-50 text-blue-700 border-blue-200' }
-}
 
 // Konversi status internal RFQ ke label bahasa Indonesia & badge styling
 const getRfqStatusBadge = (status) => {
@@ -288,19 +281,19 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- 4. Menang Tender (Awarded) -->
+            <!-- 4. Terpilih (Pemenang) -->
             <div class="bg-white p-5 rounded-[14px] border border-[#E5EAF1] shadow-xs flex flex-col justify-between">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-emerald-700">Menang Tender (Awarded)</span>
+                    <span class="text-xs font-semibold text-emerald-800">Terpilih (Pemenang)</span>
                     <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
-                        <Trophy class="w-4 h-4" />
+                        <CheckCircle2 class="w-4 h-4" />
                     </div>
                 </div>
                 <div class="mt-4">
                     <div class="text-2xl font-bold text-emerald-700 font-mono">
                         {{ dashboardData?.metrics?.awarded || 0 }}
                     </div>
-                    <span class="text-[11px] text-emerald-600/90 mt-1 block font-medium">Tender berhasil dimenangkan</span>
+                    <span class="text-[11px] text-emerald-700 mt-1 block font-medium">Tender yang memilih perusahaan Anda</span>
                 </div>
             </div>
         </div>
@@ -359,8 +352,8 @@ onMounted(() => {
                             <!-- Deadline -->
                             <td class="py-3.5 px-4 whitespace-nowrap">
                                 <div class="text-slate-800 font-medium">{{ formatDate(inv.rfq?.deadline_date) }}</div>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] border mt-0.5" :class="getDeadlineInfo(inv.rfq?.deadline_date).class">
-                                    {{ getDeadlineInfo(inv.rfq?.deadline_date).label }}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] border mt-0.5" :class="getDeadlineInfo(inv.rfq).class">
+                                    {{ getDeadlineInfo(inv.rfq).label }}
                                 </span>
                             </td>
 
@@ -405,18 +398,17 @@ onMounted(() => {
                                 </span>
                             </td>
 
-                            <!-- Aksi -->
+                            <!-- Aksi (Buka di Tab yang Sama) -->
                             <td class="py-3.5 px-5 text-right whitespace-nowrap">
-                                <a
+                                <RouterLink
                                     v-if="inv.portal_access_token"
-                                    :href="`/portal/rfq/${inv.portal_access_token}`"
-                                    target="_blank"
+                                    :to="`/portal/rfq/${inv.portal_access_token}`"
                                     class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                                    :class="inv.quote_status === 'received' ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200' : 'bg-[#014BAA] hover:bg-blue-700 text-white shadow-2xs'"
+                                    :class="inv.quote_status === 'received' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300' : 'bg-[#014BAA] hover:bg-blue-700 text-white shadow-2xs'"
                                 >
                                     <span>{{ inv.quote_status === 'received' ? 'Lihat Penawaran' : 'Isi Penawaran' }}</span>
-                                    <ArrowUpRight class="w-3.5 h-3.5" />
-                                </a>
+                                    <ArrowRight class="w-3.5 h-3.5" />
+                                </RouterLink>
                             </td>
                         </tr>
                     </tbody>

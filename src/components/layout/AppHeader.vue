@@ -6,7 +6,7 @@ defineProps({
     },
     fullWidth: {
         type: Boolean,
-        default: false
+        default: true
     }
 })
 </script>
@@ -14,9 +14,8 @@ defineProps({
 <template>
     <header 
         :class="[
-            'bg-white/80 backdrop-blur-xl shadow-xs shadow-slate-200/30 z-30 transition-all duration-300',
-            !fullWidth ? 'rounded-2xl mx-3 sm:mx-6 mt-3 sm:mt-4 border border-slate-200/70' : 'w-full border-b border-slate-200/70',
-            isSticky ? (fullWidth ? 'sticky top-0' : 'sticky top-3 sm:top-4') : 'relative'
+            'bg-white/95 shadow-2xs z-30 transition-all duration-200 w-full border-b border-slate-200/80',
+            isSticky ? 'sticky top-0' : 'relative'
         ]"
     >
         <div class="flex items-center justify-between h-16 sm:h-20 px-4 sm:px-8 mx-auto w-full relative">

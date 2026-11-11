@@ -92,11 +92,11 @@ const handleLogin = async () => {
                 -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 50%, transparent 100%);
             "
         ></div>
-        <div class="absolute top-1/4 right-1/4 w-72 h-72 rounded-full bg-indigo-500/10 blur-[90px] pointer-events-none z-0"></div>
-        <div class="absolute bottom-1/4 left-1/4 w-72 h-72 rounded-full bg-purple-500/10 blur-[90px] pointer-events-none z-0"></div>
+        <div class="absolute top-1/4 right-1/4 w-72 h-72 rounded-full bg-blue-500/10 blur-[90px] pointer-events-none z-0"></div>
+        <div class="absolute bottom-1/4 left-1/4 w-72 h-72 rounded-full bg-blue-600/10 blur-[90px] pointer-events-none z-0"></div>
 
         <!-- Kartu Form Login Minimalis & Modern -->
-        <div class="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-7 sm:p-9 relative z-10">
+        <div class="w-full max-w-md bg-white rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/40 p-7 sm:p-9 relative z-10">
 
             <!-- Bagian Atas / Header: Ringkas, Jelas, & Humanis -->
             <div class="mb-7 text-center flex flex-col items-center">
@@ -134,7 +134,7 @@ const handleLogin = async () => {
                             autocomplete="username"
                             placeholder="Masukkan NIK atau email"
                             required
-                            class="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:bg-white transition-all duration-200"
+                            class="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:bg-white transition-all duration-200"
                         />
                     </div>
                 </div>
@@ -157,7 +157,7 @@ const handleLogin = async () => {
                             autocomplete="current-password"
                             placeholder="Masukkan password"
                             required
-                            class="w-full pl-10 pr-11 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:bg-white transition-all duration-200"
+                            class="w-full pl-10 pr-11 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:bg-white transition-all duration-200"
                         />
                         <button
                             type="button"
@@ -177,7 +177,7 @@ const handleLogin = async () => {
                         <input
                             type="checkbox"
                             v-model="rememberMe"
-                            class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30"
+                            class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30"
                         />
                         <span class="text-xs text-slate-600">Ingat saya</span>
                     </label>
@@ -196,7 +196,7 @@ const handleLogin = async () => {
                 <button
                     type="submit"
                     :disabled="loading"
-                    class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/35 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group mt-2"
+                    class="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm shadow-sm shadow-blue-600/20 hover:shadow-blue-600/30 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group mt-2"
                 >
                     <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
                     <span v-if="loading">Memproses...</span>

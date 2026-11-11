@@ -1,15 +1,13 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { 
-    CreditCard, 
-    Plus, 
-    Edit, 
-    Trash2, 
-    Star, 
-    X, 
-    Check, 
-    Building2,
-    AlertCircle 
+import {
+    CreditCard,
+    Plus,
+    Edit,
+    Trash2,
+    Star,
+    X,
+    Check
 } from '@lucide/vue'
 import { 
     getSupplierBankAccounts, 

@@ -84,6 +84,11 @@ const ROUTE_BREADCRUMBS = {
         { label: 'Direct Purchases', to: { name: 'user.purchasing.direct' } },
         { label: 'Detail Direct Purchase' }
     ],
+    'user.purchasing.direct.edit': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Direct Purchases', to: { name: 'user.purchasing.direct' } },
+        { label: 'Edit Draft Direct Purchase' }
+    ],
     'user.purchasing.rfq': [
         { label: 'Purchasing', to: { name: 'user.purchasing' } },
         { label: 'Request for Quotation (RFQ)' }
@@ -102,6 +107,32 @@ const ROUTE_BREADCRUMBS = {
         { label: 'Purchasing', to: { name: 'user.purchasing' } },
         { label: 'Request for Quotation (RFQ)', to: { name: 'user.purchasing.rfq' } },
         { label: 'Matriks Komparasi Penawaran' }
+    ],
+    'user.purchasing.orders': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Purchase Order (PO)' }
+    ],
+    'user.purchasing.orders.detail': [
+        { label: 'Purchasing', to: { name: 'user.purchasing' } },
+        { label: 'Purchase Order (PO)', to: { name: 'user.purchasing.orders' } },
+        { label: 'Detail Purchase Order' }
+    ],
+    'user.profile': [
+        { label: 'Profil Pengguna' }
+    ],
+    'supplier.portal.dashboard': [],
+    'supplier.portal.rfqs': [
+        { label: 'Tender & Permintaan Penawaran (RFQ)' }
+    ],
+    'supplier.portal.quotations': [
+        { label: 'Riwayat Penawaran Harga' }
+    ],
+    'supplier.portal.purchase-orders': [
+        { label: 'Pesanan Pembelian (PO)' }
+    ],
+    'supplier.portal.purchase-orders.detail': [
+        { label: 'Pesanan Pembelian (PO)', to: { name: 'supplier.portal.purchase-orders' } },
+        { label: 'Rincian Pesanan Pembelian' }
     ],
     'user.finance.payment-requests': [
         { label: 'Finance' },
@@ -290,11 +321,14 @@ const formatSegment = (seg) => {
 const resolvedHomeRoute = computed(() => {
     if (props.homeRoute) return props.homeRoute
     const isUnderAdmin = route.path?.startsWith('/admin') || String(route.name || '').startsWith('admin.')
-    return isUnderAdmin ? { name: 'admin.dashboard' } : { name: 'user.dashboard' }
+    if (isUnderAdmin) return { name: 'admin.dashboard' }
+    const isUnderSupplierPortal = route.path?.startsWith('/portal/supplier') || String(route.name || '').startsWith('supplier.portal.')
+    if (isUnderSupplierPortal) return { name: 'supplier.portal.dashboard' }
+    return { name: 'user.dashboard' }
 })
 
 const isAtRootDashboard = computed(() => {
-    return route.name === 'user.dashboard' || route.name === 'admin.dashboard'
+    return route.name === 'user.dashboard' || route.name === 'admin.dashboard' || route.name === 'supplier.portal.dashboard'
 })
 
 const rawItems = computed(() => {

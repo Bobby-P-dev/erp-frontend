@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
@@ -20,7 +21,6 @@ import {
     Plus,
     Search,
     X,
-    Calendar,
     Eye,
     Truck,
     CheckCircle2,
@@ -116,29 +116,31 @@ const getItemSummary = (item) => {
 
 <template>
     <div class="space-y-6">
+        <BaseBreadcrumb />
+
         <!-- 1. Header & Quick Actions -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center justify-center p-2 rounded-lg bg-blue-50 text-blue-600 border border-blue-200">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
                         <Boxes class="w-5 h-5" />
                     </span>
                     <div>
-                        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">
+                        <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                             Penerimaan Barang (Goods Receipts)
                         </h1>
-                        <p class="text-sm text-slate-500 mt-0.5">
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
                             Pencatatan barang fisik yang tiba di gudang, verifikasi surat jalan, dan serah terima ke pemohon.
                         </p>
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2.5">
+            <div class="flex items-center flex-wrap gap-2.5">
                 <button
                     type="button"
                     @click="showBulkHandoverModal = true"
-                    class="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg shadow-2xs transition-colors flex items-center gap-2 cursor-pointer"
+                    class="px-3.5 py-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl shadow-2xs transition-colors flex items-center gap-2 cursor-pointer"
                 >
                     <PackageCheck class="w-4 h-4 text-emerald-600" />
                     <span>Serah Terima Borongan (BAST)</span>
@@ -146,7 +148,7 @@ const getItemSummary = (item) => {
 
                 <BaseButton
                     variant="primary"
-                    size="md"
+                    size="sm"
                     @click="showRecordModal = true"
                     class="shadow-xs flex items-center gap-2"
                 >

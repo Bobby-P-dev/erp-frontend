@@ -1,9 +1,14 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { getSupplierPortalRfqs } from '../../../services/supplierPortalServices.js'
 import { formatDate } from '../../../composables/useFormatter.js'
 import { showError } from '../../../utils/swal.js'
+import BaseBreadcrumb from '../../../components/ui/BaseBreadcrumb.vue'
+import Pagination from '../../../components/ui/Pagination.vue'
+import { useRfqDeadline } from '@/composables/purchasing/useRfqDeadline.js'
+
+const { getDeadlineInfo } = useRfqDeadline()
 
 import {
     Search,
@@ -11,8 +16,7 @@ import {
     Clock,
     CheckCircle2,
     AlertCircle,
-    ArrowUpRight,
-    Trophy
+    ArrowRight
 } from '@lucide/vue'
 
 const route = useRoute()
@@ -30,10 +34,10 @@ const pagination = ref({
 
 const tabs = [
     { id: 'all', label: 'Semua Tender' },
-    { id: 'need_action', label: 'Perlu Direspon Segera' },
-    { id: 'submitted', label: 'Telah Diajukan' },
-    { id: 'awarded', label: 'Menang Tender (Awarded)' },
-    { id: 'declined', label: 'Ditolak/Dilewati' }
+    { id: 'need_action', label: 'Perlu Direspon' },
+    { id: 'submitted', label: 'Sudah Mengirim Harga' },
+    { id: 'awarded', label: 'Terpilih (Pemenang)' },
+    { id: 'declined', label: 'Ditolak / Dilewati' }
 ]
 
 const fetchRfqs = async (page = 1) => {
@@ -74,21 +78,6 @@ watch(searchQuery, () => {
     }, 400)
 })
 
-const getDeadlineInfo = (deadlineDateStr) => {
-    if (!deadlineDateStr) return { label: '-', class: 'bg-slate-100 text-slate-600' }
-    const deadline = new Date(deadlineDateStr)
-    deadline.setHours(23, 59, 59, 999)
-    const now = new Date()
-    const diffMs = deadline - now
-
-    if (diffMs <= 0) return { label: 'Batas Berakhir', class: 'bg-rose-50 text-rose-700 border-rose-200' }
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-
-    if (diffDays === 0) return { label: `Hari Ini (${diffHours} jam lagi)`, class: 'bg-amber-50 text-amber-800 border-amber-200 font-bold' }
-    return { label: `Sisa ${diffDays} hari`, class: 'bg-blue-50 text-blue-700 border-blue-200' }
-}
-
 onMounted(() => {
     fetchRfqs(1)
 })
@@ -96,13 +85,15 @@ onMounted(() => {
 
 <template>
     <div class="space-y-6">
+        <BaseBreadcrumb />
+
         <!-- Page Title & Header -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                     Tender & Permintaan Penawaran (RFQ)
                 </h1>
-                <p class="text-xs text-slate-500 mt-1">
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
                     Daftar paket tender pengadaan PT Padma Soode Indonesia yang mengundang perusahaan Anda.
                 </p>
             </div>
@@ -118,20 +109,20 @@ onMounted(() => {
         </div>
 
         <!-- Filter Bar: Status Tabs & Search -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
             <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <!-- Status Tabs -->
-                <div class="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
                     <button
                         v-for="tab in tabs"
                         :key="tab.id"
                         type="button"
                         @click="selectedTab = tab.id"
                         :class="[
-                            'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer',
+                            'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer border',
                             selectedTab === tab.id
-                                ? 'bg-slate-900 text-white shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                         ]"
                     >
                         {{ tab.label }}
@@ -192,8 +183,8 @@ onMounted(() => {
                             <!-- Deadline -->
                             <td class="py-4 px-4 whitespace-nowrap">
                                 <div class="font-semibold text-slate-800">{{ formatDate(inv.rfq?.deadline_date) }}</div>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] border mt-1" :class="getDeadlineInfo(inv.rfq?.deadline_date).class">
-                                    {{ getDeadlineInfo(inv.rfq?.deadline_date).label }}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] border mt-1" :class="getDeadlineInfo(inv.rfq).class">
+                                    {{ getDeadlineInfo(inv.rfq).label }}
                                 </span>
                             </td>
 
@@ -208,59 +199,58 @@ onMounted(() => {
                             <td class="py-4 px-4 text-center whitespace-nowrap">
                                 <span
                                     v-if="inv.rfq?.quotations?.[0]?.evaluation_status === 'awarded'"
-                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300"
                                 >
-                                    <Trophy class="w-3.5 h-3.5 text-emerald-700" />
-                                    Menang Tender
+                                    <CheckCircle2 class="w-3.5 h-3.5 text-emerald-700" />
+                                    Terpilih (Pemenang)
                                 </span>
                                 <span
                                     v-else-if="inv.rfq?.quotations?.[0]?.evaluation_status === 'partially_awarded'"
-                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
                                 >
-                                    <CheckCircle2 class="w-3.5 h-3.5 text-blue-700" />
-                                    Menang Sebagian
+                                    <CheckCircle2 class="w-3.5 h-3.5 text-emerald-700" />
+                                    Terpilih Sebagian
                                 </span>
                                 <span
                                     v-else-if="inv.quote_status === 'received'"
-                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200"
                                 >
-                                    <CheckCircle2 class="w-3.5 h-3.5" />
+                                    <CheckCircle2 class="w-3.5 h-3.5 text-slate-600" />
                                     Penawaran Terkirim
                                 </span>
                                 <span
                                     v-else-if="inv.quote_status === 'viewed'"
-                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200"
                                 >
-                                    <Clock class="w-3.5 h-3.5" />
-                                    Telah Dilihat
+                                    <Clock class="w-3.5 h-3.5 text-blue-700" />
+                                    Sudah Dibuka
                                 </span>
                                 <span
                                     v-else-if="inv.quote_status === 'declined'"
-                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200"
                                 >
-                                    Menolak Partisipasi
+                                    Menolak Ikut Tender
                                 </span>
                                 <span
                                     v-else
-                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300"
                                 >
-                                    <AlertCircle class="w-3.5 h-3.5" />
+                                    <AlertCircle class="w-3.5 h-3.5 text-amber-700" />
                                     Perlu Direspon
                                 </span>
                             </td>
 
-                            <!-- Tombol Aksi -->
+                            <!-- Tombol Aksi (Buka di Tab yang Sama) -->
                             <td class="py-4 px-5 text-right whitespace-nowrap">
-                                <a
+                                <RouterLink
                                     v-if="inv.portal_access_token"
-                                    :href="`/portal/rfq/${inv.portal_access_token}`"
-                                    target="_blank"
-                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs"
-                                    :class="inv.quote_status === 'received' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white'"
+                                    :to="`/portal/rfq/${inv.portal_access_token}`"
+                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors"
+                                    :class="inv.quote_status === 'received' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300' : 'bg-blue-600 hover:bg-blue-700 text-white'"
                                 >
-                                    <span>{{ inv.quote_status === 'received' ? 'Lihat Form Penawaran' : 'Isi Penawaran Tender' }}</span>
-                                    <ArrowUpRight class="w-4 h-4" />
-                                </a>
+                                    <span>{{ inv.quote_status === 'received' ? 'Lihat Penawaran' : 'Isi Penawaran' }}</span>
+                                    <ArrowRight class="w-4 h-4" />
+                                </RouterLink>
                             </td>
                         </tr>
                     </tbody>
@@ -268,25 +258,10 @@ onMounted(() => {
             </div>
 
             <!-- Pagination Bar -->
-            <div v-if="pagination.last_page > 1" class="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span>Halaman {{ pagination.current_page }} dari {{ pagination.last_page }} (Total {{ pagination.total }} tender)</span>
-                <div class="flex items-center gap-1">
-                    <button
-                        :disabled="pagination.current_page <= 1"
-                        @click="fetchRfqs(pagination.current_page - 1)"
-                        class="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-40"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        :disabled="pagination.current_page >= pagination.last_page"
-                        @click="fetchRfqs(pagination.current_page + 1)"
-                        class="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-40"
-                    >
-                        Selanjutnya
-                    </button>
-                </div>
-            </div>
+            <Pagination
+                :pagination="pagination"
+                @change-page="fetchRfqs"
+            />
         </div>
     </div>
 </template>

@@ -1,7 +1,6 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import BaseModal from '../ui/BaseModal.vue'
-import BaseButton from '../ui/BaseButton.vue'
 import SearchableSelect from '../ui/SearchableSelect.vue'
 import { getPendingHandoverItems, createBulkGoodsHandover } from '../../services/inventoryServices.js'
 import { searchUsers } from '../../services/userServices.js'
@@ -13,7 +12,6 @@ import {
     Boxes,
     Package,
     CheckCircle2,
-    Clock,
     Search,
     Printer,
     UploadCloud,
@@ -22,12 +20,8 @@ import {
     AlertTriangle,
     User,
     Building2,
-    Calendar,
     Paperclip,
-    Check,
-    X,
-    Info,
-    ArrowRight
+    Check
 } from '@lucide/vue'
 
 const props = defineProps({

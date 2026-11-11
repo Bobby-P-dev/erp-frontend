@@ -1,13 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { 
-    ArrowLeft, 
-    GitBranch, 
-    Save, 
-    Building2, 
-    DollarSign, 
-    Sliders,
+import {
+    ArrowLeft,
+    GitBranch,
+    Save,
+    DollarSign,
     Layers
 } from '@lucide/vue'
 import PageHeader from '../../../../components/ui/PageHeader.vue'

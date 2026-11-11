@@ -1,18 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-    Plus, 
+import {
+    Plus,
     GitBranch,
-    ShieldCheck, 
-    Eye, 
-    Edit, 
-    Trash2, 
-    Copy, 
-    Layers, 
+    Eye,
+    Edit,
+    Trash2,
+    Copy,
     Filter,
     CheckCircle2,
-    XCircle,
     FileText,
     Building2,
     Coins,

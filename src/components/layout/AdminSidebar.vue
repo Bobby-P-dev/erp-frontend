@@ -244,8 +244,8 @@ navigation.forEach(item => {
                                     :class="[
                                         'block px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
                                         isActive(subchild.to)
-                                            ? 'text-indigo-700 bg-indigo-50'
-                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                            ? 'text-blue-700 bg-blue-50'
+                                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                     ]"
                                 >
                                     {{ subchild.name }}
@@ -257,8 +257,8 @@ navigation.forEach(item => {
                                 :class="[
                                     'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                                     isActive(child.to)
-                                        ? 'text-indigo-700 bg-indigo-50'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                        ? 'text-blue-700 bg-blue-50'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 ]"
                             >
                                 {{ child.name }}

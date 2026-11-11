@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowRight, Lock, ShieldAlert } from '@lucide/vue'
+import { ArrowRight, Lock } from '@lucide/vue'
 
 const props = defineProps({
     title: {

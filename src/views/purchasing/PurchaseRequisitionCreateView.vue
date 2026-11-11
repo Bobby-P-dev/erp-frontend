@@ -195,7 +195,7 @@ onMounted(() => {
         </form>
 
         <!-- BILAH AKSI (STICKY ACTION BAR) -->
-        <div class="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="sticky bottom-4 z-20 bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p class="text-xs sm:text-sm font-medium text-slate-600">
                 <span v-if="currentStep === 1">Langkah 1 dari 3: Informasi Pengadaan</span>
                 <span v-else-if="currentStep === 2">Langkah 2 dari 3: Total <span class="font-bold text-slate-900">{{ form.items.length }}</span> item (<span class="font-mono font-bold text-[#014BAA]">{{ formatCurrency(totalEstimatedAmount, form.currency) }}</span>)</span>

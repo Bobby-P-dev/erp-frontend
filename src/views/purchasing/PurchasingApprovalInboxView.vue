@@ -1,6 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import ApprovalBadge from '../../components/approval/ApprovalBadge.vue'
@@ -19,12 +18,10 @@ import {
     Eye,
     RefreshCw,
     Building2,
-    Calendar,
     Search,
     ShieldAlert,
     X,
     ArrowUpRight,
-    ShoppingBag,
     Filter,
     Download,
     Loader2
@@ -557,6 +554,7 @@ onUnmounted(() => {
             :task="selectedTask"
             @close="handleDrawerClose"
             @acted="handleActionSuccess"
+            @refresh-requested="handleActionSuccess"
         />
     </div>
 </template>

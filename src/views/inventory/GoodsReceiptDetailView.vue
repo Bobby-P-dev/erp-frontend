@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
-import StatusBadge from '../../components/ui/StatusBadge.vue'
 import GoodsReceiptHandoverModal from '../../components/inventory/GoodsReceiptHandoverModal.vue'
 import { getGoodsReceiptDetail } from '../../services/inventoryServices.js'
 import {
@@ -11,13 +10,8 @@ import {
     ArrowLeft,
     Printer,
     Truck,
-    Calendar,
     CheckCircle2,
-    XCircle,
     AlertTriangle,
-    Building2,
-    FileText,
-    UserCheck,
     Receipt,
     Paperclip,
     ExternalLink,

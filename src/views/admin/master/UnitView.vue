@@ -1,15 +1,14 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { 
-    Plus, 
-    Edit, 
-    Trash2, 
-    Scale, 
-    X, 
-    Check, 
+import {
+    Plus,
+    Edit,
+    Trash2,
+    Scale,
+    X,
+    Check,
     Search,
-    RefreshCw,
-    AlertCircle
+    RefreshCw
 } from '@lucide/vue'
 import { 
     getUnits, 

@@ -3,16 +3,17 @@ import { ref, onMounted, watch } from 'vue'
 import { getSupplierPortalQuotations } from '../../../services/supplierPortalServices.js'
 import { formatCurrency, formatDate } from '../../../composables/useFormatter.js'
 import { showError } from '../../../utils/swal.js'
+import BaseBreadcrumb from '../../../components/ui/BaseBreadcrumb.vue'
+import Pagination from '../../../components/ui/Pagination.vue'
+import { quotationReviewLabel } from '../../../utils/quotationReview.js'
 
 import {
-    ReceiptText,
     RefreshCw,
     CheckCircle2,
     Clock,
     XCircle,
     FileText,
-    ExternalLink,
-    Trophy
+    ExternalLink
 } from '@lucide/vue'
 
 const loading = ref(true)
@@ -28,8 +29,8 @@ const pagination = ref({
 
 const tabs = [
     { id: 'all', label: 'Semua Penawaran' },
-    { id: 'awarded', label: 'Menang Tender (Awarded)' },
-    { id: 'partially_awarded', label: 'Menang Sebagian' },
+    { id: 'awarded', label: 'Terpilih (Pemenang)' },
+    { id: 'partially_awarded', label: 'Terpilih Sebagian' },
     { id: 'rejected', label: 'Tidak Terpilih' },
     { id: 'submitted', label: 'Sedang Dievaluasi' }
 ]
@@ -64,13 +65,15 @@ onMounted(() => {
 
 <template>
     <div class="space-y-6">
+        <BaseBreadcrumb />
+
         <!-- Page Header -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                     Riwayat Penawaran Harga (Quotations)
                 </h1>
-                <p class="text-xs text-slate-500 mt-1">
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
                     Arsip seluruh surat penawaran harga resmi yang telah diajukan oleh perusahaan Anda ke PT Padma Soode Indonesia.
                 </p>
             </div>
@@ -86,18 +89,18 @@ onMounted(() => {
         </div>
 
         <!-- Filter Bar: Status Tabs -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div class="p-4 border-b border-slate-100 flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-3 scrollbar-none">
                 <button
                     v-for="tab in tabs"
                     :key="tab.id"
                     type="button"
                     @click="selectedTab = tab.id"
                     :class="[
-                        'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer',
+                        'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer border',
                         selectedTab === tab.id
-                            ? 'bg-slate-900 text-white shadow-2xs'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     ]"
                 >
                     {{ tab.label }}
@@ -141,6 +144,7 @@ onMounted(() => {
                                 <div class="text-[11px] text-slate-500 font-medium mt-0.5">
                                     Ref: {{ quote.vendor_quotation_reference || '-' }}
                                 </div>
+                                <p class="text-[11px] text-slate-600 mt-1">Review: {{ quotationReviewLabel(quote) }}</p>
                             </td>
 
                             <!-- Terkait RFQ -->
@@ -166,30 +170,30 @@ onMounted(() => {
                             <td class="py-4 px-4 text-center whitespace-nowrap">
                                 <span
                                     v-if="quote.status === 'awarded'"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300"
                                 >
-                                    <Trophy class="w-3.5 h-3.5 text-emerald-700" />
-                                    Menang Tender (Awarded)
+                                    <CheckCircle2 class="w-3.5 h-3.5 text-emerald-700" />
+                                    Terpilih (Pemenang)
                                 </span>
                                 <span
                                     v-else-if="quote.status === 'partially_awarded'"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
                                 >
-                                    <CheckCircle2 class="w-3.5 h-3.5 text-blue-700" />
-                                    Menang Sebagian Item
+                                    <CheckCircle2 class="w-3.5 h-3.5 text-emerald-700" />
+                                    Terpilih Sebagian Barang
                                 </span>
                                 <span
                                     v-else-if="quote.status === 'rejected'"
-                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200"
                                 >
                                     <XCircle class="w-3.5 h-3.5 text-rose-600" />
                                     Tidak Terpilih
                                 </span>
                                 <span
                                     v-else
-                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200"
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200"
                                 >
-                                    <Clock class="w-3.5 h-3.5 text-amber-600" />
+                                    <Clock class="w-3.5 h-3.5 text-amber-700" />
                                     Sedang Dievaluasi
                                 </span>
                             </td>
@@ -215,25 +219,10 @@ onMounted(() => {
             </div>
 
             <!-- Pagination Bar -->
-            <div v-if="pagination.last_page > 1" class="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span>Halaman {{ pagination.current_page }} dari {{ pagination.last_page }} (Total {{ pagination.total }} penawaran)</span>
-                <div class="flex items-center gap-1">
-                    <button
-                        :disabled="pagination.current_page <= 1"
-                        @click="fetchQuotations(pagination.current_page - 1)"
-                        class="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-40"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        :disabled="pagination.current_page >= pagination.last_page"
-                        @click="fetchQuotations(pagination.current_page + 1)"
-                        class="px-3 py-1 rounded-lg border border-slate-200 disabled:opacity-40"
-                    >
-                        Selanjutnya
-                    </button>
-                </div>
-            </div>
+            <Pagination
+                :pagination="pagination"
+                @change-page="fetchQuotations"
+            />
         </div>
     </div>
 </template>

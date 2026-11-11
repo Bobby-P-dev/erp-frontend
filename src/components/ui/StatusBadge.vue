@@ -16,8 +16,7 @@ import {
     Ban,
     ArrowDown,
     CircleDot,
-    Info,
-    HelpCircle
+    Info
 } from '@lucide/vue'
 
 const props = defineProps({
@@ -192,6 +191,22 @@ const badgeConfig = computed(() => {
                 bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
                 iconBg: 'bg-[#1B5E20]',
                 icon: Check
+            }
+        case 'issued':
+        case 'diterbitkan':
+            return {
+                label: 'Diterbitkan ke Vendor',
+                bg: 'bg-[#E8F1FD] text-[#014BAA] border-[#014BAA]/15',
+                iconBg: 'bg-[#014BAA]',
+                icon: ShoppingBag
+            }
+        case 'acknowledged':
+        case 'dikonfirmasi':
+            return {
+                label: 'Dikonfirmasi Vendor',
+                bg: 'bg-[#E8F8EE] text-[#1B5E20] border-[#1B5E20]/15',
+                iconBg: 'bg-[#1B5E20]',
+                icon: CheckCheck
             }
         case 'ready_for_payment':
             return {

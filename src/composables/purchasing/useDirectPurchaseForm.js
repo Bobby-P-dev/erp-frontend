@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getProcurementPlans, showProcurementPlan } from '@/services/procurementPlanServices.js'
 import { getSuppliers } from '@/services/supplierServices.js'
@@ -6,6 +6,8 @@ import { searchTaxes } from '@/services/taxServices.js'
 import { 
     createDirectPurchase, 
     createBulkDirectPurchase, 
+    showDirectPurchase,
+    updateDirectPurchase,
     submitDirectPurchaseForPayment 
 } from '@/services/directPurchaseServices.js'
 import { searchCurrencies } from '@/services/currencyServices.js'
@@ -17,12 +19,15 @@ export function useDirectPurchaseForm() {
     const route = useRoute()
 
     // State
+    const isLoading = ref(false)
     const isLoadingPlans = ref(false)
     const isLoadingSuppliers = ref(false)
     const isSubmitting = ref(false)
 
     const isBulkMode = ref(false)
     const bulkCompany = ref(null)
+    const dpData = ref(null)
+    const selectedExtraPlanItemId = ref('')
 
     const activePlans = ref([])
     const suppliers = ref([])
@@ -211,6 +216,243 @@ export function useDirectPurchaseForm() {
 
     const removeBulkItem = (index) => {
         form.value.items.splice(index, 1)
+    }
+
+    const availableUnaddedPlanItems = computed(() => {
+        if (!selectedPlan.value?.items) return []
+        const currentPlanItemIds = form.value.items.map(i => Number(i.procurement_plan_item_id))
+        return selectedPlan.value.items.filter(item => {
+            return !currentPlanItemIds.includes(Number(item.id)) && Number(item.remaining_quantity) > 0
+        })
+    })
+
+    const extraPlanItemOptions = computed(() => {
+        return availableUnaddedPlanItems.value.map(item => {
+            const prItem = item.purchase_requisition_item || {}
+            const itemName = prItem.item_name || prItem.item?.name || 'Item Pengadaan'
+            return {
+                value: item.id,
+                label: `${itemName} (Sisa Kuota: ${item.remaining_quantity} ${prItem.unit?.code || 'Unit'})`,
+                subtitle: `Estimasi Harga: ${formatCurrency(prItem.estimated_price || 0)}`
+            }
+        })
+    })
+
+    const loadEditDirectPurchase = async (dpId) => {
+        try {
+            isLoading.value = true
+            showLoading('Memuat data draft transaksi...')
+
+            const [dpResponse, supplierResponse, taxResponse] = await Promise.all([
+                showDirectPurchase(dpId),
+                getSuppliers('', 1, { is_active: 1, per_page: 100 }).catch(() => ({ data: [] })),
+                searchTaxes('', null, 100).catch(() => ({ data: [] }))
+            ])
+
+            const dp = dpResponse.data || dpResponse
+            dpData.value = dp
+            suppliers.value = supplierResponse.data || []
+            taxesList.value = taxResponse.data || []
+
+            if (dp.status !== 'draft') {
+                closeSwal()
+                await showError(
+                    'Akses Ditolak',
+                    `Transaksi ${dp.dp_number} berstatus "${dp.status}" dan tidak dapat diedit lagi. Hanya draft yang dapat disunting.`
+                )
+                router.push({ name: 'user.purchasing.direct.detail', params: { id: dpId } })
+                return
+            }
+
+            if (dp.procurement_plan_id) {
+                selectedPlanId.value = Number(dp.procurement_plan_id)
+                const planResponse = await showProcurementPlan(dp.procurement_plan_id)
+                selectedPlan.value = planResponse.data || planResponse
+            }
+
+            form.value.purchase_channel = dp.purchase_channel || 'marketplace'
+            form.value.supplier_id = dp.supplier_id || null
+            form.value.marketplace_name = dp.marketplace_name || 'Tokopedia'
+            form.value.merchant_name = dp.merchant_name || ''
+            form.value.store_url = dp.store_url || ''
+            form.value.payment_method = dp.payment_method || 'marketplace_va'
+            form.value.recipient_type = dp.recipient_type || 'marketplace_merchant'
+            form.value.recipient_name = dp.recipient_name || ''
+            form.value.bank_name = dp.bank_name || ''
+            form.value.bank_account_number = dp.bank_account_number || ''
+            form.value.bank_account_holder = dp.bank_account_holder || ''
+            form.value.currency = dp.currency || 'IDR'
+            form.value.exchange_rate = Number(dp.exchange_rate) || 1
+            form.value.discount_amount = Number(dp.discount_amount) || 0
+            form.value.shipping_cost = Number(dp.shipping_cost) || 0
+            form.value.platform_fee = Number(dp.platform_fee) || 0
+            form.value.tax_id = dp.tax_id || null
+            form.value.tax_amount = Number(dp.tax_amount) || 0
+            form.value.notes = dp.notes || ''
+
+            const planItemsMap = new Map()
+            if (selectedPlan.value?.items) {
+                selectedPlan.value.items.forEach(pi => {
+                    planItemsMap.set(Number(pi.id), pi)
+                })
+            }
+
+            form.value.items = (dp.items || []).map(dpItem => {
+                const planItem = planItemsMap.get(Number(dpItem.procurement_plan_item_id))
+                const prItem = planItem?.purchase_requisition_item || dpItem.item || {}
+                const currentItemQty = Number(dpItem.quantity) || 0
+                const planRemaining = planItem?.remaining_quantity !== undefined
+                    ? Number(planItem.remaining_quantity)
+                    : Number(planItem?.planned_quantity || currentItemQty)
+                const maxAllowedQuota = Number((planRemaining + currentItemQty).toFixed(4))
+                const plannedQty = Number(planItem?.planned_quantity || currentItemQty)
+
+                return {
+                    procurement_plan_item_id: dpItem.procurement_plan_item_id,
+                    item_id: dpItem.item_id || prItem.item_id || null,
+                    unit_id: dpItem.unit_id || prItem.unit_id || null,
+                    item_name: dpItem.description || prItem.item_name || prItem.name || 'Item Pengadaan',
+                    detail_name: prItem.detail_name || '',
+                    item_code: prItem.code || prItem.item_code || '',
+                    is_custom_item: !dpItem.item_id,
+                    unit_name: dpItem.unit?.code || prItem.unit?.code || 'Unit',
+                    planned_qty: plannedQty,
+                    allocated_qty: maxAllowedQuota,
+                    quantity: currentItemQty,
+                    unit_price: Number(dpItem.unit_price) || 0,
+                    discount_amount: Number(dpItem.discount_amount) || 0,
+                    product_url: dpItem.product_url || '',
+                    notes: dpItem.notes || '',
+                    error: ''
+                }
+            })
+
+            closeSwal()
+        } catch (error) {
+            closeSwal()
+            showError('Gagal!', 'Gagal memuat rincian transaksi direct purchase.', error)
+            router.push({ name: 'user.purchasing.direct' })
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    const handleAddPlanItem = () => {
+        if (!selectedExtraPlanItemId.value) return
+        const planItem = selectedPlan.value?.items?.find(i => Number(i.id) === Number(selectedExtraPlanItemId.value))
+        if (!planItem) return
+
+        const prItem = planItem.purchase_requisition_item || {}
+        const remainingQty = Number(planItem.remaining_quantity) || 0
+        const estPrice = Number(prItem.estimated_price) || 0
+
+        form.value.items.push({
+            procurement_plan_item_id: planItem.id,
+            item_id: prItem.item_id || null,
+            unit_id: prItem.unit_id || null,
+            item_name: prItem.item_name || prItem.item?.name || 'Item Pengadaan',
+            detail_name: prItem.detail_name || '',
+            item_code: prItem.item_code || prItem.item?.code || '',
+            is_custom_item: prItem.is_custom_item || !prItem.item_id,
+            unit_name: prItem.unit?.code || prItem.unit_code || 'Unit',
+            planned_qty: Number(planItem.planned_quantity),
+            allocated_qty: remainingQty,
+            quantity: remainingQty > 0 ? remainingQty : 1,
+            unit_price: estPrice > 0 ? estPrice : 0,
+            discount_amount: 0,
+            product_url: prItem.reference_url || '',
+            notes: planItem.notes || '',
+            error: ''
+        })
+
+        selectedExtraPlanItemId.value = ''
+    }
+
+    const handleRemoveItem = (index) => {
+        if (form.value.items.length <= 1) {
+            showError('Peringatan', 'Minimal harus ada 1 item barang dalam transaksi.')
+            return
+        }
+        form.value.items.splice(index, 1)
+    }
+
+    const handleUpdateSubmit = async (dpId, shouldSubmitForPayment = false) => {
+        if (!validateForm(shouldSubmitForPayment)) return
+
+        const channelTitle = form.value.purchase_channel === 'marketplace'
+            ? `${form.value.marketplace_name} (${form.value.merchant_name})`
+            : (form.value.purchase_channel === 'direct_supplier' ? 'Supplier Rekanan' : form.value.merchant_name)
+
+        const confirmTitle = shouldSubmitForPayment ? 'Simpan & Ajukan Pembayaran?' : 'Simpan Perubahan Draft?'
+        const confirmText = shouldSubmitForPayment
+            ? `Perubahan transaksi ${dpData.value?.dp_number} senilai ${formatCurrency(grandTotal.value, form.value.currency)} melalui ${channelTitle} akan disimpan dan langsung diajukan ke bagian keuangan untuk verifikasi pembayaran.`
+            : `Perubahan rincian pada draft ${dpData.value?.dp_number} senilai ${formatCurrency(grandTotal.value, form.value.currency)} akan disimpan.`
+        const confirmBtnText = shouldSubmitForPayment ? 'Ya, Ajukan Pembayaran' : 'Ya, Simpan Perubahan'
+
+        const confirmed = await showConfirm(confirmTitle, confirmText, confirmBtnText, 'Batal', '#4f46e5')
+        if (!confirmed) return
+
+        try {
+            isSubmitting.value = true
+            showLoading(shouldSubmitForPayment ? 'Menyimpan & mengajukan pembayaran...' : 'Menyimpan perubahan draft...')
+
+            const payload = {
+                purchase_channel: form.value.purchase_channel,
+                supplier_id: form.value.purchase_channel === 'direct_supplier' ? Number(form.value.supplier_id) : null,
+                marketplace_name: form.value.purchase_channel === 'marketplace' ? form.value.marketplace_name?.trim() : null,
+                merchant_name: form.value.merchant_name ? form.value.merchant_name.trim() : null,
+                store_url: form.value.store_url ? form.value.store_url.trim() : null,
+                payment_method: form.value.payment_method,
+                recipient_type: form.value.recipient_type,
+                recipient_name: form.value.recipient_name ? form.value.recipient_name.trim() : null,
+                bank_name: form.value.bank_name ? form.value.bank_name.trim() : null,
+                bank_account_number: form.value.bank_account_number ? form.value.bank_account_number.trim() : null,
+                bank_account_holder: form.value.bank_account_holder ? form.value.bank_account_holder.trim() : null,
+                currency: form.value.currency || 'IDR',
+                exchange_rate: Number(form.value.exchange_rate) || 1,
+                discount_amount: Number(form.value.discount_amount) || 0,
+                shipping_cost: Number(form.value.shipping_cost) || 0,
+                platform_fee: Number(form.value.platform_fee) || 0,
+                tax_id: form.value.tax_id ? Number(form.value.tax_id) : null,
+                tax_amount: Number(form.value.tax_amount) || 0,
+                notes: form.value.notes ? form.value.notes.trim() : null,
+                items: form.value.items.map(item => ({
+                    procurement_plan_item_id: Number(item.procurement_plan_item_id),
+                    item_id: item.item_id ? Number(item.item_id) : null,
+                    unit_id: item.unit_id ? Number(item.unit_id) : null,
+                    description: item.item_name,
+                    quantity: Number(item.quantity),
+                    unit_price: Number(item.unit_price),
+                    discount_amount: Number(item.discount_amount) || 0,
+                    product_url: item.product_url ? item.product_url.trim() : null,
+                    notes: item.notes ? item.notes.trim() : null
+                }))
+            }
+
+            await updateDirectPurchase(dpId, payload)
+
+            if (shouldSubmitForPayment) {
+                await submitDirectPurchaseForPayment(dpId, {
+                    payment_method: form.value.payment_method,
+                    recipient_type: form.value.recipient_type,
+                    recipient_name: form.value.recipient_name ? form.value.recipient_name.trim() : null,
+                    bank_name: form.value.bank_name ? form.value.bank_name.trim() : null,
+                    bank_account_number: form.value.bank_account_number ? form.value.bank_account_number.trim() : null,
+                    bank_account_holder: form.value.bank_account_holder ? form.value.bank_account_holder.trim() : null,
+                    notes: form.value.notes ? form.value.notes.trim() : null
+                })
+                showSuccess('Berhasil!', `Draft ${dpData.value?.dp_number} berhasil diperbarui dan diajukan untuk proses pembayaran.`)
+            } else {
+                showSuccess('Berhasil!', `Perubahan pada draft ${dpData.value?.dp_number} berhasil disimpan.`)
+            }
+
+            router.push({ name: 'user.purchasing.direct.detail', params: { id: dpId } })
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || 'Terjadi kesalahan saat menyimpan perubahan Direct Purchase.'
+            showError('Gagal Menyimpan!', errorMsg, error)
+        } finally {
+            isSubmitting.value = false
+        }
     }
 
     const cancelBulkMode = () => {
@@ -586,11 +828,14 @@ export function useDirectPurchaseForm() {
         // State
         router,
         route,
+        isLoading,
         isLoadingPlans,
         isLoadingSuppliers,
         isSubmitting,
         isBulkMode,
         bulkCompany,
+        dpData,
+        selectedExtraPlanItemId,
         activePlans,
         suppliers,
         selectedPlan,
@@ -615,6 +860,8 @@ export function useDirectPurchaseForm() {
         selectedTax,
         selectedTaxName,
         selectedTaxRate,
+        availableUnaddedPlanItems,
+        extraPlanItemOptions,
 
         // Actions
         fetchActivePlans,
@@ -625,7 +872,11 @@ export function useDirectPurchaseForm() {
         onTaxChange,
         removeBulkItem,
         cancelBulkMode,
+        loadEditDirectPurchase,
+        handleAddPlanItem,
+        handleRemoveItem,
         validateForm,
         handleSubmit,
+        handleUpdateSubmit,
     }
 }

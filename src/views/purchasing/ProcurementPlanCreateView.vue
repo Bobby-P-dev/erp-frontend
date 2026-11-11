@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { 
-    getProcurementQueue, 
-    createProcurementPlan, 
-    activateProcurementPlan 
+import {
+    getProcurementQueue,
+    createProcurementPlan,
+    activateProcurementPlan
 } from '../../services/procurementPlanServices.js'
 import { showPurchaseRequisition } from '../../services/purchaseRequisitionServices.js'
 import { getApprovalTrackerByDocument } from '../../services/approvalServices.js'
@@ -13,38 +13,27 @@ import { formatCurrency } from '../../utils/stringUtils.js'
 
 import PageHeader from '../../components/ui/PageHeader.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
-import BaseInput from '../../components/ui/BaseInput.vue'
-import BaseSelect from '../../components/ui/BaseSelect.vue'
 import SearchableSelect from '../../components/ui/SearchableSelect.vue'
 import DocumentWorkflowTracker from '../../components/approval/DocumentWorkflowTracker.vue'
 
 import {
-    Home,
-    ChevronRight,
     ArrowLeft,
     Layers,
     ShoppingCart,
     Scale,
     FileText,
     CheckCircle2,
-    Calendar,
     Building2,
     Save,
     Send,
     AlertCircle,
-    Info,
     ExternalLink,
     Package,
     Check,
-    HelpCircle,
     Store,
     Users,
     User,
-    GitBranch,
-    History,
-    ChevronDown,
-    ChevronUp,
-    DollarSign
+    History
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -394,6 +383,10 @@ const handleSubmit = async (shouldActivate = false) => {
         if (shouldActivate && planId) {
             await activateProcurementPlan(planId)
             showSuccess('Berhasil!', `Rencana pengadaan ${createRes.data?.pp_number || ''} berhasil dibuat dan diaktifkan.`)
+            if (procurementMethod.value === 'rfq' && route.query.fast_rfq === '1') {
+                router.push({ name: 'user.purchasing.rfq.create', query: { plan_id: planId } })
+                return
+            }
         } else {
             showSuccess('Berhasil!', `Rencana pengadaan ${createRes.data?.pp_number || ''} berhasil disimpan sebagai Draft.`)
         }
@@ -408,6 +401,10 @@ const handleSubmit = async (shouldActivate = false) => {
 }
 
 onMounted(() => {
+    if (route.query.method === 'rfq' || route.query.method === 'direct_purchase') {
+        procurementMethod.value = String(route.query.method)
+    }
+
     if (route.query.bulk === '1') {
         const rawItems = sessionStorage.getItem('bulk_procurement_items')
         const rawCompany = sessionStorage.getItem('bulk_procurement_company')
