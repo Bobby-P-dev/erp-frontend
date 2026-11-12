@@ -1,27 +1,23 @@
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import {
     showDirectPurchase,
     submitDirectPurchaseForPayment,
-    disbursePayment,
     recordGoodsReceipt,
     cancelDirectPurchase
 } from '../../services/directPurchaseServices.js'
-import { getAccountingAccounts } from '../../services/accountingAccountServices.js'
 import { showLoading, showSuccess, showError, showPrompt } from '../../utils/swal.js'
 
-export function useDirectPurchaseDetail() {
-    const router = useRouter()
+export function useDirectPurchaseDetail(documentId, onChanged = () => {}) {
     const route = useRoute()
 
     // State
     const dp = ref(null)
     const isLoading = ref(true)
-    const bankAccounts = ref([])
+    const loadError = ref(false)
 
     // Modals State
     const showSubmitModal = ref(false)
-    const showDisburseModal = ref(false)
     const showGoodsReceiptModal = ref(false)
 
     // Form states
@@ -36,14 +32,6 @@ export function useDirectPurchaseDetail() {
         approval_notes: ''
     })
 
-    const disburseForm = reactive({
-        source_account_id: '',
-        payment_date: new Date().toISOString().split('T')[0],
-        reference_number: '',
-        bank_fee: 0,
-        notes: ''
-    })
-
     const grForm = reactive({
         receipt_date: new Date().toISOString().split('T')[0],
         delivery_note_number: '',
@@ -55,44 +43,22 @@ export function useDirectPurchaseDetail() {
     const fetchDetail = async () => {
         try {
             isLoading.value = true
-            const id = route.params.id
+            loadError.value = false
+            const id = documentId ?? route.params.id
             const response = await showDirectPurchase(id)
-            dp.value = response.data || null
+            if (!response.data) throw new Error('Direct purchase unavailable')
+            dp.value = response.data
 
             if (dp.value) {
                 submitForm.recipient_name = dp.value.supplier?.name || dp.value.merchant_name || dp.value.marketplace_name || ''
                 submitForm.bank_account_holder = submitForm.recipient_name
             }
         } catch (error) {
-            showError('Gagal Memuat Detail!', 'Transaksi Direct Purchase tidak ditemukan atau terjadi kesalahan server.', error)
-            router.push({ name: 'user.purchasing.direct' })
+            loadError.value = true
         } finally {
             isLoading.value = false
         }
     }
-
-    const fetchBankAccounts = async () => {
-        try {
-            const response = await getAccountingAccounts('', 1, { is_active: 1 })
-            bankAccounts.value = response.data || response || []
-        } catch (e) {
-            console.error('Failed to load accounting accounts', e)
-        }
-    }
-
-    const tableColumns = computed(() => {
-        const cur = dp.value?.currency ? `(${dp.value.currency})` : '(Rp)'
-        return [
-            { key: 'no', label: 'No', class: 'w-14 text-center' },
-            { key: 'item', label: 'Item & Referensi', class: 'min-w-[240px]' },
-            { key: 'unit', label: 'Satuan', class: 'w-24 text-center' },
-            { key: 'qty', label: 'Kuantitas', class: 'w-28 text-right' },
-            { key: 'price', label: `Harga Satuan ${cur}`, class: 'w-36 text-right' },
-            { key: 'discount', label: `Diskon ${cur}`, class: 'w-32 text-right' },
-            { key: 'subtotal', label: `Subtotal ${cur}`, class: 'w-40 text-right' },
-            { key: 'notes', label: 'Catatan & Tautan', class: 'min-w-[180px]' }
-        ]
-    })
 
     const formatDate = (dateString) => {
         if (!dateString) return '-'
@@ -133,43 +99,10 @@ export function useDirectPurchaseDetail() {
             })
             showSubmitModal.value = false
             showSuccess('Berhasil!', `Permohonan pembayaran untuk ${dp.value.dp_number} siap dicairkan oleh bagian keuangan.`)
-            fetchDetail()
+            await fetchDetail()
+            onChanged()
         } catch (error) {
             const errorMsg = error.response?.data?.message || 'Gagal mengajukan pembayaran.'
-            showError('Gagal!', errorMsg, error)
-        }
-    }
-
-    const openDisburseModal = async () => {
-        await fetchBankAccounts()
-        disburseForm.payment_date = new Date().toISOString().split('T')[0]
-        disburseForm.reference_number = ''
-        disburseForm.bank_fee = 0
-        disburseForm.notes = ''
-        showDisburseModal.value = true
-    }
-
-    const confirmDisburse = async () => {
-        if (!dp.value?.payment_request) return
-        if (!disburseForm.source_account_id) {
-            showError('Validasi Gagal', 'Silakan pilih akun kas/bank sumber dana.')
-            return
-        }
-
-        try {
-            showLoading('Memproses pencairan dana...')
-            await disbursePayment(dp.value.payment_request.id, {
-                source_account_id: disburseForm.source_account_id,
-                payment_date: disburseForm.payment_date,
-                reference_number: disburseForm.reference_number,
-                bank_fee: disburseForm.bank_fee,
-                notes: disburseForm.notes
-            })
-            showDisburseModal.value = false
-            showSuccess('Pembayaran Sukses!', 'Dana pembayaran telah dicairkan. Status direct purchase kini lunas.')
-            fetchDetail()
-        } catch (error) {
-            const errorMsg = error.response?.data?.message || 'Gagal mencairkan pembayaran.'
             showError('Gagal!', errorMsg, error)
         }
     }
@@ -235,7 +168,8 @@ export function useDirectPurchaseDetail() {
             })
             showGoodsReceiptModal.value = false
             showSuccess('Penerimaan Berhasil!', 'Penerimaan fisik barang berhasil dicatat di gudang.')
-            fetchDetail()
+            await fetchDetail()
+            onChanged()
         } catch (error) {
             const errorMsg = error.response?.data?.message || 'Gagal mencatat penerimaan barang.'
             showError('Gagal!', errorMsg, error)
@@ -264,7 +198,8 @@ export function useDirectPurchaseDetail() {
             showLoading('Membatalkan pembelian...')
             await cancelDirectPurchase(dp.value.id, reason)
             showSuccess('Berhasil!', `Direct Purchase ${dp.value.dp_number} telah dibatalkan.`)
-            fetchDetail()
+            await fetchDetail()
+            onChanged()
         } catch (error) {
             const errorMsg = error.response?.data?.message || 'Gagal membatalkan transaksi.'
             showError('Gagal!', errorMsg, error)
@@ -278,19 +213,15 @@ export function useDirectPurchaseDetail() {
     return {
         dp,
         isLoading,
-        bankAccounts,
+        loadError,
+        fetchDetail,
         showSubmitModal,
-        showDisburseModal,
         showGoodsReceiptModal,
         submitForm,
-        disburseForm,
         grForm,
-        tableColumns,
         formatDate,
         openSubmitModal,
         confirmSubmitForPayment,
-        openDisburseModal,
-        confirmDisburse,
         openGoodsReceiptModal,
         confirmGoodsReceipt,
         handleCancel

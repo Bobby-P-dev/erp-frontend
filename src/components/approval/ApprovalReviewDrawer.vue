@@ -3,22 +3,21 @@ import { ref, computed, watch } from 'vue'
 import {
     X,
     ExternalLink,
-    Building2,
     FileText,
     Clock,
-    User,
     CheckCircle2,
     RotateCcw,
     XCircle,
     AlertCircle,
-    Calendar,
     Layers,
     Package,
-    ShieldAlert,
     AlertTriangle,
     Pencil
 } from '@lucide/vue'
 import ApprovalBadge from './ApprovalBadge.vue'
+import ApprovalReviewSummary from './ApprovalReviewSummary.vue'
+import BaseTable from '../ui/BaseTable.vue'
+import ReviewDisclosure from '../ui/ReviewDisclosure.vue'
 import ApprovalStepper from './ApprovalStepper.vue'
 import ApprovalAuditTrail from './ApprovalAuditTrail.vue'
 import ApprovalActionDialog from './ApprovalActionDialog.vue'
@@ -62,7 +61,7 @@ const trackerData = ref(null)
 const trackerError = ref('')
 let trackerLoad = 0
 const isQuotationReview = computed(() => props.task?.document_type === 'supplier_quotation')
-const activeWorkflowTab = ref('lifecycle') // 'lifecycle' | 'tiers'
+const activeWorkflowTab = ref('tiers') // 'lifecycle' | 'tiers'
 
 const effectiveDoc = computed(() => {
     return trackerData.value?.request || props.task || {}
@@ -117,6 +116,14 @@ const isDocPurchaseRequisition = computed(() => {
     const docType = String(effectiveDoc.value?.document_type || effectiveDoc.value?.approvable_type || '').toLowerCase()
     return docType.includes('purchase_requisition')
 })
+
+const itemColumns = computed(() => [
+    { key: 'item', label: 'Barang / jasa', width: '32%', minWidth: '240px' },
+    { key: 'quantity', label: 'Jumlah', width: '14%', align: 'right' },
+    { key: 'price', label: isQuotationReview.value ? 'Harga satuan' : 'Estimasi satuan', width: '19%', align: 'right' },
+    { key: 'subtotal', label: 'Subtotal', width: '19%', align: 'right' },
+    ...(isDocPurchaseRequisition.value ? [{ key: 'decision', label: 'Keputusan item', width: '240px' }] : []),
+])
 
 watch([effectiveItems, isDrawerVisible], ([items, visible]) => {
     if (visible && Array.isArray(items)) {
@@ -240,6 +247,7 @@ const fetchTracker = async (requestId) => {
 
 watch(isDrawerVisible, (newVal) => {
     if (newVal && props.task) {
+        activeWorkflowTab.value = 'tiers'
         fetchTracker(props.task.id)
     } else {
         trackerData.value = null
@@ -345,7 +353,8 @@ const formatDate = (dateStr) => {
         >
             <!-- Centered Modal Box -->
             <div 
-                class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl xl:max-w-6xl flex flex-col max-h-[90vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+                class="approval-review bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl xl:max-w-6xl flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+                role="dialog" aria-modal="true" aria-labelledby="approval-review-title"
                 @click.stop
             >
                 <!-- MODAL HEADER -->
@@ -355,11 +364,11 @@ const formatDate = (dateStr) => {
                             <FileText class="w-5 h-5" />
                         </div>
                         <div>
-                            <div class="flex items-center gap-2.5">
-                                <h3 class="text-base font-bold text-slate-900 font-mono tracking-tight">
+                            <div class="flex flex-wrap items-center gap-2.5">
+                                <h3 id="approval-review-title" class="text-base font-semibold text-slate-900 tracking-tight">
                                     {{ effectiveDoc.document_number || 'Review Dokumen' }}
                                 </h3>
-                                <ApprovalBadge :status="effectiveDoc.status || 'pending'" size="sm" />
+                                <ApprovalBadge :status="effectiveDoc.status || 'pending'" size="sm" appearance="subtle" />
                             </div>
                             <p class="text-xs text-slate-500 capitalize mt-0.5">
                                 {{ effectiveDoc.document_type_label || String(effectiveDoc.document_type || '').replace(/_/g, ' ') }}
@@ -378,109 +387,24 @@ const formatDate = (dateStr) => {
                 </div>
 
                 <!-- MODAL CONTENT (Scrollable) -->
-                <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 overscroll-contain">
+                <div class="review-body flex-1 min-h-0 overflow-y-auto p-5 sm:p-7 space-y-7 overscroll-contain">
                     <p v-if="isQuotationReview && trackerError" role="alert" class="text-sm text-rose-800 mb-4">{{ trackerError }}</p>
-                    <div v-if="isQuotationReview && effectiveDoc.supplier_quotation" class="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-4 text-xs text-slate-800 space-y-1">
-                        <p class="font-bold">Quotation versi {{ effectiveDoc.supplier_quotation.review_version }} · {{ effectiveDoc.supplier_quotation.currency }}</p>
-                        <p>Supplier: {{ effectiveDoc.supplier_quotation.supplier?.name || '—' }}</p>
-                        <p>Syarat pembayaran: {{ effectiveDoc.supplier_quotation.payment_terms || '—' }} · Lead time: {{ effectiveDoc.supplier_quotation.lead_time_days ?? '—' }} hari</p>
-                        <p>Berlaku sampai: {{ effectiveDoc.supplier_quotation.valid_until || 'Belum ditentukan' }}</p>
-                        <p>Pajak: {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.tax_amount, effectiveDoc.supplier_quotation.currency) }} · Ongkir: {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.shipping_cost, effectiveDoc.supplier_quotation.currency) }}</p>
-                        <p class="font-semibold">Total: {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.total_amount, effectiveDoc.supplier_quotation.currency) }}</p>
-                    </div>
-                    <!-- Overview Card -->
-                    <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3.5">
-                        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                                <FileText class="w-4 h-4 text-slate-500" />
-                                Ringkasan Pengajuan Dokumen
-                            </span>
-                            <div class="flex items-center gap-2">
-                                <span v-if="effectiveDoc.is_overdue" class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                    <ShieldAlert class="w-3.5 h-3.5 text-rose-600" />
-                                    SLA Overdue
-                                </span>
-                                <span v-else-if="effectiveDoc.sla_hours_left !== undefined && effectiveDoc.sla_hours_left !== null" class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                                    <Clock class="w-3.5 h-3.5 text-amber-600" />
-                                    {{ effectiveDoc.sla_hours_left }}j tersisa
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Metadata Grid -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
-                            <!-- Pemohon -->
-                            <div>
-                                <span class="text-slate-400 font-medium block text-[11px]">Pemohon (Requester):</span>
-                                <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
-                                    <User class="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                    <span class="truncate">{{ effectiveDoc.requester?.name || effectiveDoc.requester_name || '-' }}</span>
-                                </div>
-                                <div v-if="effectiveDoc.requester?.nik || effectiveDoc.requester?.position" class="text-[11px] text-slate-600 ml-5 truncate font-medium">
-                                    <span v-if="effectiveDoc.requester?.nik" class="font-mono text-slate-500 mr-1.5">[{{ effectiveDoc.requester.nik }}]</span>
-                                    <span>{{ effectiveDoc.requester?.position || '' }}</span>
-                                </div>
-                                <div class="text-[11px] text-slate-500 ml-5 truncate">
-                                    {{ effectiveDoc.requester?.division || effectiveDoc.division_name || effectiveDoc.requester?.email || '' }}
-                                </div>
-                            </div>
-
-                            <!-- Perusahaan & Divisi -->
-                            <div>
-                                <span class="text-slate-400 font-medium block text-[11px]">Perusahaan & Divisi:</span>
-                                <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
-                                    <Building2 class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span class="truncate">{{ effectiveDoc.company?.name || effectiveDoc.company_name || '-' }}</span>
-                                </div>
-                                <div class="text-[11px] text-slate-500 ml-5 truncate">
-                                    Divisi: {{ effectiveDoc.division?.name || effectiveDoc.division_name || '-' }}
-                                </div>
-                            </div>
-
-                            <!-- Tanggal Pengajuan & Dibutuhkan -->
-                            <div>
-                                <span class="text-slate-400 font-medium block text-[11px]">Tanggal Pengajuan:</span>
-                                <div class="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
-                                    <Calendar class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span>{{ formatDate(effectiveDoc.request_date || effectiveDoc.submitted_at || effectiveDoc.created_at) }}</span>
-                                </div>
-                                <div v-if="effectiveDoc.required_date" class="text-[11px] text-slate-600 font-medium ml-5 mt-0.5">
-                                    Target: {{ formatDate(effectiveDoc.required_date) }}
-                                </div>
-                            </div>
-
-                            <!-- Total Nilai Nominal -->
-                            <div>
-                                <span class="text-slate-400 font-medium block text-[11px]">Total Nilai Pengajuan:</span>
-                                <div class="font-mono font-bold text-slate-900 text-sm mt-1">
-                                    {{ effectiveDoc.total_amount !== null && effectiveDoc.total_amount !== undefined ? formatCurrency(effectiveDoc.total_amount, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') : '-' }}
-                                </div>
-                            </div>
-
-                            <!-- Perihal / Deskripsi Pengajuan -->
-                            <div class="sm:col-span-2 lg:col-span-4">
-                                <span class="text-slate-400 font-medium block text-[11px]">Perihal / Keperluan Pengajuan:</span>
-                                <div class="text-slate-900 font-medium mt-1 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">
-                                    {{ effectiveDoc.purpose || effectiveDoc.document_title || '-' }}
-                                </div>
-                            </div>
-
-                            <!-- Catatan Tambahan -->
-                            <div v-if="effectiveDoc.notes" class="sm:col-span-2 lg:col-span-4">
-                                <span class="text-slate-400 font-medium block text-[11px]">Catatan Tambahan:</span>
-                                <div class="text-slate-700 mt-1 leading-relaxed bg-white p-3 rounded-lg border border-slate-200 text-xs">
-                                    {{ effectiveDoc.notes }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <ApprovalReviewSummary :key="`summary-${props.task?.id}`" :document="effectiveDoc" :currency="isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR'" :format-date="formatDate" />
+                    <ReviewDisclosure v-if="isQuotationReview && effectiveDoc.supplier_quotation" :key="`quotation-${props.task?.id}`" title="Ketentuan quotation" :description="`${effectiveDoc.supplier_quotation.supplier?.name || 'Supplier'} · Versi ${effectiveDoc.supplier_quotation.review_version}`">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-700">
+                            <div><dt class="text-xs text-slate-500 mb-1">Syarat pembayaran</dt><dd>{{ effectiveDoc.supplier_quotation.payment_terms || '—' }}</dd></div>
+                            <div><dt class="text-xs text-slate-500 mb-1">Lead time</dt><dd>{{ effectiveDoc.supplier_quotation.lead_time_days ?? '—' }} hari</dd></div>
+                            <div><dt class="text-xs text-slate-500 mb-1">Berlaku sampai</dt><dd>{{ formatDate(effectiveDoc.supplier_quotation.valid_until) }}</dd></div>
+                            <div><dt class="text-xs text-slate-500 mb-1">Pajak / ongkir</dt><dd>{{ formatQuotationCurrency(effectiveDoc.supplier_quotation.tax_amount, effectiveDoc.supplier_quotation.currency) }} / {{ formatQuotationCurrency(effectiveDoc.supplier_quotation.shipping_cost, effectiveDoc.supplier_quotation.currency) }}</dd></div>
+                        </dl>
+                    </ReviewDisclosure>
 
                     <!-- RINCIAN BARANG / JASA (ITEMS TABLE) -->
                     <div class="space-y-2.5">
                         <div class="flex items-center justify-between">
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                            <h4 class="text-sm font-semibold text-slate-800 flex flex-wrap items-center gap-2">
                                 <Package class="w-4 h-4 text-slate-600" />
-                                Daftar Barang / Jasa yang Diajukan
+                                Barang & jasa
                                 <span class="px-2 py-0.2 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                                     {{ effectiveItems.length }} Item
                                 </span>
@@ -513,106 +437,33 @@ const formatDate = (dateStr) => {
                             Dokumen ini tidak memiliki rincian item barang/jasa atau item dimuat dari sistem dokumen terkait.
                         </div>
 
-                        <div v-else class="border border-slate-200 rounded-lg overflow-hidden">
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left text-xs border-collapse">
-                                    <thead>
-                                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                                            <th class="py-2.5 px-3 w-10 text-center">No</th>
-                                            <th class="py-2.5 px-3 min-w-[200px]">Item / Barang</th>
-                                            <th class="py-2.5 px-3 text-right w-20">Jumlah</th>
-                                            <th class="py-2.5 px-3 w-20">Satuan</th>
-                                            <th class="py-2.5 px-3 text-right w-32">{{ isQuotationReview ? 'Harga Satuan' : 'Est. Harga Satuan' }}</th>
-                                            <th class="py-2.5 px-3 text-right w-32">Subtotal</th>
-                                            <th class="py-2.5 px-3 min-w-[180px]">Catatan / Referensi</th>
-                                            <th v-if="isDocPurchaseRequisition" class="py-2.5 px-3 text-center min-w-[210px]">Keputusan Item</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100 bg-white">
-                                        <tr 
-                                            v-for="(item, idx) in effectiveItems" 
-                                            :key="item.id || idx" 
-                                            class="transition-colors"
-                                            :class="[
-                                                itemRejectionStates[item.id]?.isRejected
-                                                    ? 'bg-rose-50/50 hover:bg-rose-50/70 border-l-4 border-l-rose-500'
-                                                    : 'hover:bg-slate-50/70'
-                                            ]"
-                                        >
-                                            <td class="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">{{ idx + 1 }}</td>
-                                            <td class="py-3 px-3">
-                                                <div 
-                                                    class="font-bold text-slate-900 flex items-center gap-2"
-                                                    :class="{'line-through text-slate-500': itemRejectionStates[item.id]?.isRejected}"
-                                                >
-                                                    <span>{{ item.item_name || 'Item #' + (item.item_id || item.id) }}</span>
-                                                    <span 
-                                                        v-if="item.is_non_catalog" 
-                                                        class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 shrink-0"
-                                                    >
-                                                        Non-Katalog
-                                                    </span>
-                                                </div>
-                                                <div 
-                                                    v-if="item.detail_name" 
-                                                    class="text-xs text-slate-600 font-medium mt-0.5"
-                                                    :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
-                                                >
-                                                    {{ item.detail_name }}
-                                                </div>
-                                                <div v-if="item.item_code" class="text-[10px] text-slate-400 font-mono mt-0.5">
-                                                    Kode: {{ item.item_code }}
-                                                </div>
-                                            </td>
-                                            <td 
-                                                class="py-3 px-3 text-right font-mono font-bold text-slate-900"
-                                                :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
-                                            >
-                                                {{ item.quantity }}
-                                            </td>
-                                            <td 
-                                                class="py-3 px-3 text-slate-600"
-                                                :class="{'text-slate-400': itemRejectionStates[item.id]?.isRejected}"
-                                            >
-                                                {{ item.unit?.code || item.unit?.name || item.unit_name || '-' }}
-                                            </td>
-                                            <td 
-                                                class="py-3 px-3 text-right font-mono text-slate-700"
-                                                :class="{'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected}"
-                                            >
-                                                {{ formatCurrency(item.estimated_price || 0, isQuotationReview ? item.currency || 'IDR' : 'IDR') }}
-                                            </td>
-                                            <td class="py-3 px-3 text-right font-mono">
-                                                <div v-if="itemRejectionStates[item.id]?.isRejected">
-                                                    <span class="line-through text-slate-400 font-normal block text-xs">
-                                                        {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0))) }}
-                                                    </span>
-                                                    <span class="font-bold text-rose-600 text-xs mt-0.5 inline-block">
-                                                        Ditolak (Rp 0)
-                                                    </span>
-                                                </div>
-                                                <div v-else class="font-bold text-slate-900">
-                                                    {{ formatCurrency(item.estimated_subtotal || ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0)), isQuotationReview ? item.currency || 'IDR' : 'IDR') }}
-                                                </div>
-                                            </td>
-                                            <td class="py-3 px-3">
-                                                <div v-if="item.notes" class="text-slate-700 leading-snug">
-                                                    {{ item.notes }}
-                                                </div>
-                                                <a 
-                                                    v-if="item.reference_url" 
-                                                    :href="item.reference_url" 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer" 
-                                                    class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium mt-0.5"
-                                                >
-                                                    <ExternalLink class="w-3 h-3" />
-                                                    <span>Link Referensi</span>
-                                                </a>
-                                                <span v-if="!item.notes && !item.reference_url" class="text-slate-400">-</span>
-                                            </td>
-                                            <!-- KEPUTUSAN ITEM COLUMN -->
-                                            <td v-if="isDocPurchaseRequisition" class="py-3 px-3 align-middle">
+                        <div v-else class="border border-slate-200 rounded-xl overflow-hidden">
+                            <p class="px-5 py-2.5 text-xs text-slate-500 border-b border-slate-100 lg:hidden">Geser tabel untuk melihat nilai dan keputusan item.</p>
+                            <BaseTable :columns="itemColumns" min-width="860px" label="Barang dan keputusan pengajuan">
+                                <tr v-for="(item, idx) in effectiveItems" :key="item.id || idx" :class="{ 'bg-rose-50/50': itemRejectionStates[item.id]?.isRejected }">
+                                    <td class="review-item">
+                                        <p class="font-medium text-slate-900" :class="{ 'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected }">{{ item.item_name || 'Item #' + (item.item_id || item.id) }}</p>
+                                        <p v-if="item.detail_name" class="mt-1 text-xs text-slate-500">{{ item.detail_name }}</p>
+                                        <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                            <span v-if="item.item_code">{{ item.item_code }}</span>
+                                            <span v-if="item.is_non_catalog" class="text-amber-700">Non-katalog</span>
+                                        </div>
+                                        <details v-if="item.notes || item.reference_url" class="mt-2 text-xs text-slate-500">
+                                            <summary class="cursor-pointer w-fit">Catatan & referensi</summary>
+                                            <p v-if="item.notes" class="mt-2 whitespace-pre-line">{{ item.notes }}</p>
+                                            <a v-if="item.reference_url" :href="item.reference_url" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1 text-blue-700 hover:underline"><ExternalLink class="size-3" />Buka referensi</a>
+                                        </details>
+                                    </td>
+                                    <td class="text-right tabular-nums whitespace-nowrap">
+                                        <p :class="{ 'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected }">{{ item.quantity }}</p>
+                                        <p class="mt-1 text-xs text-slate-500">{{ item.unit?.code || item.unit?.name || item.unit_name || '—' }}</p>
+                                    </td>
+                                    <td class="text-right tabular-nums whitespace-nowrap" :class="{ 'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected }">{{ formatCurrency(item.estimated_price || 0, isQuotationReview ? item.currency || effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}</td>
+                                    <td class="text-right tabular-nums whitespace-nowrap">
+                                        <p :class="itemRejectionStates[item.id]?.isRejected ? 'line-through text-slate-400' : 'font-medium text-slate-900'">{{ formatCurrency(item.estimated_subtotal ?? ((Number(item.quantity) || 0) * (Number(item.estimated_price) || 0)), isQuotationReview ? item.currency || effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}</p>
+                                        <p v-if="itemRejectionStates[item.id]?.isRejected" class="mt-1 text-xs text-rose-700">Ditolak · {{ formatCurrency(0) }}</p>
+                                    </td>
+                                    <td v-if="isDocPurchaseRequisition">
                                                 <!-- Jika barang sudah ditolak permanen dari tier sebelumnya -->
                                                 <div v-if="itemRejectionStates[item.id]?.isPermanentlyLocked" class="text-center">
                                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
@@ -706,36 +557,25 @@ const formatDate = (dateStr) => {
                                                         Menunggu
                                                     </span>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
-                                            <td colspan="5" class="py-2.5 px-3 text-right text-xs uppercase tracking-wider text-slate-600">
-                                                Total Estimasi {{ totalRejectedItemsCount > 0 ? 'Disetujui' : 'Pengadaan' }}:
-                                            </td>
-                                            <td class="py-2.5 px-3 text-right text-xs font-mono font-bold text-slate-900">
-                                                {{ formatCurrency(dynamicEffectiveTotal, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}
-                                            </td>
-                                            <td></td>
-                                            <td v-if="isDocPurchaseRequisition"></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
+                                    </td>
+                                </tr>
+                                <template #footer>
+                                    <tr class="border-t border-slate-200 bg-slate-50/70">
+                                        <td colspan="3" class="px-5 py-4 text-sm text-slate-500 text-right">{{ isQuotationReview ? 'Total quotation (termasuk pajak & ongkir)' : 'Total estimasi' }}{{ totalRejectedItemsCount > 0 ? ' disetujui' : '' }}</td>
+                                        <td class="px-5 py-4 text-sm text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">{{ formatCurrency(dynamicEffectiveTotal, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}</td>
+                                        <td v-if="isDocPurchaseRequisition"></td>
+                                    </tr>
+                                </template>
+                            </BaseTable>
                         </div>
                     </div>
 
                     <!-- Stepper & Lifecycle Section (Alur Persetujuan & Siklus Hidup) -->
-                    <div class="space-y-3">
+                    <ReviewDisclosure :key="`workflow-${props.task?.id}`" title="Alur persetujuan" :description="effectiveDoc.current_step_name || 'Lihat tahapan persetujuan dan perjalanan dokumen'">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1">
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                                <Clock class="w-4 h-4 text-slate-600" />
-                                Alur Persetujuan & Siklus Hidup Dokumen
-                            </h4>
 
                             <!-- Segmented View Toggle -->
-                            <div class="inline-flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+                            <div class="inline-flex flex-wrap items-center p-1 bg-slate-100 rounded-lg border border-slate-200 text-xs">
                                 <button
                                     type="button"
                                     @click="activeWorkflowTab = 'lifecycle'"
@@ -747,7 +587,7 @@ const formatDate = (dateStr) => {
                                     ]"
                                 >
                                     <Layers class="w-3.5 h-3.5 text-blue-600" />
-                                    <span>Siklus Hidup Lengkap (End-to-End)</span>
+                                    <span>Perjalanan dokumen</span>
                                 </button>
                                 <button
                                     type="button"
@@ -760,7 +600,7 @@ const formatDate = (dateStr) => {
                                     ]"
                                 >
                                     <Clock class="w-3.5 h-3.5 text-slate-500" />
-                                    <span>Approval Bertingkat ({{ effectiveDoc.current_step_order || 1 }}/{{ effectiveDoc.total_steps || trackerData?.levels?.length || 2 }})</span>
+                                    <span>Tahapan ({{ effectiveDoc.current_step_order || 1 }}/{{ effectiveDoc.total_steps || trackerData?.levels?.length || '—' }})</span>
                                 </button>
                             </div>
                         </div>
@@ -785,19 +625,19 @@ const formatDate = (dateStr) => {
                                 />
                             </div>
                         </div>
-                    </div>
+                    </ReviewDisclosure>
 
                     <!-- Audit Trail Section -->
-                    <div class="bg-white rounded-lg p-4 border border-slate-200">
+                    <ReviewDisclosure :key="`audit-${props.task?.id}`" title="Riwayat aktivitas" description="Keputusan, catatan, dan waktu tindakan">
                         <ApprovalAuditTrail
                             :actions="trackerData?.actions || effectiveDoc.actions || []"
                             :isLoading="isLoadingTracker"
                         />
-                    </div>
+                    </ReviewDisclosure>
                 </div>
 
                 <!-- MODAL FOOTER (Decision Action Bar) -->
-                <div class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div class="review-footer px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
                     <button
                         type="button"
                         @click="emit('close')"
@@ -807,7 +647,7 @@ const formatDate = (dateStr) => {
                     </button>
 
                     <!-- Action Buttons (when user is authorized approver) -->
-                    <div v-if="canUserAct" class="flex items-center gap-2">
+                    <div v-if="canUserAct" class="review-actions flex flex-wrap items-center gap-2">
                         <!-- Request Revision -->
                         <button
                             type="button"
@@ -963,3 +803,18 @@ const formatDate = (dateStr) => {
         </div>
     </Teleport>
 </template>
+
+<style scoped>
+.approval-review { max-height: calc(100dvh - 40px); }
+.review-item { overflow-wrap: anywhere; max-width: 360px; }
+.review-item summary:focus-visible { outline: 2px solid #014baa; outline-offset: 3px; }
+.review-footer button { min-height: 38px; }
+@media (max-width: 640px) {
+    .approval-review { max-height: calc(100dvh - 24px); }
+    .review-body { padding: 20px 16px; }
+    .review-footer { padding: 12px 16px; }
+    .review-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    .review-actions button { justify-content: center; }
+    .review-actions button:last-child { grid-column: 1 / -1; }
+}
+</style>

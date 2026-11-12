@@ -1,10 +1,11 @@
 <script setup>
-import { Trash2, Package, ClipboardList, Wallet, ExternalLink } from '@lucide/vue'
+import { Trash2, Package, ExternalLink } from '@lucide/vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import { formatCurrency } from '@/composables/useFormatter.js'
 
 defineProps({
+    errors: { type: Object, default: () => ({}) },
     row: {
         type: Object,
         required: true,
@@ -58,7 +59,7 @@ defineEmits([
 </script>
 
 <template>
-    <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 space-y-6 shadow-xs transition-all">
+    <div class="pr-item min-w-0 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 space-y-5">
         <!-- Item Header Bar -->
         <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div class="flex flex-wrap items-center gap-3">
@@ -69,6 +70,7 @@ defineEmits([
                     <button
                         type="button"
                         @click="row.entry_mode = 'catalog'"
+                        :aria-pressed="row.entry_mode === 'catalog'"
                         :class="row.entry_mode === 'catalog' ? 'bg-white text-[#014BAA] shadow-xs' : 'text-slate-600 hover:text-slate-900'"
                         class="px-3 py-1.5 rounded-lg transition-all cursor-pointer"
                     >
@@ -77,6 +79,7 @@ defineEmits([
                     <button
                         type="button"
                         @click="row.entry_mode = 'custom'"
+                        :aria-pressed="row.entry_mode === 'custom'"
                         :class="row.entry_mode === 'custom' ? 'bg-white text-[#014BAA] shadow-xs' : 'text-slate-600 hover:text-slate-900'"
                         class="px-3 py-1.5 rounded-lg transition-all cursor-pointer"
                     >
@@ -118,9 +121,9 @@ defineEmits([
                 <Package class="w-4 h-4 text-[#014BAA]" />
                 Data Barang & Kuantitas
             </h3>
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+            <div class="grid grid-cols-1 sm:grid-cols-6 xl:grid-cols-12 gap-4 items-start">
                 <!-- Nama Barang / Pencarian Katalog -->
-                <div v-if="row.entry_mode === 'catalog'" class="md:col-span-6">
+                <div v-if="row.entry_mode === 'catalog'" class="sm:col-span-6 xl:col-span-6">
                     <SearchableSelect
                         v-model="row.item_id"
                         :options="itemOptions"
@@ -133,7 +136,7 @@ defineEmits([
                         required
                     />
                 </div>
-                <div v-else class="md:col-span-6">
+                <div v-else class="sm:col-span-6 xl:col-span-6">
                     <BaseInput
                         v-model="row.item_name"
                         label="Nama Barang / Jasa"
@@ -146,7 +149,7 @@ defineEmits([
                 </div>
 
                 <!-- Satuan -->
-                <div class="md:col-span-2">
+                <div class="sm:col-span-2">
                     <SearchableSelect
                         v-model="row.unit_id"
                         :options="unitOptions"
@@ -161,7 +164,7 @@ defineEmits([
                 </div>
 
                 <!-- Jumlah -->
-                <div class="md:col-span-2">
+                <div class="sm:col-span-2">
                     <BaseInput
                         v-model="row.quantity"
                         type="number"
@@ -177,7 +180,7 @@ defineEmits([
                 </div>
 
                 <!-- Estimasi Harga Satuan -->
-                <div class="md:col-span-2">
+                <div class="sm:col-span-2">
                     <BaseInput
                         v-model="row.estimated_price"
                         type="number"
@@ -195,11 +198,8 @@ defineEmits([
         </div>
 
         <!-- 2. SPESIFIKASI & CATATAN TEKNIS -->
-        <div class="pt-5 border-t border-slate-100">
-            <h3 class="text-sm sm:text-base font-bold text-slate-800 mb-1 flex items-center gap-2">
-                <ClipboardList class="w-4 h-4 text-[#014BAA]" />
-                Spesifikasi Teknis & Referensi Barang
-            </h3>
+        <details :open="row.showDetails || Boolean(errors[`items.${index}.detail_name`] || errors[`items.${index}.reference_url`] || errors[`items.${index}.notes`])" @toggle="row.showDetails = $event.target.open" class="pt-4 border-t border-slate-100 space-y-4">
+            <summary>Spesifikasi, referensi & catatan <span class="ml-1 text-xs font-normal text-slate-500">Opsional</span></summary>
             <p class="text-xs sm:text-sm text-slate-500 mb-3.5">
                 Cantumkan rincian tipe, dimensi, merk yang diinginkan, atau tautan katalog web
             </p>
@@ -209,7 +209,7 @@ defineEmits([
                         v-model="row.detail_name"
                         label="Detail Spesifikasi Teknis"
                         placeholder="Contoh: M8 x 40mm SS304, RAM 16GB SSD 512GB, warna hitam size L"
-                        :error="getItemError(index, 'detail_name')"
+                        :error="errors[`items.${index}.detail_name`] || getItemError(index, 'detail_name')"
                         @blur="$emit('mark-item-touched', index, 'detail_name')"
                     />
                 </div>
@@ -218,7 +218,7 @@ defineEmits([
                         v-model="row.reference_url"
                         label="Tautan / Link Referensi Produk (opsional)"
                         placeholder="Contoh: https://www.tokopedia.com/product/..."
-                        :error="getItemError(index, 'reference_url')"
+                        :error="errors[`items.${index}.reference_url`] || getItemError(index, 'reference_url')"
                         @blur="$emit('mark-item-touched', index, 'reference_url')"
                     />
                     <div v-if="row.reference_url" class="mt-1.5">
@@ -238,20 +238,17 @@ defineEmits([
                         v-model="row.notes"
                         label="Catatan Khusus untuk Pembelian (opsional)"
                         placeholder="Contoh: Wajib bergaransi resmi, sertakan sertifikat kalibrasi"
-                        :error="getItemError(index, 'notes')"
+                        :error="errors[`items.${index}.notes`] || getItemError(index, 'notes')"
                         @blur="$emit('mark-item-touched', index, 'notes')"
                     />
                 </div>
             </div>
-        </div>
+        </details>
 
         <!-- 3. KLASIFIKASI AKUN AKUNTANSI -->
-        <div class="pt-5 border-t border-slate-100 bg-slate-50/70 border border-slate-200 rounded-xl p-4 sm:p-5">
+        <details :open="row.showAccounting || Boolean(errors[`items.${index}.accounting_category_id`] || errors[`items.${index}.accounting_subcategory_id`] || errors[`items.${index}.accounting_account_id`])" @toggle="row.showAccounting = $event.target.open" class="pt-4 border-t border-slate-100 space-y-4">
+            <summary>Klasifikasi akun akuntansi <span class="ml-1 text-xs font-normal text-slate-500">Opsional</span></summary>
             <div class="mb-3.5">
-                <h3 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
-                    <Wallet class="w-4 h-4 text-[#014BAA]" />
-                    Klasifikasi Akun Akuntansi (Opsional)
-                </h3>
                 <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
                     Boleh dikosongkan jika Anda tidak mengetahui akunnya — akan ditentukan oleh tim Keuangan / Purchasing.
                 </p>
@@ -261,6 +258,7 @@ defineEmits([
                     <SearchableSelect
                         v-model="row.accounting_category_id"
                         :options="accountingCategoryOptions"
+                        :error="errors[`items.${index}.accounting_category_id`]"
                         label="Kategori Akun (opsional)"
                         placeholder="Pilih Kategori..."
                         :searchable="true"
@@ -271,6 +269,7 @@ defineEmits([
                     <SearchableSelect
                         v-model="row.accounting_subcategory_id"
                         :options="accountingSubcategoryOptions"
+                        :error="errors[`items.${index}.accounting_subcategory_id`]"
                         label="Subkategori Akun (opsional)"
                         placeholder="Pilih Subkategori..."
                         :searchable="true"
@@ -280,12 +279,24 @@ defineEmits([
                     <SearchableSelect
                         v-model="row.accounting_account_id"
                         :options="accountingAccountOptions"
+                        :error="errors[`items.${index}.accounting_account_id`]"
                         label="Akun Beban / Aset (opsional)"
                         placeholder="Pilih Akun..."
                         :searchable="true"
                     />
                 </div>
             </div>
-        </div>
+        </details>
     </div>
 </template>
+
+<style scoped>
+.pr-item :deep(.grid > div) { min-width: 0; }
+.pr-item :deep(h3 svg) { display: none; }
+.pr-item :deep(label) { line-height: 1.5; }
+.pr-item :deep(.font-bold) { font-weight: 500; }
+@media (max-width: 639px) {
+    .pr-item > div:first-child > div { width: 100%; justify-content: space-between; }
+    .pr-item > div:first-child .inline-flex { flex-wrap: wrap; }
+}
+</style>

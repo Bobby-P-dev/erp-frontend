@@ -1,10 +1,11 @@
 <script setup>
 import { onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useRfqDetail } from '@/composables/purchasing/useRfqDetail.js'
 import { formatRfqTimestamp } from '@/utils/rfqTimestamp.js'
 
-import PageHeader from '@/components/ui/PageHeader.vue'
+import BaseBreadcrumb from '@/components/ui/BaseBreadcrumb.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import ReviewDisclosure from '@/components/ui/ReviewDisclosure.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import RfqLifecycleStepper from '@/components/purchasing/rfq/detail/RfqLifecycleStepper.vue'
 import RfqMetadataCards from '@/components/purchasing/rfq/detail/RfqMetadataCards.vue'
@@ -13,8 +14,6 @@ import RfqManualQuotationModal from '@/components/purchasing/rfq/detail/RfqManua
 import QuotationReviewSection from '@/components/purchasing/rfq/detail/QuotationReviewSection.vue'
 
 import {
-    Home,
-    ChevronRight,
     ArrowLeft,
     Scale,
     FileText,
@@ -77,165 +76,35 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6">
-        <PageHeader 
-            :title="rfq ? `${rfq.rfq_number} — ${rfq.title}` : 'Detail Tender RFQ'" 
-            subtitle="Pusat kendali tender, undangan vendor, dan pencatatan penawaran harga"
-        >
-            <template #breadcrumbs>
-                <div class="flex items-center gap-2 text-xs text-slate-500">
-                    <RouterLink :to="{ name: 'user.dashboard' }" class="hover:text-blue-600">
-                        <Home class="w-3.5 h-3.5" />
-                    </RouterLink>
-                    <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <span>Purchasing</span>
-                    <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <RouterLink :to="{ name: 'user.purchasing.rfq' }" class="hover:text-blue-600">
-                        Tender RFQ
-                    </RouterLink>
-                    <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <span class="text-slate-800 font-medium">{{ rfq?.rfq_number || 'Detail' }}</span>
+    <div class="rfq-detail min-w-0 space-y-6">
+        <BaseBreadcrumb :items="[
+            { label: 'Purchasing', to: { name: 'user.purchasing' } },
+            { label: 'Tender RFQ', to: { name: 'user.purchasing.rfq' } },
+            { label: rfq?.rfq_number || 'Detail tender' },
+        ]" />
+        <header class="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-3">
+                    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ rfq?.rfq_number || 'Detail tender RFQ' }}</h1>
+                    <StatusBadge v-if="rfq" :status="rfq.status" />
                 </div>
-            </template>
-
-            <template #actions>
-                <div class="flex items-center gap-2.5">
-                    <BaseButton
-                        variant="outline"
-                        size="sm"
-                        @click="router.push({ name: 'user.purchasing.rfq' })"
-                        class="text-slate-600"
-                    >
-                        <ArrowLeft class="w-4 h-4 mr-1.5" />
-                        Kembali
-                    </BaseButton>
-
-                    <BaseButton
-                        variant="outline"
-                        size="sm"
-                        @click="fetchRfqDetail"
-                        :disabled="loading"
-                    >
-                        <RefreshCw class="w-4 h-4 mr-1.5" :class="{ 'animate-spin': loading }" />
-                        Segarkan
-                    </BaseButton>
-
-                    <template v-if="rfq">
-                        <template v-if="rfq.status === 'draft'">
-                            <BaseButton
-                                variant="destructive"
-                                size="sm"
-                                @click="handleCancel"
-                            >
-                                <Ban class="w-4 h-4 mr-1.5" />
-                                Batalkan Tender
-                            </BaseButton>
-                            <BaseButton
-                                variant="primary"
-                                size="sm"
-                                @click="handlePublish"
-                                class="bg-blue-600 hover:bg-blue-700"
-                            >
-                                <Play class="w-4 h-4 mr-1.5" />
-                                Publikasikan Tender
-                            </BaseButton>
-                        </template>
-
-                        <template v-else-if="rfq.status === 'published'">
-                            <BaseButton
-                                variant="destructive"
-                                size="sm"
-                                @click="handleCancel"
-                            >
-                                <Ban class="w-4 h-4 mr-1.5" />
-                                Batalkan Tender
-                            </BaseButton>
-                            <BaseButton
-                                variant="outline"
-                                size="sm"
-                                @click="router.push({ name: 'user.purchasing.rfq.comparison', params: { id: rfq.id } })"
-                                class="border-blue-600 text-blue-700 hover:bg-blue-50"
-                            >
-                                <Scale class="w-4 h-4 mr-1.5" />
-                                Matriks Komparasi
-                            </BaseButton>
-                            <BaseButton
-                                variant="primary"
-                                size="sm"
-                                @click="handleStartEvaluation"
-                                class="bg-blue-600 hover:bg-blue-700"
-                            >
-                                <CheckCheck class="w-4 h-4 mr-1.5" />
-                                Mulai Evaluasi Penawaran
-                            </BaseButton>
-                        </template>
-
-                        <template v-else-if="rfq.status === 'evaluation'">
-                            <BaseButton
-                                variant="destructive"
-                                size="sm"
-                                @click="handleCancel"
-                            >
-                                <Ban class="w-4 h-4 mr-1.5" />
-                                Batalkan Tender
-                            </BaseButton>
-                            <BaseButton
-                                variant="primary"
-                                size="sm"
-                                @click="router.push({ name: 'user.purchasing.rfq.comparison', params: { id: rfq.id } })"
-                                class="bg-indigo-600 hover:bg-indigo-700 text-white"
-                            >
-                                <Scale class="w-4 h-4 mr-1.5" />
-                                Buka Matriks Komparasi
-                            </BaseButton>
-                        </template>
-
-                        <template v-else-if="rfq.status === 'completed'">
-                            <BaseButton
-                                variant="outline"
-                                size="sm"
-                                @click="router.push({ name: 'user.purchasing.rfq.comparison', params: { id: rfq.id } })"
-                                class="border-slate-300 text-slate-700 hover:bg-slate-50"
-                            >
-                                <Scale class="w-4 h-4 mr-1.5" />
-                                Hasil Perbandingan Harga
-                            </BaseButton>
-                            <BaseButton
-                                v-if="hasUnconvertedAwardedItems"
-                                variant="primary"
-                                size="sm"
-                                @click="handleGeneratePoFromDetail"
-                                :disabled="loading || generatingPo || poValidityErrors.length > 0"
-                                class="bg-emerald-700 hover:bg-emerald-800 text-white"
-                            >
-                                <FileText class="w-4 h-4 mr-1.5" />
-                                Terbitkan Purchase Order (PO)
-                            </BaseButton>
-                            <BaseButton
-                                v-else-if="purchaseOrdersList.length === 1"
-                                variant="primary"
-                                size="sm"
-                                @click="router.push({ name: 'user.purchasing.orders.detail', params: { id: purchaseOrdersList[0].id } })"
-                                class="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                                <FileText class="w-4 h-4 mr-1.5" />
-                                Buka PO ({{ purchaseOrdersList[0].po_number }})
-                            </BaseButton>
-                            <BaseButton
-                                v-else-if="purchaseOrdersList.length > 1"
-                                variant="primary"
-                                size="sm"
-                                @click="router.push({ name: 'user.purchasing.orders', query: { rfq_id: rfq.id } })"
-                                class="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                                <FileText class="w-4 h-4 mr-1.5" />
-                                Lihat {{ purchaseOrdersList.length }} Dokumen PO
-                            </BaseButton>
-                        </template>
+                <p v-if="rfq" class="mt-2 break-words text-base text-slate-600">{{ rfq.title }}</p>
+            </div>
+            <div class="flex shrink-0 flex-wrap gap-2">
+                <BaseButton variant="secondary" size="sm" @click="router.push({ name: 'user.purchasing.rfq' })"><ArrowLeft class="size-4" />Kembali</BaseButton>
+                <BaseButton variant="secondary" size="sm" :disabled="loading" @click="fetchRfqDetail"><RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />Muat ulang</BaseButton>
+                <template v-if="rfq">
+                    <BaseButton v-if="rfq.status === 'draft'" size="sm" :disabled="loading" @click="handlePublish"><Play class="size-4" />Publikasikan tender</BaseButton>
+                    <BaseButton v-if="['published', 'evaluation', 'completed'].includes(rfq.status)" :variant="rfq.status === 'evaluation' ? 'primary' : 'secondary'" size="sm" :disabled="loading" @click="router.push({ name: 'user.purchasing.rfq.comparison', params: { id: rfq.id } })"><Scale class="size-4" />{{ rfq.status === 'completed' ? 'Hasil perbandingan' : 'Bandingkan penawaran' }}</BaseButton>
+                    <BaseButton v-if="rfq.status === 'published'" size="sm" :disabled="loading" @click="handleStartEvaluation"><CheckCheck class="size-4" />Mulai evaluasi</BaseButton>
+                    <template v-if="rfq.status === 'completed'">
+                        <BaseButton v-if="hasUnconvertedAwardedItems" size="sm" :disabled="loading || generatingPo || poValidityErrors.length > 0" @click="handleGeneratePoFromDetail"><FileText class="size-4" />{{ generatingPo ? 'Menerbitkan PO…' : 'Terbitkan PO' }}</BaseButton>
+                        <BaseButton v-else-if="purchaseOrdersList.length === 1" size="sm" @click="router.push({ name: 'user.purchasing.orders.detail', params: { id: purchaseOrdersList[0].id } })"><FileText class="size-4" />Buka {{ purchaseOrdersList[0].po_number || 'PO' }}</BaseButton>
+                        <BaseButton v-else-if="purchaseOrdersList.length > 1" size="sm" @click="router.push({ name: 'user.purchasing.orders', query: { rfq_id: rfq.id } })"><FileText class="size-4" />Lihat {{ purchaseOrdersList.length }} PO</BaseButton>
                     </template>
-                </div>
-            </template>
-        </PageHeader>
+                </template>
+            </div>
+        </header>
 
         <!-- Loading State -->
         <div v-if="loading && !rfq" class="p-12 text-center bg-white rounded-xl border border-slate-200">
@@ -243,51 +112,18 @@ onMounted(() => {
             <p class="text-sm text-slate-500 font-medium">Memuat rincian tender RFQ...</p>
         </div>
 
+        <div v-else-if="!rfq" role="alert" class="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Detail tender belum dapat dimuat. Gunakan tombol Muat ulang untuk mencoba kembali.</div>
         <template v-else-if="rfq">
-            <section v-if="['published', 'evaluation'].includes(rfq.status)" class="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-                <p class="text-sm text-slate-700">Batas respons: {{ rfq.deadline_date || 'belum ditentukan' }}, sampai akhir hari WIB. {{ deadlineInfo.label }}</p>
-                <p v-if="!deadlineInfo.canRespond" role="alert" class="text-sm text-amber-800">{{ deadlineInfo.reason }}</p>
-                <BaseButton variant="outline" size="sm" :disabled="extensionSubmitting" @click="extensionOpen = !extensionOpen">Perpanjang deadline</BaseButton>
-                <form v-if="extensionOpen" class="space-y-3" @submit.prevent="submitDeadlineExtension">
-                    <label class="block text-sm">Deadline baru (akhir hari WIB)
-                        <input v-model="extensionForm.deadline_date" type="date" required :min="rfq.deadline_date || undefined" :disabled="extensionSubmitting" class="block border border-slate-300 rounded-lg p-2 mt-1" />
-                    </label>
-                    <label class="block text-sm">Alasan perpanjangan
-                        <textarea v-model="extensionForm.reason" required maxlength="2000" :disabled="extensionSubmitting" class="block w-full border border-slate-300 rounded-lg p-2 mt-1"></textarea>
-                    </label>
-                    <p class="text-xs text-slate-500">Tanggal baru harus setelah deadline lama dan tidak sebelum hari ini WIB. Token undangan tetap; respons yang sudah diterima atau ditolak tidak dibuka ulang.</p>
-                    <BaseButton type="submit" :disabled="extensionSubmitting">{{ extensionSubmitting ? 'Menyimpan...' : 'Simpan perpanjangan' }}</BaseButton>
-                </form>
-            </section>
-            <details v-if="deadlineExtensions.length" class="p-4 rounded-xl border border-slate-200 bg-white text-sm">
-                <summary class="cursor-pointer font-semibold">Riwayat perpanjangan deadline</summary>
-                <p v-for="entry in deadlineExtensions" :key="entry.id" class="mt-2">{{ entry.previous_deadline_date || 'Belum ditentukan' }} → {{ entry.deadline_date }} (WIB): {{ entry.reason }} — User #{{ entry.changed_by }}, {{ formatRfqTimestamp(entry.created_at) }}</p>
-            </details>
-            <div v-if="hasUnconvertedAwardedItems && poValidityErrors.length" role="alert" class="p-4 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-900 space-y-1">
-                <p>PO baru belum dapat dibuat. Periksa masa berlaku quotation pada Matriks Komparasi atau segarkan data.</p>
-                <p v-for="reason in poValidityErrors" :key="reason">{{ reason }}</p>
-                <p>PO yang sudah dibuat tetap menjadi komitmen tersimpan.</p>
+            <div v-if="hasUnconvertedAwardedItems && poValidityErrors.length" role="alert" class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                <p class="font-medium">Penawaran terpilih belum memenuhi syarat pembuatan PO.</p>
+                <details class="mt-2">
+                    <summary class="cursor-pointer underline underline-offset-4">Lihat alasan & tindak lanjut</summary>
+                    <ul class="mt-3 list-disc space-y-2 pl-5"><li v-for="reason in poValidityErrors" :key="reason">{{ reason }}</li></ul>
+                    <p class="mt-3">Periksa penawaran pada hasil perbandingan atau muat ulang data. PO yang sudah dibuat tetap tersimpan.</p>
+                </details>
             </div>
-            <!-- Cancelled Notice Banner -->
-            <div 
-                v-if="rfq.status === 'cancelled'"
-                class="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3"
-            >
-                <AlertTriangle class="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
-                <div>
-                    <h3 class="text-sm font-semibold text-rose-800">Tender Ini Telah Dibatalkan</h3>
-                    <p class="text-xs text-rose-700 mt-0.5">
-                        Tender RFQ ini telah dibatalkan dan tidak lagi menerima penawaran atau proses awarding.
-                    </p>
-                </div>
-            </div>
-
-            <RfqLifecycleStepper
-                :rfq="rfq"
-                :steps="steps"
-                :deadline-info="deadlineInfo"
-                :get-step-state="getStepState"
-            />
+            <p v-if="rfq.status === 'cancelled'" class="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><AlertTriangle class="size-5 shrink-0" />Tender telah dibatalkan dan tidak menerima penawaran atau penetapan pemenang.</p>
+            <p v-if="['published', 'evaluation'].includes(rfq.status)" class="text-sm" :class="deadlineInfo.canRespond ? 'text-slate-600' : 'text-amber-900'" :role="!deadlineInfo.canRespond ? 'alert' : undefined">{{ deadlineInfo.label }}<span v-if="!deadlineInfo.canRespond"> · {{ deadlineInfo.reason }}</span></p>
 
             <RfqMetadataCards
                 :rfq="rfq"
@@ -295,8 +131,6 @@ onMounted(() => {
                 :quotations-count="quotationsList.length"
                 :total-target-hps="totalTargetHps"
             />
-
-            <QuotationReviewSection :key="rfq.id" :quotations="quotationsList" :disabled="loading" :reload="fetchRfqDetail" />
 
             <RfqItemsSuppliersTabs
                 :sending-invitation="sendingInvitation"
@@ -310,7 +144,33 @@ onMounted(() => {
                 :copied-token="copiedToken"
                 @open-manual-modal="openManualModal"
                 @copy-magic-link="copyMagicLink"
-            />
+            >
+                <template #review>
+                    <QuotationReviewSection :key="rfq.id" :quotations="quotationsList" :disabled="loading" :reload="fetchRfqDetail" />
+                </template>
+            </RfqItemsSuppliersTabs>
+
+            <RfqLifecycleStepper :rfq="rfq" :steps="steps" :deadline-info="deadlineInfo" :get-step-state="getStepState" />
+
+            <ReviewDisclosure v-if="['draft', 'published', 'evaluation'].includes(rfq.status)" title="Pengaturan tender" description="Perpanjangan batas penawaran dan pembatalan tender">
+                <div v-if="['published', 'evaluation'].includes(rfq.status)" class="space-y-4 text-sm">
+                    <p class="text-slate-600">Batas respons: {{ rfq.deadline_date || 'belum ditentukan' }}, sampai akhir hari WIB.</p>
+                    <BaseButton variant="secondary" size="sm" :disabled="extensionSubmitting || loading" :aria-expanded="extensionOpen" @click="extensionOpen = !extensionOpen">{{ extensionOpen ? 'Tutup formulir perpanjangan' : 'Perpanjang deadline' }}</BaseButton>
+                    <form v-if="extensionOpen" class="space-y-4 rounded-xl bg-slate-50 p-5" @submit.prevent="submitDeadlineExtension">
+                        <label class="block text-slate-700">Deadline baru (akhir hari WIB)<input v-model="extensionForm.deadline_date" type="date" required :min="rfq.deadline_date || undefined" :disabled="extensionSubmitting" class="mt-2 block w-full rounded-lg border border-slate-300 bg-white p-3 sm:max-w-sm" /></label>
+                        <label class="block text-slate-700">Alasan perpanjangan<textarea v-model="extensionForm.reason" required maxlength="2000" rows="3" :disabled="extensionSubmitting" class="mt-2 block w-full rounded-lg border border-slate-300 bg-white p-3"></textarea></label>
+                        <p class="text-slate-500">Tanggal baru harus setelah batas lama dan tidak sebelum hari ini WIB. Undangan tetap berlaku; respons yang sudah diterima atau ditolak tidak dibuka ulang.</p>
+                        <div class="flex flex-wrap gap-2"><BaseButton type="button" variant="secondary" size="sm" :disabled="extensionSubmitting" @click="extensionOpen = false">Batal</BaseButton><BaseButton type="submit" size="sm" :disabled="extensionSubmitting">{{ extensionSubmitting ? 'Menyimpan…' : 'Simpan perpanjangan' }}</BaseButton></div>
+                    </form>
+                </div>
+                <div class="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5">
+                    <p class="text-sm text-slate-600">Batalkan jika kebutuhan tender tidak dilanjutkan.</p>
+                    <BaseButton variant="secondary" size="sm" class="border-rose-200 text-rose-700 hover:bg-rose-50" :disabled="loading || extensionSubmitting" @click="handleCancel"><Ban class="size-4" />Batalkan tender</BaseButton>
+                </div>
+            </ReviewDisclosure>
+            <ReviewDisclosure v-if="deadlineExtensions.length" title="Riwayat perpanjangan" :description="`${deadlineExtensions.length} perubahan batas penawaran`">
+                <ol class="space-y-4 text-sm text-slate-600"><li v-for="entry in deadlineExtensions" :key="entry.id" class="border-t border-slate-100 pt-4"><p class="font-medium text-slate-800">{{ entry.previous_deadline_date || 'Belum ditentukan' }} → {{ entry.deadline_date }} (WIB)</p><p class="mt-2 whitespace-pre-line">{{ entry.reason }}</p><p class="mt-2 text-slate-500">User #{{ entry.changed_by }} · {{ formatRfqTimestamp(entry.created_at) }}</p></li></ol>
+            </ReviewDisclosure>
         </template>
 
         <RfqManualQuotationModal
@@ -330,3 +190,8 @@ onMounted(() => {
         />
     </div>
 </template>
+
+<style scoped>
+.rfq-detail :deep(button) { font-weight: 500; }
+.rfq-detail :deep(summary:focus-visible) { outline: 2px solid #014baa; outline-offset: 3px; }
+</style>

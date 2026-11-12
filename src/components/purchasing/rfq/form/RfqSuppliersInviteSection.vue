@@ -1,6 +1,6 @@
 <script setup>
 import SearchableMultiSelect from '../../../ui/SearchableMultiSelect.vue'
-import { Trash2, Users } from '@lucide/vue'
+import { Trash2 } from '@lucide/vue'
 
 defineProps({
     selectedSupplierIds: { type: Array, required: true },
@@ -13,86 +13,71 @@ const emit = defineEmits(['update:selectedSupplierIds', 'remove-supplier'])
 </script>
 
 <template>
-    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
-        <div class="flex items-center justify-between pb-4 border-b border-slate-100 flex-wrap gap-2">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center justify-center font-bold text-sm">
-                    4
-                </div>
-                <div>
-                    <h3 class="text-base font-bold text-slate-900">Undang Supplier / Rekanan Tender</h3>
-                    <p class="text-xs text-slate-500">Pilih vendor yang akan diberikan akses tautan portal mandiri (Magic Link) untuk memasukkan penawaran harga.</p>
-                </div>
+    <section class="rfq-form-section" aria-labelledby="rfq-suppliers-heading">
+        <div class="rfq-section-heading">
+            <div>
+                <h2 id="rfq-suppliers-heading">4. Supplier undangan</h2>
+                <p>Pilih supplier dan periksa emailnya. Undangan diproses setelah tender dipublikasikan.</p>
             </div>
-
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                <Users class="w-3.5 h-3.5" />
-                <span>{{ selectedSuppliers.length }} Vendor Diundang</span>
-            </span>
+            <span class="text-sm text-slate-500">{{ selectedSuppliers.length }} dipilih</span>
         </div>
-
-        <div class="space-y-4">
-            <div class="bg-slate-50/70 p-4.5 rounded-xl border border-slate-200/80">
-                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                    Cari & Pilih Vendor Aktif Terdaftar <span class="text-rose-500">*</span>
-                </label>
-                <SearchableMultiSelect
-                    :model-value="selectedSupplierIds"
-                    @update:model-value="emit('update:selectedSupplierIds', $event)"
-                    :options="supplierOptions"
-                    placeholder="Ketik nama perusahaan vendor atau kode supplier untuk mengundang..."
-                    :loading="isLoadingSuppliers"
-                />
-            </div>
-
-            <!-- Selected Suppliers Table -->
-            <div v-if="selectedSuppliers.length > 0" class="border border-slate-200/80 rounded-xl overflow-hidden">
-                <table class="w-full text-xs text-left">
-                    <thead>
-                        <tr class="bg-slate-50/80 text-slate-700 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider">
-                            <th class="py-3 px-4">Nama Perusahaan Vendor</th>
-                            <th class="py-3 px-4">Kode Vendor</th>
-                            <th class="py-3 px-4">Kontak / PIC</th>
-                            <th class="py-3 px-4">Email</th>
-                            <th class="py-3 px-4">Telepon</th>
-                            <th class="py-3 px-4 w-20 text-center">Hapus</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr
-                            v-for="s in selectedSuppliers"
-                            :key="s.id"
-                            class="hover:bg-slate-50/60 transition-colors"
+        <div>
+            <p id="rfq-supplier-label" class="rfq-field-label">
+                Cari supplier <span class="text-rose-500">*</span>
+            </p>
+            <SearchableMultiSelect
+                :model-value="selectedSupplierIds"
+                @update:model-value="emit('update:selectedSupplierIds', $event)"
+                :options="supplierOptions"
+                placeholder="Cari nama atau kode supplier…"
+                :loading="isLoadingSuppliers"
+                aria-labelledby="rfq-supplier-label"
+            />
+        </div>
+        <div v-if="selectedSuppliers.length" class="divide-y divide-slate-100">
+            <div
+                v-for="s in selectedSuppliers"
+                :key="s.id"
+                class="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0"
+            >
+                <div class="grid min-w-0 flex-1 gap-2 text-sm sm:grid-cols-2 sm:gap-5">
+                    <div class="min-w-0">
+                        <p class="break-words font-medium text-slate-900">{{ s.name }}</p>
+                        <p class="mt-1 text-xs text-slate-500">
+                            {{ s.supplier_code || `SUP-${s.id}`
+                            }}<template v-if="s.contact_person || s.contacts?.[0]?.name">
+                                · {{ s.contact_person || s.contacts?.[0]?.name }}</template
+                            >
+                        </p>
+                    </div>
+                    <div class="min-w-0">
+                        <p
+                            class="break-all"
+                            :class="s.email || s.contacts?.[0]?.email ? 'text-slate-700' : 'text-amber-700'"
                         >
-                            <td class="py-3 px-4 font-bold text-slate-900">
-                                {{ s.name }}
-                            </td>
-                            <td class="py-3 px-4 font-mono font-semibold text-blue-700">
-                                {{ s.supplier_code || `SUP-${s.id}` }}
-                            </td>
-                            <td class="py-3 px-4 text-slate-700 font-medium">
-                                {{ s.contact_person || s.contacts?.[0]?.name || '-' }}
-                            </td>
-                            <td class="py-3 px-4 font-mono text-slate-600">
-                                {{ s.email || s.contacts?.[0]?.email || '-' }}
-                            </td>
-                            <td class="py-3 px-4 font-mono text-slate-600">
-                                {{ s.phone || s.contacts?.[0]?.phone || '-' }}
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <button
-                                    type="button"
-                                    @click="emit('remove-supplier', s.id)"
-                                    class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Hapus dari daftar undangan"
-                                >
-                                    <Trash2 class="w-4 h-4" />
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            {{
+                                s.email ||
+                                s.contacts?.[0]?.email ||
+                                'Email belum tersedia — periksa data supplier'
+                            }}
+                        </p>
+                        <p v-if="s.phone || s.contacts?.[0]?.phone" class="mt-1 text-xs text-slate-500">
+                            {{ s.phone || s.contacts?.[0]?.phone }}
+                        </p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    :aria-label="`Hapus ${s.name} dari undangan`"
+                    class="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                    @click="emit('remove-supplier', s.id)"
+                >
+                    <Trash2 class="size-4" />
+                </button>
             </div>
         </div>
-    </div>
+        <p v-else class="text-sm text-slate-400">
+            Belum ada supplier dipilih. Pilih minimal satu supplier untuk menyimpan tender.
+        </p>
+    </section>
 </template>

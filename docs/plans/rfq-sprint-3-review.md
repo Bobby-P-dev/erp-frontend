@@ -1,5 +1,9 @@
 # Sprint 3 — Integrasi review quotation frontend
 
+## Kebijakan aktif 2026-11-11
+
+Approval cukup pada PR. UI aktif menggunakan `review_mode=none`: tidak ada tombol pengesahan/pengajuan approval quotation dan tidak ada pengajuan approval PO. Penawaran dapat dievaluasi lalu PO diterbitkan langsung; revisi, validitas, versi dan komitmen tetap diperiksa backend. Tahap di bawah adalah catatan historis. Lihat [hasil penyesuaian](../changes/2026-11-11-pr-only-procurement-approval.md).
+
 Rujukan utama: [rencana Sprint 3 backend](../../../erp-backend/docs/plans/rfq-improvement-sprint-3.md) dan [baseline ERPNext](../../../erp-backend/docs/plans/rfq-sprint-3-stage-1-baseline.md).
 
 ## Tahap 3
@@ -41,4 +45,4 @@ Hasil lokal: [catatan tahap 4](../changes/2026-11-10-rfq-sprint-3-stage-4-revisi
 - [x] Catat suite backend penuh dan temuan Auth/Core pada [hasil tahap 6](../changes/2026-11-10-rfq-sprint-3-stage-6-regression.md).
 - [ ] UAT browser halaman lengkap dengan akun/API nyata dan rilis bersama backend pada [rencana penerimaan/rilis](../../../erp-backend/docs/plans/rfq-sprint-3-release.md).
 
-Sprint 3 selesai implementasi/regresi lokal dalam cakupan tahap 1–6. Browser fixture tidak menggantikan UAT perusahaan. Approval quotation tidak mengubah kebijakan approval PO.
+Sprint 3 selesai implementasi/regresi lokal dalam cakupan tahap 1–6. Browser fixture tidak menggantikan UAT perusahaan. Keputusan terbaru menghapus approval tambahan quotation/PO pada alur aktif; riwayat lama tetap tersedia.

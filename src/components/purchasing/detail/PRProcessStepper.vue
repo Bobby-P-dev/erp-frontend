@@ -82,14 +82,15 @@ const steps = computed(() => {
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-4">
+    <div class="pr-process bg-white space-y-4">
         <!-- Horizontal Stepper (Clean & Lightweight) -->
         <div class="overflow-x-auto pb-2">
-            <div class="min-w-[620px] flex items-center justify-between relative px-2">
+            <div class="process-steps flex items-center justify-between relative px-2">
                 <div 
                     v-for="(st, idx) in steps" 
                     :key="idx" 
-                    class="flex flex-col items-center relative z-10 group flex-1"
+                    class="process-step flex flex-col items-center relative z-10 group flex-1"
+                    :aria-current="st.state === 'active' ? 'step' : undefined"
                 >
                     <!-- Connector line behind circles (between steps) -->
                     <div 
@@ -118,7 +119,7 @@ const steps = computed(() => {
                         ]"
                     >
                         <Check v-if="st.state === 'completed'" class="w-4 h-4 stroke-[2.75]" />
-                        <span v-else-if="st.state === 'active'" class="w-2.5 h-2.5 rounded-full bg-[#014BAA] animate-pulse"></span>
+                        <span v-else-if="st.state === 'active'" class="text-xs font-semibold">{{ idx + 1 }}</span>
                         <RotateCcw v-else-if="st.state === 'revision'" class="w-3.5 h-3.5" />
                         <XCircle v-else-if="st.state === 'rejected'" class="w-4 h-4" />
                         <span v-else class="font-mono text-xs">{{ idx + 1 }}</span>
@@ -167,7 +168,7 @@ const steps = computed(() => {
             >
                 <span class="flex items-center gap-2">
                     <Layers class="w-4 h-4 text-[#014BAA]" />
-                    <span>Lihat Detail Alur Dokumen (End-to-End) & Jejak Persetujuan</span>
+                    <span>Lihat riwayat proses dan persetujuan</span>
                 </span>
                 <ChevronDown 
                     class="w-4 h-4 text-slate-400 transition-transform duration-200"
@@ -232,3 +233,15 @@ const steps = computed(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.process-steps { min-width: 620px; padding-top: 6px; }
+@media (max-width: 639px) {
+    .process-steps { min-width: 0; display: grid; grid-template-columns: 1fr; gap: 20px; }
+    .process-step { flex-direction: row; gap: 14px; align-items: center; }
+    .process-step > .absolute { left: 15px; top: 30px; width: 2px; height: 40px; }
+    .process-step > .text-center { text-align: left; margin-top: 0; }
+}
+.pr-process :deep(.inline-flex.items-center.p-1) { flex-wrap: wrap; }
+.pr-process :deep(.inline-flex.items-center.p-1 button) { text-align: left; }
+</style>

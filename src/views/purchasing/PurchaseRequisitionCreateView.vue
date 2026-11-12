@@ -82,7 +82,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="w-full flex flex-col gap-6 pb-32">
+    <div class="pr-create w-full min-w-0 max-w-[1440px] mx-auto flex flex-col gap-6 pb-12">
         <PageHeader
             :title="isEditMode ? (existingPrStatus === 'revision_requested' ? `Perbaiki PR ${existingPrNumber || ''}` : `Edit Draft PR ${existingPrNumber || ''}`) : 'Buat Pengajuan Pembelian'"
             :description="`Diajukan oleh ${employeeName} (${employeeCompanyName} / ${employeeDivisionName})`"
@@ -195,7 +195,7 @@ onMounted(() => {
         </form>
 
         <!-- BILAH AKSI (STICKY ACTION BAR) -->
-        <div class="sticky bottom-4 z-20 bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="pr-actions sticky bottom-4 z-20 bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p class="text-xs sm:text-sm font-medium text-slate-600">
                 <span v-if="currentStep === 1">Langkah 1 dari 3: Informasi Pengadaan</span>
                 <span v-else-if="currentStep === 2">Langkah 2 dari 3: Total <span class="font-bold text-slate-900">{{ form.items.length }}</span> item (<span class="font-mono font-bold text-[#014BAA]">{{ formatCurrency(totalEstimatedAmount, form.currency) }}</span>)</span>
@@ -253,3 +253,23 @@ onMounted(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.pr-create :deep(h1) { font-weight: 600; }
+.pr-create :deep(h2) { font-size: 18px; font-weight: 600; }
+.pr-create :deep(h3), .pr-create :deep(h4), .pr-create :deep(label) { font-weight: 500; }
+.pr-create :deep(label) { font-size: 14px; }
+.pr-create :deep(.shadow-xs), .pr-create :deep(.shadow-2xs) { box-shadow: none; }
+.pr-create :deep(input), .pr-create :deep(textarea) { font-size: 14px; font-weight: 400; background-color: white; }
+.pr-create :deep(input:not([type=checkbox])) { min-height: 44px; }
+.pr-create :deep(summary) { cursor: pointer; color: #475569; font-size: 14px; font-weight: 500; }
+.pr-create :deep(summary:hover) { color: #014baa; }
+.pr-create :deep(button:focus-visible), .pr-create :deep(summary:focus-visible), .pr-create :deep(a:focus-visible) { outline: 2px solid #014baa; outline-offset: 3px; }
+.pr-create :deep(.font-mono) { font-family: inherit; font-variant-numeric: tabular-nums; }
+@media (max-width: 639px) {
+    .pr-actions { position: static; }
+    .pr-actions > div { width: 100%; }
+    .pr-actions :deep(button) { flex: 1 1 auto; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .pr-create :deep(*) { transition: none !important; animation: none !important; } }
+</style>

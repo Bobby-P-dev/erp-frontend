@@ -1,5 +1,4 @@
 <script setup>
-import { CreditCard, Landmark, Wallet } from '@lucide/vue'
 
 defineProps({
     form: {
@@ -13,40 +12,38 @@ defineProps({
 })
 
 const methods = [
-    { id: 'marketplace_va', label: 'Virtual Account', sub: 'VA Marketplace', icon: CreditCard },
-    { id: 'bank_transfer', label: 'Transfer Bank', sub: 'Rekening Bank', icon: Landmark },
-    { id: 'cash', label: 'Tunai / Kas Kecil', sub: 'Petty Cash', icon: Wallet },
-    { id: 'corporate_card', label: 'Kartu Perusahaan', sub: 'Corporate Card', icon: CreditCard },
+    { id: 'marketplace_va', label: 'Virtual Account' },
+    { id: 'bank_transfer', label: 'Transfer Bank' },
+    { id: 'cash', label: 'Tunai / Kas Kecil' },
+    { id: 'corporate_card', label: 'Kartu Perusahaan' },
 ]
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-4">
+    <div class="dp-section bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-6">
         <div class="pb-3 border-b border-slate-100">
-            <h3 class="text-sm font-bold text-slate-900">Metode Pembayaran & Rekening Tujuan</h3>
-            <p class="text-xs text-slate-500">Informasi pencairan dana untuk eksekusi pembayaran oleh Finance.</p>
+            <h3 class="text-sm font-bold text-slate-900">Tujuan pembayaran</h3>
+            <p class="text-xs text-slate-500 mt-2">Lengkapi sebelum mengajukan pembayaran. Untuk draft, detail rekening dapat diisi nanti.</p>
         </div>
 
         <div class="space-y-3.5">
             <!-- Metode Pembayaran Selector -->
-            <div class="grid grid-cols-2 gap-2">
-                <button
+            <fieldset class="payment-methods">
+                <legend class="sr-only">Metode pembayaran</legend>
+                <label
                     v-for="m in methods"
                     :key="m.id"
-                    type="button"
-                    @click="form.payment_method = m.id"
-                    class="p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all text-xs cursor-pointer"
+                    class="p-4 rounded-xl border text-left flex items-center gap-3 transition-all text-sm cursor-pointer"
                     :class="form.payment_method === m.id
                         ? 'border-blue-600 bg-blue-50/50 text-blue-700 font-bold ring-1 ring-blue-500/30'
                         : 'border-slate-200 hover:border-slate-300 text-slate-700 font-medium'"
                 >
-                    <component :is="m.icon" class="w-4 h-4 shrink-0" :class="form.payment_method === m.id ? 'text-blue-600' : 'text-slate-400'" />
+                    <input type="radio" name="payment-method" :value="m.id" v-model="form.payment_method" class="size-4 shrink-0 accent-[#014BAA]" />
                     <div class="min-w-0">
-                        <p class="leading-tight truncate">{{ m.label }}</p>
-                        <p class="text-[10px] text-slate-400 font-normal truncate">{{ m.sub }}</p>
+                        <span class="block leading-relaxed">{{ m.label }}</span>
                     </div>
-                </button>
-            </div>
+                </label>
+            </fieldset>
 
             <!-- Tipe Penerima & Nama Penerima -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -56,6 +53,7 @@ const methods = [
                     </label>
                     <select
                         v-model="form.recipient_type"
+                        aria-label="Kategori penerima"
                         class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                     >
                         <option value="marketplace_merchant">Merchant / Toko Online</option>
@@ -72,6 +70,7 @@ const methods = [
                     <input
                         type="text"
                         v-model="form.recipient_name"
+                        aria-label="Nama penerima dana"
                         placeholder="Nama toko / vendor penerima"
                         class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                     />
@@ -87,21 +86,10 @@ const methods = [
                     <input
                         type="text"
                         v-model="form.bank_name"
+                        aria-label="Bank atau provider VA"
                         placeholder="BCA Virtual Account, Bank Mandiri..."
                         class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                     />
-                    <div class="flex flex-wrap gap-1 mt-1.5">
-                        <button
-                            v-for="b in popularBanks"
-                            :key="b"
-                            type="button"
-                            @click="form.bank_name = b"
-                            class="px-2 py-0.5 text-[10px] rounded border transition-colors cursor-pointer"
-                            :class="form.bank_name === b ? 'bg-blue-600 text-white border-blue-600 font-semibold' : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'"
-                        >
-                            {{ b }}
-                        </button>
-                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -112,6 +100,7 @@ const methods = [
                         <input
                             type="text"
                             v-model="form.bank_account_number"
+                            aria-label="Nomor rekening atau VA"
                             placeholder="880123456789"
                             class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                         />
@@ -124,6 +113,7 @@ const methods = [
                         <input
                             type="text"
                             v-model="form.bank_account_holder"
+                            aria-label="Atas nama rekening"
                             placeholder="Tokopedia - Nama Toko"
                             class="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                         />
@@ -133,3 +123,7 @@ const methods = [
         </div>
     </div>
 </template>
+
+<style scoped>
+.payment-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+</style>

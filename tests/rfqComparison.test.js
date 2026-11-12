@@ -67,6 +67,40 @@ function page(items = [item()], options = {}) {
 }
 
 describe('RFQ comparison currency and ranking', () => {
+    it('guides selection and evaluation before review without submitting early', () => {
+        const { state, requests } = page()
+        state.openAwardModal()
+        assert.equal(state.awardStep.value, 1)
+        assert.equal(state.decisionRows.value.length, 1)
+        state.nextAwardStep()
+        assert.equal(state.awardStep.value, 2)
+        state.nextAwardStep()
+        assert.equal(state.awardStep.value, 2)
+        assert.match(state.awardStepError.value, /alasan pemilihan/)
+        state.splitAwards.value[10][0].evaluation.selection_reason = 'Sesuai spesifikasi dan jadwal'
+        state.nextAwardStep()
+        assert.equal(state.awardStep.value, 3)
+        assert.equal(state.decisionRows.value[0].evaluation.selection_reason, 'Sesuai spesifikasi dan jadwal')
+        assert.equal(state.decisionTotal.value, 320000)
+        state.changeAwardStep(1)
+        state.splitAwards.value[10][0].awarded_quantity = 99
+        state.nextAwardStep()
+        assert.equal(state.awardStep.value, 1)
+        assert.equal(requests.length, 0)
+    })
+    it('previews only eligible item coverage and quantity for one supplier', () => {
+        const { state } = page([item(), { ...item(), rfq_item_id: 11, vendor_offers: {} },
+            { ...item(), rfq_item_id: 12, vendor_offers: { 1: offer({ purchase_order_id: 7, is_awarded: true, awarded_quantity: 10 }) } }])
+        state.openAwardModal()
+        state.awardMode.value = 'full'
+        state.selectedFullSupplierId.value = 1
+        assert.equal(state.decisionRows.value.length, 1)
+        assert.equal(state.decisionRows.value[0].quantity, 10)
+        state.fullEvaluation.value.selection_reason = 'Supplier memenuhi kebutuhan'
+        assert.equal(state.evaluationReady.value, true)
+        state.matrixData.value.suppliers[0].can_award = false
+        assert.equal(state.selectionReady.value, false)
+    })
     it('blocks unreviewed quotations and enables award only after server eligibility refresh', async () => {
         const { state, requests, errors } = page()
         state.matrixData.value.suppliers = state.matrixData.value.suppliers.map(supplier => ({ ...supplier,
@@ -138,16 +172,16 @@ describe('RFQ award integration', () => {
     it('submits non-price evidence and clears it when the selected supplier changes', async () => {
         const { state, requests } = page([item({ 1: offer(), 2: offer({ supplier_quotation_item_id: 202 }) })])
         state.openAwardModal()
-        Object.assign(state.splitAwards.value[10].evaluation, { selection_reason: 'Better verified delivery', technical_compliance: 'deviation', warranty_terms: '12 months', evidence_reference: 'Attachment p2' })
+        Object.assign(state.splitAwards.value[10][0].evaluation, { selection_reason: 'Better verified delivery', technical_compliance: 'deviation', warranty_terms: '12 months', evidence_reference: 'Attachment p2' })
         state.matrixData.value.suppliers[0].review_version = 2
         await state.submitAward()
         assert.equal(requests[0][1].awards[0].expected_review_version, 1)
         assert.equal(requests[0][1].awards[0].warranty_terms, '12 months')
         assert.equal(requests[0][1].awards[0].technical_compliance, 'deviation')
-        state.splitAwards.value[10].quotation_id = 2
+        state.splitAwards.value[10][0].quotation_id = 2
         state.onSplitVendorChange(10)
-        assert.equal(state.splitAwards.value[10].evaluation.selection_reason, '')
-        assert.equal(state.splitAwards.value[10].evaluation.technical_compliance, 'not_verified')
+        assert.equal(state.splitAwards.value[10][0].evaluation.selection_reason, '')
+        assert.equal(state.splitAwards.value[10][0].evaluation.technical_compliance, 'not_verified')
     })
     it('preserves PO commitments with four decimal quantities and excludes locked default offers', () => {
         const row = item({ 1: offer({ purchase_order_id: 4, awarded_quantity: 4.0001 }), 2: offer({ is_lowest_unit_price: false }) })
@@ -164,22 +198,22 @@ describe('RFQ award integration', () => {
             2: offer({ supplier_quotation_item_id: 202, base_unit_price: 35000 })
         })])
         state.openAwardModal()
-        assert.equal(state.splitAwards.value[10].quotation_id, 2)
-        assert.equal(state.splitAwards.value[10].awarded_quantity, 5)
+        assert.equal(state.splitAwards.value[10][0].quotation_id, 2)
+        assert.equal(state.splitAwards.value[10][0].awarded_quantity, 5)
         assert.equal(state.splitAwardTotalCost.value, 175000)
-        state.splitAwards.value[10].awarded_quantity = 6
+        state.splitAwards.value[10][0].awarded_quantity = 6
         assert.equal(state.splitValidationErrors.value.length, 1)
-        state.splitAwards.value[10].awarded_quantity = 5
-        state.splitAwards.value[10].evaluation.selection_reason = 'Delivery meets production schedule'
+        state.splitAwards.value[10][0].awarded_quantity = 5
+        state.splitAwards.value[10][0].evaluation.selection_reason = 'Delivery meets production schedule'
         await state.submitAward()
         assert.deepEqual(requests[0], [7, { awards: [{ supplier_quotation_item_id: 202, awarded_quantity: 5, expected_review_version: 1, ...state.emptyEvaluation(), selection_reason: 'Delivery meets production schedule' }] }])
     })
     it('updates converted split prices on vendor change and does not treat null as zero', () => {
         const { state } = page([item({ 1: offer(), 2: offer({ base_unit_price: null, supplier_quotation_item_id: 202 }) })])
         state.openAwardModal()
-        state.splitAwards.value[10].quotation_id = 2
+        state.splitAwards.value[10][0].quotation_id = 2
         state.onSplitVendorChange(10)
-        assert.equal(state.splitAwards.value[10].unit_price, null)
+        assert.equal(state.splitAwards.value[10][0].unit_price, null)
         assert.equal(state.splitAwardTotalCost.value, null)
         assert.equal(state.formatBaseCurrency(state.splitAwardTotalCost.value), '-')
     })
@@ -200,7 +234,7 @@ describe('RFQ award integration', () => {
         const { state } = page([item({ 1: offer({ purchase_order_id: 4, awarded_quantity: 10 }) })])
         assert.equal(state.canAward.value, false)
         state.openAwardModal()
-        assert.equal(state.splitAwards.value[10].quotation_id, '')
+        assert.equal(state.splitAwards.value[10][0].quotation_id, '')
     })
 })
 
@@ -210,12 +244,14 @@ describe('RFQ quotation validity integration', () => {
         valid_until: '2026-11-09', quotation_number: 'SQ-001'
     })
 
-    it('skips an expired cheapest or existing unlocked award without changing ranking', () => {
+    it('preserves an expired saved allocation and blocks resubmission until corrected', () => {
         const { state } = page([item({ 1: offer({ is_awarded: true }), 2: offer({ is_lowest_unit_price: false }) })])
         expire(state.matrixData.value.suppliers[0])
         state.openAwardModal()
         assert.equal(state.selectedFullSupplierId.value, 2)
-        assert.equal(state.splitAwards.value[10].quotation_id, 2)
+        assert.equal(state.splitAwards.value[10][0].quotation_id, 1)
+        assert.equal(state.selectionReady.value, false)
+        assert.match(state.splitValidationErrors.value.join(' '), /kedaluwarsa/)
         assert.equal(isLowestUnitPrice(state.itemsMatrix.value[0].vendor_offers[1]), true)
     })
 
@@ -229,7 +265,7 @@ describe('RFQ quotation validity integration', () => {
         await state.submitAward()
         assert.equal(requests.length, 0)
         state.onSplitVendorChange(10)
-        assert.equal(state.splitAwards.value[10].quotation_item_id, null)
+        assert.equal(state.splitAwards.value[10][0].quotation_item_id, null)
     })
 
     it('leaves all-expired selections empty and explains unavailable options', () => {
@@ -237,7 +273,7 @@ describe('RFQ quotation validity integration', () => {
         state.matrixData.value.suppliers.forEach(expire)
         state.openAwardModal()
         assert.equal(state.selectedFullSupplierId.value, '')
-        assert.equal(state.splitAwards.value[10].quotation_id, '')
+        assert.equal(state.splitAwards.value[10][0].quotation_id, '')
         assert.equal(state.splitAwardCount.value, 0)
         assert.match(validity.quotationValidityLabel(state.suppliers.value[0]), /Kedaluwarsa/)
     })
@@ -267,12 +303,12 @@ describe('RFQ quotation validity integration', () => {
         const refreshed = { rfq: { status: 'evaluation' }, items_matrix: [item()], suppliers: [expire({ quotation_id: 1 })] }
         const { state, errors, refreshes, requests } = page([item()], { awardError: error, refreshMatrix: refreshed })
         state.openAwardModal()
-        state.splitAwards.value[10].evaluation.selection_reason = 'Delivery meets production schedule'
+        state.splitAwards.value[10][0].evaluation.selection_reason = 'Delivery meets production schedule'
         await state.submitAward()
         assert.equal(refreshes.length, 1)
         assert.equal(errors.at(-1), error.response.data.message)
         assert.equal(state.isAwardModalOpen.value, true)
-        assert.equal(state.splitAwards.value[10].quotation_id, 1)
+        assert.equal(state.splitAwards.value[10][0].quotation_id, 1)
         assert.ok(state.splitValidationErrors.value.length)
         await state.submitAward()
         assert.equal(requests.length, 1)
@@ -290,5 +326,117 @@ describe('RFQ quotation validity integration', () => {
         assert.equal(state.canAward.value, false)
         await state.handleGeneratePurchaseOrders()
         assert.equal(poRequests.length, 1)
+    })
+})
+
+
+describe('RFQ multiple suppliers for the same item', () => {
+    const splitItem = () => ({ ...item({
+        1: offer({ offered_quantity: 50 }),
+        2: offer({ offered_quantity: 50, supplier_quotation_item_id: 202 })
+    }), target_quantity: 50 })
+
+    it('sends 10 + 40 together with separate evaluations and preview identities', async () => {
+        const { state, requests } = page([splitItem()])
+        state.openAwardModal()
+        const currentItem = state.itemsMatrix.value[0]
+        state.splitAwards.value[10][0].awarded_quantity = 10
+        state.addSplitSupplier(currentItem)
+        state.splitAwards.value[10][1].quotation_id = 2
+        state.onSplitVendorChange(10, 1)
+        const rows = state.splitAwards.value[10]
+        assert.equal(rows[1].awarded_quantity, 40)
+        rows[0].evaluation.selection_reason = 'Supplier A: stok 10'
+        rows[1].evaluation.selection_reason = 'Supplier B: sisa 40'
+        assert.equal(state.splitValidationErrors.value.length, 0)
+        assert.equal(state.decisionRows.value.length, 2)
+        assert.equal(new Set(state.decisionRows.value.map(row => row.key)).size, 2)
+        assert.equal(state.evaluationReady.value, true)
+        await state.submitAward()
+        assert.deepEqual(requests[0][1].awards.map(row => [row.supplier_quotation_item_id, row.awarded_quantity, row.selection_reason]),
+            [[101, 10, 'Supplier A: stok 10'], [202, 40, 'Supplier B: sisa 40']])
+    })
+
+    it('caps the second supplier to 10 after allocating 40 and rejects forged totals', async () => {
+        const { state, requests } = page([splitItem()])
+        state.openAwardModal()
+        const currentItem = state.itemsMatrix.value[0]
+        state.splitAwards.value[10][0].awarded_quantity = 40
+        state.addSplitSupplier(currentItem)
+        state.splitAwards.value[10][1].quotation_id = 2
+        state.onSplitVendorChange(10, 1)
+        const second = state.splitAwards.value[10][1]
+        assert.equal(second.awarded_quantity, 10)
+        second.awarded_quantity = 11
+        assert.equal(state.selectionReady.value, false)
+        await state.submitAward()
+        assert.equal(requests.length, 0)
+        state.capSplitQuantity(currentItem, second)
+        assert.equal(second.awarded_quantity, 10)
+        assert.equal(state.selectionReady.value, true)
+        state.removeSplitSupplier(currentItem, 0)
+        assert.equal(state.splitMaximum(currentItem, second), 50)
+    })
+
+    it('restores every saved allocation and only the matching evaluation version on reopen', async () => {
+        const currentItem = splitItem()
+        Object.assign(currentItem.vendor_offers[1], { is_awarded: true, awarded_quantity: 10 })
+        Object.assign(currentItem.vendor_offers[2], { is_awarded: true, awarded_quantity: 40 })
+        const { state, requests } = page([currentItem])
+        state.matrixData.value.award_decisions = [
+            { supplier_quotation_item_id: 101, review_version: 2, action: 'selected', evaluation: { selection_reason: 'Wrong version' } },
+            { supplier_quotation_item_id: 101, review_version: 1, action: 'selected', evaluation: { selection_reason: 'A approved quantity' } },
+            { supplier_quotation_item_id: 202, review_version: 1, action: 'selected', evaluation: { selection_reason: 'B remaining quantity' } }
+        ]
+        for (let attempt = 0; attempt < 2; attempt++) {
+            state.openAwardModal()
+            const rows = state.splitAwards.value[10]
+            assert.deepEqual(rows.map(row => row.awarded_quantity), [10, 40])
+            assert.deepEqual(rows.map(row => row.evaluation.selection_reason), ['A approved quantity', 'B remaining quantity'])
+            await state.submitAward()
+        }
+        assert.equal(requests.length, 2)
+        assert.equal(requests[1][1].awards.length, 2)
+    })
+
+    it('keeps a saved 40 allocation when adding the remaining 10 for another supplier', async () => {
+        const currentItem = splitItem()
+        Object.assign(currentItem.vendor_offers[1], { is_awarded: true, awarded_quantity: 40 })
+        const { state, requests } = page([currentItem])
+        state.openAwardModal()
+        state.addSplitSupplier(state.itemsMatrix.value[0])
+        state.splitAwards.value[10][1].quotation_id = 2
+        state.onSplitVendorChange(10, 1)
+        const rows = state.splitAwards.value[10]
+        assert.deepEqual(rows.map(row => row.awarded_quantity), [40, 10])
+        rows.forEach(row => { row.evaluation.selection_reason = 'Supplier stock allocation' })
+        await state.submitAward()
+        assert.deepEqual(requests[0][1].awards.map(row => row.awarded_quantity), [40, 10])
+    })
+
+    it('prevents duplicate suppliers and keeps individual offered limits', () => {
+        const { state } = page([splitItem()])
+        state.openAwardModal()
+        const currentItem = state.itemsMatrix.value[0]
+        state.splitAwards.value[10][0].awarded_quantity = 10
+        state.addSplitSupplier(currentItem)
+        const second = state.splitAwards.value[10][1]
+        assert.equal(state.supplierAlreadySelected(currentItem, second, 1), true)
+        second.quotation_id = 1
+        state.onSplitVendorChange(10, 1)
+        assert.match(state.splitValidationErrors.value.join(' '), /dua kali/)
+        second.quotation_id = 2
+        currentItem.vendor_offers[2].offered_quantity = 5
+        state.onSplitVendorChange(10, 1)
+        assert.equal(second.awarded_quantity, 5)
+        assert.equal(state.selectionReady.value, true)
+    })
+
+    it('calculates four-decimal capacity including locked PO and other supplier allocations', () => {
+        const currentItem = { ...item({ 3: offer({ purchase_order_id: 9, awarded_quantity: 4.0001 }) }), target_quantity: 50 }
+        const first = { quotation_id: 1, awarded_quantity: 35.9998, max_offered: 50 }
+        const second = { quotation_id: 2, awarded_quantity: 10.0001, max_offered: 50 }
+        assert.equal(comparison.splitAwardMaximum(currentItem, [first, second], second), 10.0001)
+        assert.equal(comparison.splitAwardMaximum(currentItem, [first, second], first), 35.9998)
     })
 })

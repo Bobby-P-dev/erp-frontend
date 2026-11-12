@@ -59,14 +59,14 @@ defineEmits([
 
 <template>
     <div class="space-y-6">
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-xs">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 flex flex-col gap-5">
             <div>
                 <h2 class="text-lg sm:text-xl font-bold text-slate-900">Daftar Item Pengadaan</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
                     Lengkapi barang, kuantitas, estimasi harga satuan, dan spesifikasi teknis
                 </p>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
+            <div class="flex w-full flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
                 <!-- Selector Mata Uang & Kurs -->
                 <div class="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs sm:text-sm">
                     <label for="currency-selector" class="font-bold text-slate-600">Mata Uang:</label>
@@ -96,9 +96,9 @@ defineEmits([
                 </div>
 
                 <!-- Total Estimasi Sementara -->
-                <div class="inline-flex items-center gap-2.5 bg-blue-50/80 border border-blue-200 rounded-xl px-4 py-2">
+                <div class="inline-flex flex-wrap items-center gap-2.5 px-1 py-2 sm:ml-auto">
                     <span class="text-xs sm:text-sm font-bold text-slate-700">Total Estimasi:</span>
-                    <span class="font-mono text-base sm:text-lg font-bold text-[#014BAA]">
+                    <span class="tabular-nums text-base sm:text-lg font-semibold text-slate-900">
                         {{ formatCurrency(totalEstimatedAmount, form.currency) }}
                     </span>
                 </div>
@@ -130,6 +130,7 @@ defineEmits([
                 :accounting-subcategory-options="accountingSubcategoryOptions"
                 :accounting-account-options="accountingAccountOptions"
                 :get-item-error="getItemError"
+                :errors="errors"
                 @remove="(idx) => $emit('remove-item', idx)"
                 @search-items="(q) => $emit('search-items', q)"
                 @search-units="(q) => $emit('search-units', q)"

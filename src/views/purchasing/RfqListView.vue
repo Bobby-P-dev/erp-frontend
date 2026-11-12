@@ -1,5 +1,5 @@
 <script setup>
-import PageHeader from '../../components/ui/PageHeader.vue'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import RfqQueueTab from '../../components/purchasing/rfq/list/RfqQueueTab.vue'
 import RfqDocumentsTab from '../../components/purchasing/rfq/list/RfqDocumentsTab.vue'
 import { useRfqList } from '../../composables/purchasing/useRfqList.js'
@@ -15,7 +15,6 @@ const {
     selectedQueueCompany,
     queueColumns,
     filteredQueuePlans,
-    readyQueueCount,
     hasRemainingQuota,
     getRemainingQuotaCount,
     fetchQueuePlans,
@@ -30,7 +29,7 @@ const {
     searchQuery,
     selectedStatus,
     pagination,
-    stats,
+    queuePagination,
     tableColumns,
     statusTabs,
     fetchRfqs,
@@ -47,82 +46,53 @@ const {
 
 <template>
     <div class="space-y-6 w-full">
-        <!-- Page Header (Consistent with ProcurementPlanListView) -->
-        <PageHeader
-            title="Tender Pengadaan (Request for Quotation / RFQ)"
-            description="Pilih Rencana Pengadaan (PP) bertipe RFQ untuk dibuatkan paket lelang multi-vendor, pantau penawaran masuk, dan evaluasi pemenang."
-            :breadcrumbs="[
-                { label: 'Purchasing', to: { name: 'user.purchasing' } },
-                { label: 'Tender RFQ' }
-            ]"
-        >
-            <template #actions>
-                <button
-                    v-if="activeMainTab === 'rfqs'"
-                    type="button"
-                    @click="activeMainTab = 'queue'"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-200 transition-all hover:-translate-y-0.5 cursor-pointer"
-                >
-                    <Plus class="w-4 h-4" />
-                    <span>Pilih Rencana untuk Ditenderkan</span>
-                </button>
-                <div v-else class="text-xs text-slate-500 bg-blue-50/70 border border-blue-200/80 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                    <span>Pilih salah satu Rencana Pengadaan di bawah ini untuk membuat paket RFQ</span>
-                </div>
-            </template>
-        </PageHeader>
+        <BaseBreadcrumb :items="[{ label: 'Purchasing', to: { name: 'user.purchasing' } }, { label: 'Tender RFQ' }]" />
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Tender RFQ</h1>
+                <p class="mt-1.5 text-sm text-slate-500">Kelola tender dan pantau penawaran supplier untuk kebutuhan pengadaan.</p>
+            </div>
+            <button v-if="activeMainTab === 'rfqs'" type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#014BAA] px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 cursor-pointer" @click="activeMainTab = 'queue'">
+                <Plus class="size-4" />Buat tender RFQ
+            </button>
+        </div>
 
         <!-- Primary High-Level View Switcher Tabs (Identical to ProcurementPlanListView) -->
-        <div class="flex items-center gap-2 border-b border-slate-200">
+        <div class="flex items-center gap-2 overflow-x-auto border-b border-slate-200">
             <button
                 type="button"
+                :aria-pressed="activeMainTab === 'queue'"
                 @click="activeMainTab = 'queue'"
-                class="pb-3.5 px-3 text-sm font-bold flex items-center gap-2.5 border-b-2 transition-all cursor-pointer -mb-px"
+                class="pb-3.5 px-3 text-sm font-medium whitespace-nowrap flex items-center gap-2.5 border-b-2 transition-all cursor-pointer -mb-px"
                 :class="activeMainTab === 'queue'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'"
             >
                 <ClipboardList class="w-4 h-4" />
-                <span>Rencana Siap Ditenderkan</span>
-                <span
-                    class="px-2 py-0.5 rounded-full text-xs font-mono font-bold transition-colors"
-                    :class="activeMainTab === 'queue'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-600'"
-                >
-                    {{ readyQueueCount }}
-                </span>
+                <span>Siap ditenderkan</span>
             </button>
 
             <button
                 type="button"
+                :aria-pressed="activeMainTab === 'rfqs'"
                 @click="activeMainTab = 'rfqs'"
-                class="pb-3.5 px-3 text-sm font-bold flex items-center gap-2.5 border-b-2 transition-all cursor-pointer -mb-px"
+                class="pb-3.5 px-3 text-sm font-medium whitespace-nowrap flex items-center gap-2.5 border-b-2 transition-all cursor-pointer -mb-px"
                 :class="activeMainTab === 'rfqs'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'"
             >
                 <Scale class="w-4 h-4" />
-                <span>Dokumen Tender RFQ</span>
-                <span
-                    class="px-2 py-0.5 rounded-full text-xs font-mono font-bold transition-colors"
-                    :class="activeMainTab === 'rfqs'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-600'"
-                >
-                    {{ stats.total }}
-                </span>
+                <span>Daftar tender</span>
             </button>
         </div>
 
-        <!-- Tab 1: Rencana Siap Ditenderkan -->
+        <!-- Tab 1: Siap ditenderkan -->
         <RfqQueueTab
             v-if="activeMainTab === 'queue'"
             v-model:queue-search="queueSearch"
             v-model:only-with-quota="onlyWithQuota"
             :filtered-queue-plans="filteredQueuePlans"
-            :ready-queue-count="readyQueueCount"
+            :queue-pagination="queuePagination"
             :is-loading-queue="isLoadingQueue"
             :expanded-plans="expandedPlans"
             :queue-columns="queueColumns"
@@ -132,7 +102,8 @@ const {
             :get-remaining-quota-count="getRemainingQuotaCount"
             :is-plan-selected="isPlanSelected"
             :format-date="formatDate"
-            @fetch-queue="fetchQueuePlans"
+            @fetch-queue="fetchQueuePlans()"
+            @page-change="fetchQueuePlans($event)"
             @switch-tab="activeMainTab = $event"
             @toggle-select-plan="toggleSelectPlan"
             @toggle-expand-plan="toggleExpandPlan"
@@ -141,7 +112,7 @@ const {
             @clear-selection="clearQueueSelection"
         />
 
-        <!-- Tab 2: Dokumen Tender RFQ -->
+        <!-- Tab 2: Daftar tender -->
         <RfqDocumentsTab
             v-else
             v-model:search-query="searchQuery"
@@ -149,7 +120,6 @@ const {
             :is-loading="isLoading"
             :selected-status="selectedStatus"
             :pagination="pagination"
-            :stats="stats"
             :table-columns="tableColumns"
             :status-tabs="statusTabs"
             :get-deadline-info="getDeadlineInfo"

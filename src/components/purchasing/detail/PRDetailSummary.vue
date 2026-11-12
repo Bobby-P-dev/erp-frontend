@@ -6,7 +6,6 @@ import {
     Building2,
     Briefcase,
     Mail,
-    Tag,
     User
 } from '@lucide/vue'
 import { formatCurrency, formatDate } from '../../../composables/useFormatter.js'
@@ -54,10 +53,10 @@ const isApproved = computed(() => {
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+    <div class="pr-summary">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             <!-- KOLOM 1: PEMOHON & WAKTU PENGAJUAN (~40%) -->
-            <div class="lg:col-span-5 flex flex-col justify-between space-y-4">
+            <div class="min-w-0 space-y-4">
                 <div>
                     <div class="flex items-center justify-between gap-2 mb-3">
                         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -119,7 +118,7 @@ const isApproved = computed(() => {
             </div>
 
             <!-- KOLOM 2: TARGET KEBUTUHAN & KEPERLUAN PENGADAAN (~38%) -->
-            <div class="lg:col-span-4 flex flex-col justify-between space-y-4 lg:border-l lg:border-slate-100 lg:pl-5">
+            <div class="min-w-0 space-y-4 md:pl-6">
                 <div class="space-y-3.5">
                     <!-- Target Kebutuhan -->
                     <div>
@@ -138,7 +137,7 @@ const isApproved = computed(() => {
                         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                             Keperluan Pengadaan
                         </span>
-                        <p class="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed break-words bg-slate-50/60 p-2.5 rounded-lg border border-slate-100">
+                        <p class="text-sm text-slate-800 font-medium leading-relaxed break-words">
                             {{ item.purpose || '—' }}
                         </p>
                     </div>
@@ -146,33 +145,39 @@ const isApproved = computed(() => {
                     <!-- Catatan Tambahan (jika ada) -->
                     <div v-if="item.notes" class="text-xs text-slate-500 space-y-1">
                         <span class="font-semibold text-slate-600 block">Catatan Tambahan:</span>
-                        <p class="text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200/60 leading-relaxed italic">
-                            "{{ item.notes }}"
+                        <p class="text-slate-500 leading-relaxed whitespace-pre-line break-words">
+                            {{ item.notes }}
                         </p>
                     </div>
                 </div>
             </div>
 
             <!-- KOLOM 3: TOTAL ESTIMASI BIAYA (~22%) -->
-            <div class="lg:col-span-3 flex flex-col justify-between rounded-xl p-4.5 bg-[#EAF2FF] border border-[#014BAA]/15 text-[#014BAA] shadow-2xs">
+            <div class="md:col-span-2 flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5">
                 <div>
                     <div class="flex items-center justify-between gap-1.5 mb-1.5">
-                        <span class="text-xs font-bold uppercase tracking-wider text-[#014BAA]">
+                        <span class="text-xs font-medium text-slate-500">
                             {{ isApproved ? 'Total Disetujui' : 'Total Estimasi Biaya' }}
                         </span>
-                        <Tag class="w-3.5 h-3.5 text-[#014BAA]/70" />
                     </div>
 
-                    <div class="text-xl sm:text-2xl font-mono font-bold tracking-tight text-[#014BAA] mt-2">
+                    <div class="text-2xl font-semibold tabular-nums tracking-tight text-slate-900 mt-1 break-all">
                         {{ formatCurrency(totalCalculated, item.currency) }}
                     </div>
                 </div>
 
-                <div class="mt-4 pt-3 border-t border-[#014BAA]/15 flex items-center justify-between text-xs text-[#014BAA]/90 font-medium">
-                    <span>Jumlah Barang:</span>
-                    <strong class="font-bold">{{ item.items?.length || 0 }} Item</strong>
+                <div class="text-sm text-slate-500">
+                    {{ item.items?.length || 0 }} item barang / jasa
                 </div>
             </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+.pr-summary :deep(.uppercase) { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.pr-summary :deep(.font-mono) { font-family: inherit; }
+.pr-summary :deep(.shadow-2xs) { box-shadow: none; }
+.pr-summary :deep(p.flex) { flex-wrap: wrap; white-space: normal; overflow-wrap: anywhere; }
+.pr-summary :deep(p.flex svg) { display: none; }
+</style>

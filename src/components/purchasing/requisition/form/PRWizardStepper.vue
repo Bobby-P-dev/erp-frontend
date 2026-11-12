@@ -16,12 +16,13 @@ defineEmits(['go-to-step'])
 </script>
 
 <template>
-    <nav aria-label="Tahapan Pembuatan PR" class="bg-white rounded-2xl border border-[#E5E7EB] p-4 sm:p-5 shadow-xs">
-        <ol class="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-5">
+    <nav aria-label="Tahapan Pembuatan PR" class="pr-wizard border-b border-slate-200 pb-5">
+        <ol class="flex items-center justify-between gap-3 md:gap-5">
             <li v-for="(step, sIdx) in stepMeta" :key="step.no" class="flex-1 flex items-center">
                 <button
                     type="button"
                     @click="$emit('go-to-step', step.no)"
+                    :aria-current="currentStep === step.no ? 'step' : undefined"
                     class="flex items-center gap-3.5 text-left w-full group cursor-pointer"
                 >
                     <span
@@ -30,7 +31,7 @@ defineEmits(['go-to-step'])
                             currentStep > step.no
                                 ? 'bg-[#EEF4FC] text-[#177245] border-2 border-[#177245]/30'
                                 : (currentStep === step.no
-                                    ? 'bg-[#014BAA] text-white shadow-sm ring-4 ring-[#014BAA]/15'
+                                    ? 'bg-[#014BAA] text-white'
                                     : 'bg-slate-100 text-slate-500 border border-slate-200')
                         ]"
                     >
@@ -56,3 +57,12 @@ defineEmits(['go-to-step'])
         </ol>
     </nav>
 </template>
+
+<style scoped>
+@media (max-width: 767px) {
+    .pr-wizard button { flex-direction: column; align-items: center; gap: 8px; }
+    .pr-wizard button > div { width: 100%; text-align: center; }
+    .pr-wizard button > div > span:first-child { font-size: 12px; white-space: normal; font-weight: 500; }
+    .pr-wizard button > div > span:last-child { display: none; }
+}
+</style>

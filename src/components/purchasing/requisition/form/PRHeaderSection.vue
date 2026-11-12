@@ -102,7 +102,7 @@ defineEmits(['mark-touched'])
                         <span class="block text-sm sm:text-base font-bold text-slate-800 mb-2">
                             Tanggal Permintaan (Sistem)
                         </span>
-                        <div class="h-13 px-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-base text-slate-700">
+                        <div class="min-h-11 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-700">
                             <span class="font-bold text-slate-900">{{ formatDisplayDate(form.request_date) }}</span>
                             <span class="text-xs sm:text-sm text-slate-500 font-medium">Otomatis hari ini</span>
                         </div>
@@ -139,10 +139,9 @@ defineEmits(['mark-touched'])
                 </div>
 
                 <!-- Catatan Tambahan -->
-                <div>
-                    <label for="input-notes" class="block text-sm sm:text-base font-bold text-slate-800 mb-2">
-                        Catatan Tambahan <span class="text-xs sm:text-sm font-normal text-slate-500">(opsional)</span>
-                    </label>
+                <details :open="Boolean(form.notes)" class="space-y-3">
+                    <summary>Catatan tambahan <span class="ml-1 text-xs font-normal text-slate-500">Opsional</span></summary>
+                    <label for="input-notes" class="sr-only">Catatan tambahan</label>
                     <textarea
                         id="input-notes"
                         v-model="form.notes"
@@ -150,14 +149,11 @@ defineEmits(['mark-touched'])
                         placeholder="Instruksi pengiriman, lokasi penyerahan barang, atau rincian operasional..."
                         class="w-full p-4 bg-white border border-slate-300 rounded-xl text-base text-[#111827] placeholder:text-slate-400 focus:outline-none focus:border-[#014BAA] focus:ring-2 focus:ring-[#014BAA]/15 transition-colors resize-y font-medium"
                     ></textarea>
-                </div>
+                </details>
 
                 <!-- Alur Persetujuan Dokumen -->
-                <div class="border-t border-slate-200 pt-6 space-y-3.5">
-                    <div>
-                        <h3 class="text-sm sm:text-base font-bold text-[#111827]">Alur Persetujuan Dokumen</h3>
-                        <p class="text-xs sm:text-sm text-slate-500">Otorisasi otomatis sesuai divisi dan hierarki perusahaan</p>
-                    </div>
+                <details :open="Boolean(form.approval_configuration_id || errors.approval_configuration_id)" class="border-t border-slate-100 pt-5 space-y-4">
+                    <summary>Alur persetujuan <span class="ml-1 text-xs font-normal text-slate-500">Otomatis sesuai divisi; buka untuk meninjau</span></summary>
 
                     <BaseSelect
                         v-model="form.approval_configuration_id"
@@ -167,7 +163,7 @@ defineEmits(['mark-touched'])
                     />
 
                     <!-- Pratinjau Alur Persetujuan -->
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
+                    <div class="pt-2">
                         <div class="mb-3.5 flex items-center justify-between">
                             <span class="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-1.5">
                                 <GitBranch class="w-4 h-4 text-[#014BAA]" />
@@ -189,7 +185,7 @@ defineEmits(['mark-touched'])
                             PR akan diproses melalui alur persetujuan default sistem.
                         </div>
                     </div>
-                </div>
+                </details>
             </div>
         </div>
 
@@ -218,10 +214,10 @@ defineEmits(['mark-touched'])
             </div>
 
             <!-- Panduan Tahapan Pengajuan PR -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-xs">
-                <h4 class="text-sm sm:text-base font-bold text-slate-900">
+            <details class="border-t border-slate-200 pt-5 space-y-4">
+                <summary>
                     Petunjuk Pengajuan PR
-                </h4>
+                </summary>
                 <ol class="space-y-3.5 text-xs sm:text-sm text-slate-600">
                     <li class="flex items-start gap-3">
                         <span class="w-6 h-6 rounded-full bg-[#EEF4FC] text-[#014BAA] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
@@ -248,7 +244,7 @@ defineEmits(['mark-touched'])
                 <div class="pt-3.5 border-t border-slate-100 text-xs sm:text-sm text-slate-500 leading-relaxed">
                     Total estimasi biaya akan otomatis dihitung saat Anda memasukkan item di Langkah 2.
                 </div>
-            </div>
+            </details>
         </aside>
     </div>
 </template>

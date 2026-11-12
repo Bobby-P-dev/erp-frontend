@@ -1,18 +1,17 @@
 <script setup>
+import { ref } from 'vue'
+import SearchInput from '../../../ui/SearchInput.vue'
+import TableDocumentCell from '../../../ui/TableDocumentCell.vue'
+import Pagination from '../../../ui/Pagination.vue'
+import ProcurementPlanDetailModal from '../../plan/ProcurementPlanDetailModal.vue'
 import { RouterLink } from 'vue-router'
 import BaseTable from '../../../ui/BaseTable.vue'
-import StatusBadge from '../../../ui/StatusBadge.vue'
 import {
     Scale,
     Plus,
     RefreshCw,
-    Search,
-    Calendar,
-    FileText,
-    CheckCircle2,
     Building2,
     Layers,
-    ArrowUpRight,
     ChevronDown,
     ChevronUp,
     Package
@@ -20,7 +19,7 @@ import {
 
 defineProps({
     filteredQueuePlans: { type: Array, required: true },
-    readyQueueCount: { type: Number, default: 0 },
+    queuePagination: { type: Object, required: true },
     isLoadingQueue: { type: Boolean, default: false },
     queueSearch: { type: String, default: '' },
     onlyWithQuota: { type: Boolean, default: true },
@@ -38,6 +37,7 @@ const emit = defineEmits([
     'update:queueSearch',
     'update:onlyWithQuota',
     'fetch-queue',
+    'page-change',
     'switch-tab',
     'toggle-select-plan',
     'toggle-expand-plan',
@@ -45,49 +45,16 @@ const emit = defineEmits([
     'execute-combined',
     'clear-selection'
 ])
+const previewPlanId = ref(null)
 </script>
 
 <template>
     <div class="space-y-6">
-        <!-- Context Banner (Matches ProcurementPlanListView & DirectPurchaseListView) -->
-        <div class="bg-gradient-to-r from-blue-50/70 via-slate-50/40 to-white border border-blue-200/80 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-start gap-4">
-                <div class="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs shadow-blue-200 mt-0.5">
-                    <Scale class="w-5 h-5" />
-                </div>
-                <div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h3 class="text-sm font-bold text-slate-900">Daftar Rencana Pengadaan Siap Ditenderkan (Tender RFQ)</h3>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700">
-                            Siap Eksekusi
-                        </span>
-                    </div>
-                    <p class="text-xs text-slate-600 mt-0.5 leading-relaxed max-w-2xl">
-                        Berikut adalah daftar dokumen Rencana Pengadaan (PP) bertipe <strong>Tender RFQ</strong> berstatus <strong>Aktif</strong> yang menunggu pembuatan paket penawaran vendor. Klik tombol <strong>"Buat Paket RFQ"</strong> pada baris rencana yang ingin Anda proses.
-                    </p>
-                </div>
-            </div>
-
-            <div class="shrink-0 flex items-center gap-2 self-start md:self-auto">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-blue-700 border border-blue-200 shadow-2xs">
-                    <CheckCircle2 class="w-3.5 h-3.5 text-blue-600" />
-                    <span>{{ readyQueueCount }} Rencana Siap Tender</span>
-                </span>
-            </div>
-        </div>
-
         <!-- Toolbar & Table -->
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-100">
-                <div class="relative flex-1 max-w-md w-full">
-                    <Search class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                        :value="queueSearch"
-                        @input="emit('update:queueSearch', $event.target.value)"
-                        type="text"
-                        placeholder="Cari nomor PP, nomor PR, divisi, perusahaan, atau nama item..."
-                        class="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                    />
+                <div class="w-full sm:max-w-md">
+                    <SearchInput :model-value="queueSearch" compact clearable label="Cari rencana pada halaman ini" placeholder="Cari rencana, PR, atau kebutuhan…" @update:model-value="emit('update:queueSearch', $event)" />
                 </div>
 
                 <div class="flex items-center gap-3 self-end sm:self-auto flex-wrap">
@@ -113,11 +80,12 @@ const emit = defineEmits([
                 </div>
             </div>
 
+            <div class="px-5 py-3 text-xs text-slate-500 border-b border-slate-100 leading-relaxed">Pilih rencana untuk membuat tender. Centang beberapa rencana dari perusahaan yang sama untuk digabung. Pencarian dan filter kuota berlaku pada halaman ini.</div>
             <!-- Table of Ready RFQ Plans -->
-            <BaseTable :columns="queueColumns">
+            <BaseTable :columns="queueColumns" min-width="1050px" label="Rencana siap ditenderkan" :busy="isLoadingQueue">
                 <!-- Loading State -->
                 <tr v-if="isLoadingQueue">
-                    <td colspan="8" class="px-6 py-14 text-center text-sm text-slate-500">
+                    <td colspan="6" class="px-6 py-14 text-center text-sm text-slate-500">
                         <div class="inline-flex items-center gap-2 font-medium">
                             <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
                             Memuat daftar rencana pengadaan siap ditenderkan...
@@ -127,16 +95,16 @@ const emit = defineEmits([
 
                 <!-- Empty State -->
                 <tr v-else-if="filteredQueuePlans.length === 0">
-                    <td colspan="8" class="px-6 py-14 text-center">
+                    <td colspan="6" class="px-6 py-14 text-center">
                         <div class="flex flex-col items-center justify-center max-w-sm mx-auto text-slate-400 space-y-2.5">
                             <div class="p-3 bg-slate-100 rounded-xl border border-slate-200/80">
                                 <Scale class="w-6 h-6 text-slate-400" />
                             </div>
                             <div class="text-sm font-semibold text-slate-700">
-                                {{ queueSearch ? 'Tidak ada rencana yang cocok dengan pencarian' : 'Semua Rencana RFQ Telah Dibuatkan Tender' }}
+                                {{ queueSearch ? 'Tidak ada rencana yang cocok dengan pencarian' : 'Tidak ada rencana yang ditampilkan' }}
                             </div>
                             <p class="text-xs text-slate-500 text-center leading-relaxed">
-                                {{ queueSearch ? 'Coba ubah kata kunci pencarian Anda.' : 'Seluruh rencana pengadaan bertipe Tender RFQ sudah dieksekusi atau belum ada rencana baru yang diaktifkan.' }}
+                                {{ queueSearch ? 'Coba ubah kata kunci pencarian Anda.' : 'Coba nonaktifkan filter kuota, buka halaman lain, atau periksa rencana pengadaan yang aktif.' }}
                             </p>
                             <div class="flex items-center gap-2 pt-1">
                                 <button
@@ -162,7 +130,7 @@ const emit = defineEmits([
                 <!-- Data Rows -->
                 <template
                     v-else
-                    v-for="(plan, index) in filteredQueuePlans"
+                    v-for="plan in filteredQueuePlans"
                     :key="plan.id"
                 >
                     <tr
@@ -175,66 +143,29 @@ const emit = defineEmits([
                         <td class="px-4 py-4.5 whitespace-nowrap text-center">
                             <input
                                 type="checkbox"
+                                :aria-label="`Pilih ${plan.pp_number || plan.id}`"
                                 :checked="isPlanSelected(plan.id)"
                                 :disabled="!hasRemainingQuota(plan)"
-                                @change="emit('toggle-select-plan', plan)"
+                                @change="emit('toggle-select-plan', plan); $event.target.checked = isPlanSelected(plan.id)"
                                 class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer disabled:opacity-40"
                                 title="Centang untuk menggabungkan beberapa Rencana Pengadaan ke dalam 1 paket Tender RFQ"
                             />
                         </td>
 
-                        <!-- No -->
-                        <td class="px-4 py-4.5 whitespace-nowrap text-sm font-mono font-semibold text-slate-500 text-center">
-                            {{ index + 1 }}
-                        </td>
-
                         <!-- No. Rencana & Tanggal -->
                         <td class="px-6 py-4.5 whitespace-nowrap">
-                            <RouterLink
-                                :to="{ name: 'user.purchasing.plans.detail', params: { id: plan.id } }"
-                                class="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors group/link text-left"
-                                title="Lihat detail rencana pengadaan"
-                            >
-                                <span class="group-hover/link:underline">{{ plan.pp_number || 'PP #' + plan.id }}</span>
-                                <ArrowUpRight class="w-4 h-4 text-slate-400 group-hover/link:text-blue-600 opacity-0 group-hover/link:opacity-100 transition-all shrink-0" />
-                            </RouterLink>
-                            <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
-                                <Calendar class="w-4 h-4 text-slate-400 shrink-0" />
-                                <span>{{ formatDate(plan.created_at) }}</span>
-                            </div>
-                        </td>
-
-                        <!-- Dokumen PR Asal -->
-                        <td class="px-6 py-4.5 whitespace-nowrap">
-                            <div v-if="plan.is_consolidated || (plan.source_prs_count && plan.source_prs_count > 1) || (plan.pr_numbers && plan.pr_numbers.length > 1)">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
-                                    <Layers class="w-3.5 h-3.5 text-indigo-500" />
-                                    <span>{{ plan.source_prs_count || plan.pr_numbers?.length || 2 }} PR Terkonsolidasi</span>
-                                </span>
-                                <div class="text-xs text-slate-500 font-medium mt-1 truncate max-w-[200px]">
-                                    {{ plan.pr_numbers?.join(', ') || 'Multi-PR' }}
-                                </div>
-                            </div>
-                            <div v-else>
-                                <div class="text-sm font-mono font-bold text-slate-900 flex items-center gap-2">
-                                    <FileText class="w-4 h-4 text-slate-400 shrink-0" />
-                                    <span>{{ plan.purchase_requisition?.pr_number || plan.pr_numbers?.[0] || '-' }}</span>
-                                </div>
-                                <div class="text-xs text-slate-500 font-medium mt-1 truncate max-w-[200px]" :title="plan.purchase_requisition?.requester?.name">
-                                    <span>Pemohon: {{ plan.purchase_requisition?.requester?.name || '-' }}</span>
-                                </div>
-                            </div>
+                            <TableDocumentCell :number="plan.pp_number || `PP #${plan.id}`" :description="(plan.pr_numbers || [plan.purchase_requisition?.pr_number]).filter(Boolean).join(', ')" :kind="formatDate(plan.created_at)" @open="previewPlanId = plan.id" />
                         </td>
 
                         <!-- Perusahaan & Divisi -->
                         <td class="px-6 py-4.5 whitespace-nowrap">
                             <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
                                 <Building2 class="w-4 h-4 text-slate-400 shrink-0" />
-                                <span>{{ plan.company?.name || plan.purchase_requisition?.company?.name || 'Perusahaan' }}</span>
+                                <span class="truncate max-w-[220px]" :title="plan.company?.name || plan.purchase_requisition?.company?.name">{{ plan.company?.name || plan.purchase_requisition?.company?.name || '—' }}</span>
                             </div>
                             <div class="text-xs font-medium text-slate-600 mt-1 flex items-center gap-2">
                                 <Layers class="w-4 h-4 text-slate-400 shrink-0" />
-                                <span>{{ plan.purchase_requisition?.division?.name || 'Divisi Pemohon' }}</span>
+                                <span>{{ plan.purchase_requisition?.division?.name || '—' }}</span>
                             </div>
                         </td>
 
@@ -263,7 +194,6 @@ const emit = defineEmits([
                         <!-- Status & Sisa Kuota -->
                         <td class="px-6 py-4.5 whitespace-nowrap text-center">
                             <div class="inline-flex flex-col items-center justify-center">
-                                <StatusBadge :status="plan.status" size="md" class="min-w-[115px]" />
                                 <span
                                     class="text-xs font-bold mt-1 font-mono"
                                     :class="hasRemainingQuota(plan) ? 'text-emerald-700' : 'text-slate-400'"
@@ -298,7 +228,7 @@ const emit = defineEmits([
 
                     <!-- Expanded Item Details -->
                     <tr v-if="expandedPlans[plan.id]" class="bg-slate-50/60 border-b border-slate-200/60">
-                        <td colspan="8" class="p-4 sm:p-5">
+                        <td colspan="6" class="p-4 sm:p-5">
                             <div class="bg-white rounded-xl border border-slate-200/80 p-4 shadow-2xs space-y-3">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-2">
@@ -361,10 +291,11 @@ const emit = defineEmits([
                 </template>
             </BaseTable>
 
-            <!-- Floating Multi-Plan Selection Bar -->
+            <Pagination v-if="!isLoadingQueue" :pagination="queuePagination" @page-change="emit('page-change', $event)" />
+            <!-- Multi-Plan Selection Bar -->
             <div
-                v-if="selectedPlansList.length > 0"
-                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-3xl w-[92%] bg-slate-900 text-white px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 transition-all duration-300"
+                v-if="selectedPlansList.length > 0 && !isLoadingQueue"
+                class="border-t border-blue-100 bg-blue-50/60 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-800"
             >
                 <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
                     <div class="flex items-center gap-2.5">
@@ -372,10 +303,10 @@ const emit = defineEmits([
                             {{ selectedPlansList.length }}
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span class="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
                                 <span>{{ selectedPlansList.length }} Rencana Pengadaan Terpilih</span>
                             </span>
-                            <span v-if="selectedQueueCompany" class="text-[11px] text-slate-300 flex items-center gap-1">
+                            <span v-if="selectedQueueCompany" class="text-[11px] text-slate-500 flex items-center gap-1">
                                 <Building2 class="w-3.5 h-3.5 text-blue-400" />
                                 <span>{{ selectedQueueCompany.name }}</span>
                             </span>
@@ -384,9 +315,9 @@ const emit = defineEmits([
                     <button
                         type="button"
                         @click="emit('clear-selection')"
-                        class="text-xs text-slate-400 hover:text-white underline cursor-pointer ml-2"
+                        class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 cursor-pointer ml-2"
                     >
-                        Batal
+                        Hapus pilihan
                     </button>
                 </div>
 
@@ -402,5 +333,6 @@ const emit = defineEmits([
                 </div>
             </div>
         </div>
+        <ProcurementPlanDetailModal v-if="previewPlanId" :plan-id="previewPlanId" @close="previewPlanId = null" @changed="emit('fetch-queue')" />
     </div>
 </template>

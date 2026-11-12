@@ -49,7 +49,8 @@ const showCompactPlanHeader = computed(() => Boolean(props.selectedPlan && !isCh
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5">
+    <div class="dp-section bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5">
+        <h3 class="text-sm font-semibold text-slate-900 mb-5">Sumber kebutuhan</h3>
         <!-- If Bulk Mode Active Banner -->
         <div v-if="isBulkMode" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-start gap-3.5">
@@ -96,7 +97,7 @@ const showCompactPlanHeader = computed(() => Boolean(props.selectedPlan && !isCh
                 <div class="space-y-1">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-xs font-bold font-mono text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60">
-                            {{ selectedPlan.plan_number || `PLAN #${selectedPlan.id}` }}
+                            {{ selectedPlan.pp_number || selectedPlan.plan_number || `PP #${selectedPlan.id}` }}
                         </span>
                         <span class="text-xs text-slate-400">•</span>
                         <span class="text-xs font-semibold text-slate-700 font-mono">

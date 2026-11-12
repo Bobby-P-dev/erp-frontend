@@ -3,9 +3,10 @@ import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
+import TableDocumentCell from '../../components/ui/TableDocumentCell.vue'
+import SearchInput from '../../components/ui/SearchInput.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
-import TabNavigation from '../../components/ui/TabNavigation.vue'
 import PurchaseRequisitionDetailModal from '../../components/purchasing/PurchaseRequisitionDetailModal.vue'
 
 import { useDataTable } from '../../composables/useDataTable.js'
@@ -19,17 +20,11 @@ import { showLoading, showSuccess, showError, showConfirm } from '../../utils/sw
 import {
     ShoppingBag,
     Plus,
-    Search,
     FileText,
-    Calendar,
-    Clock,
-    Building2,
-    Layers,
     Send,
     Eye,
     FileEdit,
     RefreshCw,
-    ArrowUpRight,
     Download,
     Loader2
 } from '@lucide/vue'
@@ -137,13 +132,12 @@ const statusTabs = [
 ]
 
 const tableColumns = [
-    { key: 'no', label: 'No', width: '70px', align: 'center', class: 'text-center' },
-    { key: 'pr_number', label: 'No. PR', minWidth: '180px' },
-    { key: 'request_date', label: 'Tanggal & Target', minWidth: '180px' },
-    { key: 'company_id', label: 'Perusahaan & Divisi', minWidth: '220px' },
-    { key: 'purpose', label: 'Keperluan & Estimasi', minWidth: '240px' },
-    { key: 'status', label: 'Status & Approval', minWidth: '200px', align: 'center', class: 'text-center' },
-    { key: 'actions', label: 'Aksi', minWidth: '180px', align: 'center', class: 'text-center' }
+    { key: 'pr_number', label: 'Pengajuan', minWidth: '240px', width: '25%' },
+    { key: 'request_date', label: 'Tanggal & target', minWidth: '150px', width: '14%' },
+    { key: 'company_id', label: 'Perusahaan & divisi', minWidth: '210px', width: '20%' },
+    { key: 'estimate', label: 'Estimasi', minWidth: '150px', width: '15%', align: 'right' },
+    { key: 'status', label: 'Status', minWidth: '180px', width: '17%' },
+    { key: 'actions', label: 'Aksi', minWidth: '180px', width: '210px', align: 'right' }
 ]
 
 const getActiveStepName = (pr) => {
@@ -155,7 +149,7 @@ const getActiveStepName = (pr) => {
 </script>
 
 <template>
-    <div class="flex flex-col gap-5">
+    <div class="pr-list flex min-w-0 flex-col gap-6">
         <!-- 1. BREADCRUMB -->
         <BaseBreadcrumb 
             :items="[
@@ -165,18 +159,18 @@ const getActiveStepName = (pr) => {
         />
 
         <!-- 2. PAGE HEADER -->
-        <div class="bg-white px-5 py-4 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex flex-col justify-between gap-4 py-1 sm:flex-row sm:items-center">
             <div class="space-y-1">
                 <div class="flex items-center gap-2.5">
-                    <div class="p-2 bg-slate-100 text-slate-700 rounded-lg border border-slate-200/60">
-                        <FileText class="w-5 h-5 text-slate-800" />
+                    <div class="p-3 bg-blue-50 text-[#014BAA] rounded-xl">
+                        <FileText class="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold text-slate-900 tracking-tight">
+                        <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">
                             Purchase Requisitions
                         </h1>
-                        <p class="text-xs text-slate-500 mt-0.5">
-                            Daftar pengajuan kebutuhan barang dan jasa yang Anda buat. Pantau status review dan riwayat persetujuan.
+                        <p class="text-sm text-slate-500 mt-1">
+                            Kelola kebutuhan tim dan pantau perkembangan pengajuan Anda.
                         </p>
                     </div>
                 </div>
@@ -185,7 +179,7 @@ const getActiveStepName = (pr) => {
             <div class="flex items-center gap-2.5 shrink-0">
                 <RouterLink
                     :to="{ name: 'user.purchasing.requisitions.create' }"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs transition-colors shadow-xs shadow-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#014BAA] hover:bg-[#013C89] text-white font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                     <Plus class="w-4 h-4" />
                     <span>Buat PR Baru</span>
@@ -194,37 +188,42 @@ const getActiveStepName = (pr) => {
         </div>
 
         <!-- 3. UNIFIED DATA TABLE CONTAINER -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col overflow-hidden">
+        <div class="min-w-0 bg-white rounded-2xl border border-slate-200/80 flex flex-col overflow-hidden">
             <!-- STATUS TAB BAR -->
-            <div class="border-b border-slate-200 bg-slate-50/70 px-4 pt-2.5 flex items-center justify-between gap-4 overflow-x-auto">
-                <TabNavigation
-                    v-model="filters.status"
-                    :tabs="statusTabs"
-                    variant="underline"
-                />
-
-                <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500 pb-2 shrink-0">
-                    <span>Total Pengajuan:</span>
-                    <span class="font-mono font-bold text-slate-900">{{ pagination.total }}</span>
+            <div class="border-b border-slate-100 px-5 pt-2">
+                <div class="hidden flex-wrap gap-x-5 sm:flex" role="group" aria-label="Filter status pengajuan">
+                    <button v-for="tab in statusTabs" :key="tab.id" type="button"
+                        :aria-pressed="filters.status === tab.id"
+                        @click="filters.status = tab.id"
+                        class="status-filter border-b-2 py-3 text-sm transition-colors"
+                        :class="filters.status === tab.id ? 'border-[#014BAA] font-medium text-[#014BAA]' : 'border-transparent text-slate-500 hover:text-slate-800'"
+                    >{{ tab.label }}</button>
                 </div>
+                <label class="flex items-center gap-3 pb-3 pt-1 text-sm text-slate-600 sm:hidden">
+                    Status
+                    <select v-model="filters.status" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                        <option v-for="tab in statusTabs" :key="tab.id" :value="tab.id">{{ tab.label }}</option>
+                    </select>
+                </label>
             </div>
 
             <!-- SEARCH & TOOLBAR -->
-            <div class="p-4 border-b border-slate-200/80 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="p-5 border-b border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="relative w-full sm:w-96">
-                    <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input
+                    <SearchInput
                         v-model="searchQuery"
-                        type="text"
+                        label="Cari pengajuan"
                         placeholder="Cari nomor PR, keperluan, atau entitas..."
-                        class="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                        compact clearable
                     />
                 </div>
 
-                <div class="flex items-center gap-2.5 self-end sm:self-auto">
+                <div class="flex flex-wrap items-center gap-3 sm:justify-end">
+                    <span class="text-xs text-slate-500" aria-live="polite">{{ pagination.total }} pengajuan sesuai filter</span>
                     <div class="flex items-center gap-1.5 text-xs text-slate-500">
                         <span>Tampilkan:</span>
                         <select
+                            aria-label="Jumlah baris per halaman"
                             :value="pagination.per_page"
                             @change="handlePerPageChange"
                             class="py-1 px-2 text-xs border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:border-blue-500"
@@ -240,6 +239,8 @@ const getActiveStepName = (pr) => {
                         @click="fetchData(pagination.current_page)"
                         class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
                         title="Segarkan Data"
+                        aria-label="Segarkan data"
+                        :disabled="isLoading"
                     >
                         <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isLoading }" />
                     </button>
@@ -247,9 +248,11 @@ const getActiveStepName = (pr) => {
             </div>
 
             <!-- TABLE -->
-            <BaseTable :columns="tableColumns">
+            <p id="pr-table-hint" class="px-5 pt-3 text-xs text-slate-500 xl:hidden">Geser tabel untuk melihat seluruh kolom dan aksi.</p>
+            <div class="pr-table min-w-0">
+            <BaseTable :columns="tableColumns" min-width="1180px" layout="fixed" label="Daftar pengajuan pembelian" :busy="isLoading" aria-describedby="pr-table-hint">
                 <tr v-if="isLoading">
-                    <td colspan="7" class="px-6 py-14 text-center text-sm text-slate-500">
+                    <td colspan="6" class="px-6 py-14 text-center text-sm text-slate-500">
                         <div class="inline-flex items-center gap-2 font-medium">
                             <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
                             Memuat daftar Purchase Requisition...
@@ -258,7 +261,7 @@ const getActiveStepName = (pr) => {
                 </tr>
 
                 <tr v-else-if="requisitions.length === 0">
-                    <td colspan="7" class="px-6 py-14 text-center">
+                    <td colspan="6" class="px-6 py-14 text-center">
                         <div class="flex flex-col items-center justify-center max-w-sm mx-auto text-slate-400 space-y-2.5">
                             <div class="p-3 bg-slate-100 rounded-xl border border-slate-200/80">
                                 <FileText class="w-6 h-6 text-slate-400" />
@@ -282,87 +285,64 @@ const getActiveStepName = (pr) => {
                 </tr>
 
                 <tr 
-                    v-for="(pr, index) in requisitions" 
+                    v-for="pr in requisitions"
                     :key="pr.id" 
                     class="hover:bg-slate-50/80 transition-colors group border-b border-slate-100 last:border-b-0"
                 >
-                    <!-- No -->
-                    <td class="px-6 py-4.5 whitespace-nowrap text-sm font-mono font-semibold text-slate-500 text-center">
-                        {{ ((pagination.current_page - 1) * pagination.per_page) + index + 1 }}
-                    </td>
-
                     <!-- PR Number -->
                     <td class="px-6 py-4.5 whitespace-nowrap">
-                        <button
-                            type="button"
-                            @click="openDetail(pr)"
-                            class="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors group/btn text-left cursor-pointer"
-                            title="Klik untuk melihat rincian PR"
-                        >
-                            <span class="group-hover/btn:underline">{{ pr.pr_number }}</span>
-                            <ArrowUpRight class="w-4 h-4 text-slate-400 group-hover/btn:text-blue-600 opacity-0 group-hover/btn:opacity-100 transition-all shrink-0" />
-                        </button>
+                        <TableDocumentCell :number="pr.pr_number" :description="pr.purpose || 'Keperluan belum diisi'" @open="openDetail(pr)" />
                     </td>
 
                     <!-- Dates -->
                     <td class="px-6 py-4.5 whitespace-nowrap">
-                        <div class="text-sm text-slate-800 font-semibold flex items-center gap-2">
-                            <Calendar class="w-4 h-4 text-slate-400 shrink-0" />
+                        <div class="text-sm text-slate-700">
                             <span>{{ formatDate(pr.request_date) }}</span>
                         </div>
-                        <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-2">
-                            <Clock class="w-4 h-4 text-slate-400 shrink-0" />
+                        <div class="text-xs text-slate-500 mt-1">
                             <span>Target: {{ formatDate(pr.required_date) }}</span>
                         </div>
                     </td>
 
                     <!-- Company & Division -->
                     <td class="px-6 py-4.5 whitespace-nowrap">
-                        <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                            <Building2 class="w-4 h-4 text-slate-400 shrink-0" />
+                        <div class="max-w-[260px] truncate text-sm text-slate-700" :title="pr.company?.name">
                             <span>{{ pr.company?.name || 'Perusahaan #' + pr.company_id }}</span>
                         </div>
-                        <div class="text-xs font-medium text-slate-600 mt-1 flex items-center gap-2">
-                            <Layers class="w-4 h-4 text-slate-400 shrink-0" />
+                        <div class="max-w-[260px] truncate text-xs text-slate-500 mt-1" :title="pr.division?.name">
                             <span>{{ pr.division?.name || 'Divisi #' + pr.division_id }}</span>
                         </div>
                     </td>
 
                     <!-- Purpose & Estimated Total -->
-                    <td class="px-6 py-4.5">
-                        <div class="text-sm font-medium text-slate-900 max-w-sm truncate" :title="pr.purpose">
-                            {{ pr.purpose }}
-                        </div>
-                        <div class="mt-1.5 flex items-center gap-2.5 flex-wrap text-xs">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80">
-                                {{ pr.items ? pr.items.length : 0 }} Item
-                            </span>
+                    <td class="px-6 py-4.5 text-right whitespace-nowrap">
                             <span 
-                                v-if="pr.total_estimated_amount && Number(pr.total_estimated_amount) > 0"
-                                class="inline-flex items-center gap-1 text-sm font-mono font-bold text-slate-900"
+                                v-if="pr.total_estimated_amount !== null && pr.total_estimated_amount !== undefined"
+                                class="text-sm font-medium tabular-nums text-slate-800"
                                 title="Estimasi Nilai Total"
                             >
                                 {{ formatCurrency(pr.total_estimated_amount, pr.currency) }}
                             </span>
-                        </div>
+                            <span v-else class="text-sm text-slate-400">—</span>
+                            <p class="mt-1 text-xs text-slate-500">{{ Array.isArray(pr.items) ? pr.items.length + ' item' : 'Jumlah item belum tersedia' }}</p>
                     </td>
 
                     <!-- Status & Approval Stage -->
-                    <td class="px-6 py-4.5 whitespace-nowrap text-center">
-                        <div class="inline-flex flex-col items-center justify-center">
-                            <StatusBadge :status="pr.status" size="md" class="min-w-[125px]" />
+                    <td class="px-6 py-4.5 whitespace-nowrap">
+                        <div class="flex min-w-0 flex-col items-start justify-center">
+                            <StatusBadge :status="pr.status" size="sm" :dot="false" />
                             
                             <!-- Detailed active approval step indicator -->
                             <span 
                                 v-if="pr.status === 'pending_approval' && pr.approval_request" 
-                                class="text-xs font-semibold text-amber-800 mt-1.5 truncate max-w-[190px]"
+                                class="text-xs font-medium text-amber-800 mt-1.5 truncate max-w-full"
                                 :title="'Tahap ' + (pr.approval_request.current_step_order || 1) + ': ' + getActiveStepName(pr)"
                             >
                                 Tahap {{ pr.approval_request.current_step_order || 1 }}: {{ getActiveStepName(pr) }}
                             </span>
                             <span 
                                 v-else-if="pr.status === 'revision_requested'" 
-                                class="text-xs font-semibold text-amber-800 mt-1.5 truncate max-w-[190px]"
+                                class="text-xs font-medium text-amber-800 mt-1.5 truncate max-w-full"
                                 title="Menunggu perbaikan data oleh pemohon"
                             >
                                 Perlu tindakan perbaikan
@@ -372,12 +352,13 @@ const getActiveStepName = (pr) => {
 
                     <!-- Actions -->
                     <td class="px-6 py-4.5 whitespace-nowrap text-center">
-                        <div class="flex items-center justify-center gap-2">
+                        <div class="flex items-center justify-end gap-1">
                             <button
                                 type="button"
                                 @click="openDetail(pr)"
                                 class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 title="Lihat Rincian PR"
+                                :aria-label="'Lihat rincian ' + pr.pr_number"
                             >
                                 <Eye class="w-4.5 h-4.5" />
                             </button>
@@ -390,6 +371,7 @@ const getActiveStepName = (pr) => {
                                 @click="handleDownloadPdf(pr)"
                                 class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                                 title="Unduh Lembar Persetujuan (PDF)"
+                                :aria-label="'Unduh PDF ' + pr.pr_number"
                             >
                                 <Loader2 v-if="downloadingPrId === pr.id" class="w-4.5 h-4.5 animate-spin text-blue-600" />
                                 <Download v-else class="w-4.5 h-4.5 text-slate-600 hover:text-blue-600" />
@@ -400,6 +382,7 @@ const getActiveStepName = (pr) => {
                                 :to="{ name: 'user.purchasing.requisitions.edit', params: { id: pr.id } }"
                                 class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
                                 :title="pr.status === 'revision_requested' ? 'Perbaiki & Edit PR' : 'Edit Draft PR'"
+                                :aria-label="'Edit ' + pr.pr_number"
                             >
                                 <FileEdit class="w-4.5 h-4.5" />
                             </RouterLink>
@@ -408,7 +391,7 @@ const getActiveStepName = (pr) => {
                                 v-if="pr.can_be_submitted || pr.status === 'draft' || pr.status === 'revision_requested'"
                                 type="button"
                                 @click="handleSubmitPR(pr)"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#014BAA] rounded-lg text-xs font-medium transition-colors cursor-pointer"
                                 :title="pr.status === 'revision_requested' ? 'Ajukan Ulang Persetujuan' : 'Ajukan Persetujuan Sekarang'"
                             >
                                 <Send class="w-3.5 h-3.5" />
@@ -418,13 +401,13 @@ const getActiveStepName = (pr) => {
                     </td>
                 </tr>
             </BaseTable>
+            </div>
 
             <!-- PAGINATION -->
             <div class="border-t border-slate-200/80 bg-slate-50/40">
                 <Pagination
                     :pagination="pagination"
                     @change-page="handlePageChange"
-                    @page-change="handlePageChange"
                 />
             </div>
         </div>
@@ -438,3 +421,10 @@ const getActiveStepName = (pr) => {
         />
     </div>
 </template>
+
+<style scoped>
+.pr-table :deep(td > p), .pr-table :deep(td > div:not(.flex)) { max-width: 100%; }
+.pr-list button:focus-visible, .pr-list a:focus-visible, .pr-table:focus-visible { outline: 2px solid #014baa; outline-offset: 3px; }
+.pr-list button:disabled { cursor: wait; opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .pr-list :deep(*) { transition: none !important; } }
+</style>

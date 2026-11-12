@@ -53,15 +53,11 @@ export function useProcurementPlanList() {
                     request_date: item.request_date,
                     required_date: item.required_date,
                     items: [],
-                    total_requested_qty: 0,
-                    total_remaining_qty: 0,
                     has_custom_item: false
                 })
             }
             const pr = map.get(item.pr_id)
             pr.items.push(item)
-            pr.total_requested_qty += Number(item.requested_quantity || 0)
-            pr.total_remaining_qty += Number(item.remaining_quantity || 0)
             if (item.is_custom_item) {
                 pr.has_custom_item = true
             }
@@ -81,54 +77,36 @@ export function useProcurementPlanList() {
         return list
     })
 
-    // Metrics for Tab 2
-    const stats = computed(() => {
-        const list = plans.value || []
-        return {
-            total: pagination.value.total || list.length,
-            draft: list.filter(p => p.status === 'draft').length,
-            active: list.filter(p => p.status === 'active').length,
-            completed: list.filter(p => p.status === 'completed').length,
-            cancelled: list.filter(p => p.status === 'cancelled').length,
-            direct: list.filter(p => p.procurement_method === 'direct_purchase').length,
-            rfq: list.filter(p => p.procurement_method === 'rfq').length
-        }
-    })
-
     const statusTabs = [
-        { id: '', label: 'Semua Status' },
+        { id: '', label: 'Semua status' },
         { id: 'draft', label: 'Draft', color: 'amber' },
-        { id: 'active', label: 'Aktif Berjalan', color: 'blue' },
+        { id: 'active', label: 'Aktif', color: 'blue' },
         { id: 'completed', label: 'Selesai', color: 'emerald' },
         { id: 'cancelled', label: 'Dibatalkan', color: 'rose' }
     ]
 
     const methodOptions = [
-        { value: '', label: 'Semua Sourcing Method' },
+        { value: '', label: 'Semua metode' },
         { value: 'direct_purchase', label: 'Direct Purchase (Beli Langsung)' },
         { value: 'rfq', label: 'Tender RFQ (Multi-Vendor)' }
     ]
 
     const queueTableColumns = [
-        { key: 'select', label: '', width: '48px', align: 'center', class: 'text-center' },
-        { key: 'no', label: 'No', width: '60px', align: 'center', class: 'text-center' },
-        { key: 'pr_number', label: 'No. PR', minWidth: '180px' },
-        { key: 'request_date', label: 'Tanggal & Target', minWidth: '180px' },
-        { key: 'company_id', label: 'Perusahaan & Divisi', minWidth: '220px' },
-        { key: 'purpose', label: 'Keperluan & Item', minWidth: '240px' },
-        { key: 'status', label: 'Status & Kuota', minWidth: '180px', align: 'center', class: 'text-center' },
-        { key: 'actions', label: 'Aksi', minWidth: '160px', align: 'center', class: 'text-center' }
+        { key: 'select', label: 'Pilih', width: '64px', align: 'center' },
+        { key: 'pr_number', label: 'Pengajuan', width: '29%' },
+        { key: 'company_id', label: 'Perusahaan & divisi', width: '23%' },
+        { key: 'request_date', label: 'Target kebutuhan', width: '16%' },
+        { key: 'items', label: 'Barang / jasa', width: '16%' },
+        { key: 'actions', label: 'Aksi', width: '150px', align: 'right' }
     ]
 
     const tableColumns = [
-        { key: 'no', label: 'No', width: '70px', align: 'center', class: 'text-center' },
-        { key: 'pp_number', label: 'No. Rencana & Tanggal', minWidth: '200px' },
-        { key: 'pr_info', label: 'Dokumen PR Asal', minWidth: '220px' },
-        { key: 'method', label: 'Metode Pengadaan', minWidth: '180px', align: 'center', class: 'text-center' },
-        { key: 'items_count', label: 'Alokasi Item', minWidth: '130px', align: 'center', class: 'text-center' },
-        { key: 'status', label: 'Status', minWidth: '140px', align: 'center', class: 'text-center' },
-        { key: 'creator', label: 'Dibuat Oleh', minWidth: '160px' },
-        { key: 'actions', label: 'Aksi', minWidth: '140px', align: 'center', class: 'text-center' }
+        { key: 'pp_number', label: 'Rencana', width: '22%' },
+        { key: 'pr_info', label: 'PR asal', width: '22%' },
+        { key: 'method', label: 'Metode & alokasi', width: '18%' },
+        { key: 'status', label: 'Status', width: '12%' },
+        { key: 'creator', label: 'Dibuat oleh', width: '18%' },
+        { key: 'actions', label: 'Aksi', width: '130px', align: 'right' }
     ]
 
     // Bulk Selection State for Tab 1
@@ -483,7 +461,6 @@ export function useProcurementPlanList() {
         selectedMethod,
         pagination,
         groupedPurchaseRequisitions,
-        stats,
         statusTabs,
         methodOptions,
         queueTableColumns,

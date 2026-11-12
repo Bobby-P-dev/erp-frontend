@@ -1,24 +1,19 @@
 <script setup>
 import { formatCurrency } from '../../../../utils/stringUtils.js'
-import { CreditCard, Coins, Truck, X } from '@lucide/vue'
+import { CreditCard, Truck, X } from '@lucide/vue'
 
 defineProps({
     dp: { type: Object, required: true },
     showSubmitModal: { type: Boolean, default: false },
-    showDisburseModal: { type: Boolean, default: false },
     showGoodsReceiptModal: { type: Boolean, default: false },
     submitForm: { type: Object, required: true },
-    disburseForm: { type: Object, required: true },
     grForm: { type: Object, required: true },
-    bankAccounts: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits([
     'update:showSubmitModal',
-    'update:showDisburseModal',
     'update:showGoodsReceiptModal',
     'confirm-submit',
-    'confirm-disburse',
     'confirm-grn'
 ])
 </script>
@@ -28,15 +23,16 @@ const emit = defineEmits([
         <!-- MODAL 1: Submit Payment Request Modal -->
         <div 
             v-if="showSubmitModal"
+            role="dialog" aria-modal="true" aria-label="Ajukan pembayaran" data-dp-action
             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
         >
-            <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-200">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[calc(100dvh-32px)] overflow-y-auto shadow-xl border border-gray-200">
                 <div class="flex items-center justify-between pb-3 border-b border-gray-100">
                     <div class="flex items-center gap-2">
                         <CreditCard class="w-5 h-5 text-blue-600" />
                         <h3 class="font-bold text-gray-900 text-base">Ajukan Pembayaran ke Finance</h3>
                     </div>
-                    <button @click="emit('update:showSubmitModal', false)" class="text-gray-400 hover:text-gray-600">
+                    <button @click="emit('update:showSubmitModal', false)" aria-label="Tutup dialog transaksi" class="rounded-lg p-2 text-gray-400 hover:bg-slate-100 hover:text-gray-600">
                         <X class="w-5 h-5" />
                     </button>
                 </div>
@@ -52,7 +48,7 @@ const emit = defineEmits([
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block font-semibold text-gray-700 mb-1">Nama Bank / Channel</label>
                             <input v-model="submitForm.bank_name" type="text" placeholder="misal: BCA / Mandiri" class="w-full rounded-xl border-gray-300 text-xs p-2.5" />
@@ -79,7 +75,7 @@ const emit = defineEmits([
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button @click="emit('update:showSubmitModal', false)" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">
+                    <button @click="emit('update:showSubmitModal', false)" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 border border-slate-200 bg-white hover:bg-gray-100">
                         Batal
                     </button>
                     <button @click="emit('confirm-submit')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
@@ -89,82 +85,19 @@ const emit = defineEmits([
             </div>
         </div>
 
-        <!-- MODAL 2: Disburse Payment Modal (Finance) -->
-        <div 
-            v-if="showDisburseModal"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
-        >
-            <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-200">
-                <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-                    <div class="flex items-center gap-2">
-                        <Coins class="w-5 h-5 text-emerald-600" />
-                        <h3 class="font-bold text-gray-900 text-base">Pencairan Pembayaran Kas / Bank</h3>
-                    </div>
-                    <button @click="emit('update:showDisburseModal', false)" class="text-gray-400 hover:text-gray-600">
-                        <X class="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div class="space-y-3 text-xs">
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Akun Sumber Dana (Kas / Rekening Bank) <span class="text-rose-500">*</span></label>
-                        <select v-model="disburseForm.source_account_id" class="w-full rounded-xl border-gray-300 text-xs p-2.5">
-                            <option value="">-- Pilih Akun Sumber Dana --</option>
-                            <option v-for="acc in bankAccounts" :key="acc.id" :value="acc.id">
-                                {{ acc.code }} - {{ acc.name }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block font-semibold text-gray-700 mb-1">Tanggal Bayar</label>
-                            <input v-model="disburseForm.payment_date" type="date" class="w-full rounded-xl border-gray-300 text-xs p-2.5" />
-                        </div>
-                        <div>
-                            <label class="block font-semibold text-gray-700 mb-1">No. Referensi Transfer / Cek</label>
-                            <input v-model="disburseForm.reference_number" type="text" placeholder="TRX-12345" class="w-full rounded-xl border-gray-300 text-xs p-2.5" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Biaya Administrasi Bank (Rp)</label>
-                        <input v-model="disburseForm.bank_fee" type="number" min="0" class="w-full rounded-xl border-gray-300 text-xs p-2.5" />
-                    </div>
-
-                    <div>
-                        <label class="block font-semibold text-gray-700 mb-1">Catatan Pembayaran</label>
-                        <textarea v-model="disburseForm.notes" rows="2" placeholder="Catatan pembayaran kasir..." class="w-full rounded-xl border-gray-300 text-xs p-2.5"></textarea>
-                    </div>
-
-                    <div class="p-3 bg-emerald-50 rounded-xl text-emerald-800 text-xs">
-                        Total dana yang dicairkan: <strong class="font-mono font-bold">{{ formatCurrency(dp.grand_total, dp.currency) }}</strong>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button @click="emit('update:showDisburseModal', false)" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">
-                        Batal
-                    </button>
-                    <button @click="emit('confirm-disburse')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
-                        Konfirmasi Pembayaran
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- MODAL 3: Goods Receipt Record Modal (Warehouse) -->
         <div 
             v-if="showGoodsReceiptModal"
+            role="dialog" aria-modal="true" aria-label="Catat penerimaan barang" data-dp-action
             class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-slate-950/60"
         >
-            <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-xl border border-gray-200 my-8">
+            <div class="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 max-h-[calc(100dvh-32px)] overflow-y-auto shadow-xl border border-gray-200 my-8">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div class="flex items-center gap-2">
                         <Truck class="w-5 h-5 text-blue-600" />
                         <h3 class="font-bold text-slate-900 text-base">Pencatatan Fisik Penerimaan Barang (GRN)</h3>
                     </div>
-                    <button @click="emit('update:showGoodsReceiptModal', false)" class="text-slate-400 hover:text-slate-600">
+                    <button @click="emit('update:showGoodsReceiptModal', false)" aria-label="Tutup dialog transaksi" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                         <X class="w-5 h-5" />
                     </button>
                 </div>
@@ -186,7 +119,7 @@ const emit = defineEmits([
                     </div>
 
                     <!-- Items Inspection Table -->
-                    <div class="border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="border border-gray-200 rounded-xl overflow-x-auto">
                         <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700 flex justify-between items-center text-xs">
                             <span>Verifikasi & Pemeriksaan Kuantitas Barang</span>
                             <span class="text-[11px] text-gray-500 font-normal">Centang item yang tiba hari ini</span>
@@ -247,7 +180,7 @@ const emit = defineEmits([
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                    <button @click="emit('update:showGoodsReceiptModal', false)" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+                    <button @click="emit('update:showGoodsReceiptModal', false)" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-100 cursor-pointer">
                         Batal
                     </button>
                     <button @click="emit('confirm-grn')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer">

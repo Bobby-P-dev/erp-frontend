@@ -66,6 +66,17 @@ function drawer(options = {}) {
 }
 
 describe('Quotation review buyer workflow', () => {
+    it('allows evaluation without a review action under PR-only policy and keeps revision blocks', () => {
+        const candidate = quote({ review_mode: 'none', is_review_approved: false, validity_status: 'valid', can_award: true })
+        assert.equal(review.quotationReviewLabel(candidate), 'Siap dievaluasi')
+        assert.equal(review.quotationReviewAction(candidate), null)
+        assert.equal(review.quotationReviewReason(candidate), null)
+        assert.equal(quotationValidityReason(candidate), null)
+        assert.equal(canAwardQuotation(candidate), true)
+        const blocked = { ...candidate, can_award: false, review_status: 'revision_requested', review_block_reason: 'Selesaikan revisi terlebih dahulu.' }
+        assert.equal(review.quotationReviewReason(blocked), 'Selesaikan revisi terlebih dahulu.')
+        assert.equal(canAwardQuotation(blocked), false)
+    })
     it('uses explicit server mode, permissions and a valid version', () => {
         assert.equal(review.quotationReviewAction(quote()), 'confirm_review')
         assert.equal(review.quotationReviewAction(quote({ review_mode: 'approval', allowed_actions: ['submit_review'] })), 'submit_review')

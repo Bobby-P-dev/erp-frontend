@@ -46,6 +46,8 @@ try {
     })
     const port = server.httpServer.address().port
     for (const [name, mode, width, conflict] of [
+        ['desktop PR-only quotation without approval', 'none', 1440, false],
+        ['mobile PR-only quotation without approval', 'none', 390, false],
         ['desktop direct review and revision', 'direct', 1440, false],
         ['desktop approval submission', 'approval', 1440, false],
         ['mobile direct review and revision', 'direct', 390, false],
@@ -59,7 +61,7 @@ try {
         let quote = {
             id: 91, quotation_number: 'SQ-SMOKE', supplier: { name: 'Supplier Fixture' },
             review_mode: mode, review_status: 'pending_review', review_version: 1,
-            allowed_actions: [mode === 'direct' ? 'confirm_review' : 'submit_review'],
+            allowed_actions: mode === 'none' ? [] : [mode === 'direct' ? 'confirm_review' : 'submit_review'],
             revision_actions: ['request_revision', 'view_history'], currency: 'IDR',
             quotation_date: '2026-11-10', valid_until: '2026-11-24', tax_rate: 0,
             tax_amount: 0, shipping_cost: 100, total_amount: 100100,
@@ -103,8 +105,14 @@ try {
             await route.fulfill({ status, json: { success: status === 200, data, ...(status === 409 ? { message: 'Quotation version changed. Reload before confirming review.' } : {}) } })
         })
         await page.goto(`http://127.0.0.1:${port}/__rfq_smoke`)
-        await page.getByRole('button', { name: 'Periksa Penawaran' }).click()
+        await page.getByRole('button', { name: 'Lihat penawaran' }).click()
         const action = mode === 'direct' ? 'Sahkan Quotation' : 'Ajukan Approval'
+        if (mode === 'none') {
+            await page.getByText('Approval cukup pada PR. Penawaran tidak memerlukan pengesahan tambahan.').waitFor()
+            assert.equal(await page.getByRole('button', { name: 'Sahkan Quotation', exact: true }).count(), 0)
+            assert.equal(await page.getByRole('button', { name: 'Ajukan Approval', exact: true }).count(), 0)
+            assert.equal(requests.filter(r => r.method === 'POST').length, 0)
+        } else {
         await page.getByRole('button', { name: action, exact: true }).click()
         await page.getByRole('button', { name: 'Ya, Lanjutkan', exact: true }).click()
         if (conflict) {
@@ -133,9 +141,10 @@ try {
                 assert.equal(requests.filter(r => r.path.endsWith('/confirm-review')).length, 0)
             }
         }
+        }
         await page.getByRole('button', { name: 'Tutup', exact: true }).click()
-        await page.getByLabel('Kesesuaian teknis').selectOption('compliant')
-        await page.getByLabel('Alasan pemilihan (wajib)').fill('Verified delivery and specification')
+        await page.getByLabel('Apakah barang sesuai spesifikasi?').selectOption('compliant')
+        await page.getByLabel('Mengapa supplier ini dipilih?', { exact: false }).fill('Verified delivery and specification')
         const evaluation = JSON.parse(await page.locator('#evaluation-result').textContent())
         assert.equal(evaluation.technical_compliance, 'compliant')
         assert.equal(evaluation.selection_reason, 'Verified delivery and specification')

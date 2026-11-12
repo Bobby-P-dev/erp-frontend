@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowLeft, Save, Send, ShoppingCart } from '@lucide/vue'
+import { Save, Send, ShoppingCart } from '@lucide/vue'
 
 import BaseBreadcrumb from '@/components/ui/BaseBreadcrumb.vue'
 import { useDirectPurchaseForm } from '@/composables/purchasing/useDirectPurchaseForm.js'
@@ -103,40 +103,37 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6 w-full pb-16">
+    <div class="dp-create space-y-6 w-full min-w-0 pb-8">
         <!-- Breadcrumb -->
         <BaseBreadcrumb 
             :items="[
                 { label: 'Purchasing', to: { name: 'user.purchasing' } },
-                { label: 'Direct Purchases', to: { name: 'user.purchasing.direct' } },
-                { label: 'Buat Transaksi' }
+                { label: 'Pembelian langsung', to: { name: 'user.purchasing.direct' } },
+                { label: 'Buat pembelian' }
             ]" 
         />
 
         <!-- Page Header -->
         <div class="flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-3">
-                <RouterLink :to="{ name: 'user.purchasing.direct' }" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <ArrowLeft class="w-6 h-6" />
-                </RouterLink>
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-900">Buat Transaksi Direct Purchase</h2>
-                    <p class="text-xs text-slate-500 mt-1">
-                        Eksekusi pembelian barang langsung untuk rencana pengadaan yang telah disetujui.
+                    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Buat pembelian langsung</h1>
+                    <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+                        Lengkapi toko, barang, dan tujuan pembayaran. Anda bisa menyimpannya sebagai draft terlebih dahulu.
                     </p>
                 </div>
             </div>
 
             <RouterLink 
                 :to="{ name: 'user.purchasing.direct', query: { tab: 'queue' } }"
-                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200/80 shadow-2xs transition-all cursor-pointer"
+                class="dp-action dp-cancel"
             >
                 <ShoppingCart class="w-4 h-4 text-blue-600" />
-                <span>Pilih dari Antrean Rencana Siap Eksekusi</span>
+                <span>Lihat antrean rencana</span>
             </RouterLink>
         </div>
 
-        <form @submit.prevent="handleSubmit(false)" class="space-y-5">
+        <form @submit.prevent="handleSubmit(false)" class="dp-form w-full min-w-0 space-y-6">
             <!-- CONTEXT HEADER: Rencana Pengadaan / Bulk Mode -->
             <DPPlanSection
                 :is-bulk-mode="isBulkMode"
@@ -152,10 +149,8 @@ onMounted(() => {
                 @cancel-bulk-mode="cancelBulkMode"
             />
 
-            <!-- TWO-COLUMN WORKSPACE: Left (Channel & Items) | Right Sticky (Payment & Cost Summary) -->
-            <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-                <!-- LEFT MAIN WORKSPACE (8 Cols) -->
-                <div class="xl:col-span-8 space-y-5">
+            <div class="space-y-6">
+                <div class="space-y-6">
                     <DPChannelSection
                         :form="form"
                         :popular-marketplaces="popularMarketplaces"
@@ -172,8 +167,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <!-- RIGHT STICKY SIDEBAR (4 Cols): Finance, Cost Summary & Actions -->
-                <div class="xl:col-span-4 space-y-5 xl:sticky xl:top-6">
+                <div class="space-y-6">
                     <DPPaymentInfoSection
                         :form="form"
                         :popular-banks="popularBanks"
@@ -192,34 +186,30 @@ onMounted(() => {
                     />
 
                     <!-- Action Buttons Card -->
-                    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-4 space-y-2.5">
+                    <div class="flex flex-col gap-4 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-xs text-slate-500">Draft dapat dilengkapi sebelum diajukan ke Finance.</p>
+                        <div class="dp-actions">
+                            <RouterLink :to="{ name: 'user.purchasing.direct' }" class="dp-action dp-cancel">Batal</RouterLink>
                         <button 
                             type="button" 
                             @click="handleSubmit(true)"
-                            :disabled="isSubmitting || form.items.length === 0"
-                            class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            :disabled="isSubmitting || isLoadingPlans || form.items.length === 0"
+                            class="dp-action dp-primary order-3"
                         >
                             <Send class="w-4 h-4" />
-                            <span>Simpan & Ajukan Pembayaran</span>
+                            <span>{{ isSubmitting ? 'Menyimpan…' : 'Simpan & ajukan pembayaran' }}</span>
                         </button>
 
-                        <div class="grid grid-cols-2 gap-2">
                             <button 
                                 type="button" 
                                 @click="handleSubmit(false)"
-                                :disabled="isSubmitting || form.items.length === 0"
-                                class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                :disabled="isSubmitting || isLoadingPlans || form.items.length === 0"
+                                class="dp-action dp-draft order-2"
                             >
                                 <Save class="w-3.5 h-3.5 text-slate-500" />
-                                <span>Simpan Draft</span>
+                                <span>Simpan draft</span>
                             </button>
 
-                            <RouterLink
-                                :to="{ name: 'user.purchasing.direct' }"
-                                class="inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent transition-colors"
-                            >
-                                Batal
-                            </RouterLink>
                         </div>
                     </div>
                 </div>
@@ -227,3 +217,21 @@ onMounted(() => {
         </form>
     </div>
 </template>
+
+<style scoped>
+.dp-create :deep(.dp-section) { border-radius: 16px; padding: 28px; box-shadow: none; min-width: 0; }
+.dp-create :deep(.dp-section h3) { font-size: 16px; font-weight: 600; letter-spacing: -.015em; }
+.dp-create :deep(.dp-section input:not([type=radio])), .dp-create :deep(.dp-section select), .dp-create :deep(.dp-section textarea) { min-height: 42px; font-size: 14px; font-weight: 400; }
+.dp-create :deep(.dp-section input), .dp-create :deep(.dp-section select), .dp-create :deep(.dp-section textarea) { max-width: 100%; }
+.dp-create :deep(.dp-section label) { font-weight: 500; }
+.dp-create :deep(button:focus-visible), .dp-create :deep(a:focus-visible) { outline: 2px solid #014baa; outline-offset: 3px; }
+.dp-action { display: inline-flex; justify-content: center; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.dp-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.dp-cancel { color: #475569; background: white; border-color: #cbd5e1; }
+.dp-draft { color: #014baa; background: white; border-color: #b5cbea; }
+.dp-primary { color: white; background: #014baa; border-color: #014baa; }
+.dp-primary:hover { background: #003d8c; }
+.dp-cancel:hover, .dp-draft:hover { background: #f8fafc; }
+.dp-action:disabled { opacity: .5; cursor: not-allowed; }
+@media(max-width: 640px) { .dp-create :deep(.dp-section) { padding: 20px 16px; } .dp-actions, .dp-action { width: 100%; } }
+</style>

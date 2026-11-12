@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import {
     AlertDialog,
     AlertDialogContent,
@@ -24,6 +24,13 @@ import { dialogState, closeGlobalDialog } from '@/composables/useFeedback'
 const inputRef = ref(null)
 const localInput = ref('')
 const localError = ref('')
+const dialogIcon = computed(() => ({
+    success: CheckCircle2,
+    error: XCircle,
+    danger: Trash2,
+    prompt: dialogState.value.isDestructive ? AlertTriangle : MessageSquareQuote,
+    info: Info,
+}[dialogState.value.type] || HelpCircle))
 
 watch(
     () => dialogState.value.isOpen,
@@ -90,79 +97,41 @@ const handleKeydown = (e) => {
 <template>
     <AlertDialog :open="dialogState.isOpen">
         <AlertDialogContent
-            class="sm:max-w-lg md:max-w-xl w-[calc(100%-2rem)] p-6 sm:p-7 rounded-[20px] border border-[#E2E8F0] bg-white shadow-[0_24px_60px_-12px_rgba(15,23,42,0.25),0_12px_32px_-8px_rgba(15,23,42,0.18)] text-[#0F172A] focus:outline-none"
+            class="feedback-dialog"
+            :data-feedback-type="dialogState.type"
             @escape-key-down="dialogState.type !== 'loading' && handleCancel()"
             @pointer-down-outside="dialogState.type !== 'loading' && handleCancel()"
         >
             <!-- Loading State -->
             <div v-if="dialogState.type === 'loading'" class="py-6 sm:py-8 flex flex-col items-center text-center space-y-4">
-                <div class="size-16 rounded-full bg-[#BFDBFE] text-[#2563EB] flex items-center justify-center shadow-xs">
-                    <Loader2 class="size-8 animate-spin" />
+                <div class="feedback-icon" aria-hidden="true">
+                    <Loader2 class="size-5 animate-spin motion-reduce:animate-none" />
                 </div>
                 <div class="space-y-1.5 max-w-sm">
-                    <h3 class="text-lg font-bold text-[#0F172A] tracking-tight">
+                    <AlertDialogTitle class="feedback-title">
                         {{ dialogState.title || 'Memproses Data...' }}
-                    </h3>
-                    <p class="text-sm text-[#64748B] leading-relaxed">
+                    </AlertDialogTitle>
+                    <AlertDialogDescription class="feedback-description" role="status" aria-live="polite">
                         {{ dialogState.text || 'Mohon tunggu sebentar, sistem sedang menyelesaikan tindakan ini.' }}
-                    </p>
+                    </AlertDialogDescription>
                 </div>
             </div>
 
             <!-- Standard Dialog / Confirm / Prompt / Danger -->
             <template v-else>
-                <div class="flex items-start gap-4 sm:gap-5">
+                <div class="feedback-heading">
                     <!-- Contextual Soft-Circle Icon Badge -->
-                    <div
-                        v-if="dialogState.type === 'success'"
-                        class="size-13 shrink-0 rounded-full bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center shadow-xs"
-                    >
-                        <CheckCircle2 class="size-6.5" />
-                    </div>
-                    <div
-                        v-else-if="dialogState.type === 'error'"
-                        class="size-13 shrink-0 rounded-full bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shadow-xs"
-                    >
-                        <XCircle class="size-6.5" />
-                    </div>
-                    <div
-                        v-else-if="dialogState.type === 'danger'"
-                        class="size-13 shrink-0 rounded-full bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center shadow-xs"
-                    >
-                        <Trash2 class="size-6.5" />
-                    </div>
-                    <div
-                        v-else-if="dialogState.type === 'prompt' && dialogState.isDestructive"
-                        class="size-13 shrink-0 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shadow-xs"
-                    >
-                        <AlertTriangle class="size-6.5" />
-                    </div>
-                    <div
-                        v-else-if="dialogState.type === 'prompt'"
-                        class="size-13 shrink-0 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center shadow-xs"
-                    >
-                        <MessageSquareQuote class="size-6.5" />
-                    </div>
-                    <div
-                        v-else-if="dialogState.type === 'info'"
-                        class="size-13 shrink-0 rounded-full bg-[#BFDBFE] text-[#2563EB] flex items-center justify-center shadow-xs"
-                    >
-                        <Info class="size-6.5" />
-                    </div>
-                    <div
-                        v-else
-                        class="size-13 shrink-0 rounded-full bg-[#BFDBFE] text-[#2563EB] flex items-center justify-center shadow-xs"
-                    >
-                        <HelpCircle class="size-6.5" />
+                    <div class="feedback-icon" aria-hidden="true">
+                        <component :is="dialogIcon" class="size-5" />
                     </div>
 
                     <!-- Textual Content -->
                     <div class="flex-1 min-w-0 pt-0.5 space-y-1.5">
-                        <AlertDialogHeader class="text-left space-y-1.5">
-                            <AlertDialogTitle class="text-lg sm:text-xl font-bold text-[#0F172A] tracking-tight leading-snug">
+                        <AlertDialogHeader class="feedback-header text-left space-y-1.5">
+                            <AlertDialogTitle class="feedback-title">
                                 {{ dialogState.title }}
                             </AlertDialogTitle>
-                            <AlertDialogDescription class="text-sm text-[#64748B] leading-relaxed font-normal">
+                            <AlertDialogDescription class="feedback-description">
                                 {{ dialogState.text }}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -171,18 +140,21 @@ const handleKeydown = (e) => {
 
                 <!-- Prompt Input (Textarea) -->
                 <div v-if="dialogState.type === 'prompt'" class="mt-5 space-y-2">
-                    <label class="block text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
+                    <label for="feedback-reason" class="block text-sm font-medium text-slate-700">
                         Alasan / Keterangan:
                     </label>
                     <textarea
                         ref="inputRef"
+                        id="feedback-reason"
+                        :aria-invalid="!!localError"
+                        :aria-describedby="localError ? 'feedback-error' : undefined"
                         v-model="localInput"
                         rows="4"
                         :placeholder="dialogState.placeholder || 'Tuliskan keterangan di sini...'"
                         class="w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFF] px-4 py-3 text-sm text-[#0F172A] placeholder:text-[#64748B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/30 focus:border-[#3B82F6] transition-all resize-none leading-relaxed"
                         @keydown="handleKeydown"
                     ></textarea>
-                    <div v-if="localError" class="flex items-center gap-1.5 text-xs text-[#DC2626] font-medium">
+                    <div v-if="localError" id="feedback-error" role="alert" class="flex items-center gap-1.5 text-xs text-[#DC2626] font-medium">
                         <AlertCircle class="size-4 shrink-0" />
                         <span>{{ localError }}</span>
                     </div>
@@ -192,11 +164,11 @@ const handleKeydown = (e) => {
                 </div>
 
                 <!-- Footer Buttons -->
-                <AlertDialogFooter class="mt-6 sm:mt-7 flex items-center justify-end gap-3 pt-4 border-t border-[#E2E8F0]/70">
+                <AlertDialogFooter class="feedback-actions">
                     <button
                         v-if="dialogState.showCancel"
                         type="button"
-                        class="px-5 py-2.5 text-sm font-semibold rounded-[12px] border border-[#E2E8F0] bg-white text-[#1E293B] hover:bg-[#F8FAFC] transition-colors cursor-pointer select-none"
+                        class="feedback-button feedback-cancel"
                         @click="handleCancel"
                     >
                         {{ dialogState.cancelText || 'Batal' }}
@@ -204,10 +176,10 @@ const handleKeydown = (e) => {
                     <button
                         type="button"
                         :class="[
-                            'px-5 py-2.5 text-sm font-semibold rounded-[12px] text-white shadow-sm transition-all cursor-pointer select-none active:scale-[0.98]',
+                            'feedback-button feedback-confirm',
                             dialogState.type === 'danger' || dialogState.type === 'error' || (dialogState.type === 'prompt' && dialogState.isDestructive)
-                                ? 'bg-[#DC2626] hover:bg-[#B91C1C] focus:ring-2 focus:ring-red-400/40'
-                                : 'bg-[#0F172A] hover:bg-[#2563EB] focus:ring-2 focus:ring-blue-400/40'
+                                ? 'feedback-destructive'
+                                : ''
                         ]"
                         @click="handleConfirm"
                     >
@@ -218,3 +190,64 @@ const handleKeydown = (e) => {
         </AlertDialogContent>
     </AlertDialog>
 </template>
+
+<style scoped>
+:global(.feedback-dialog[data-slot='alert-dialog-content']) {
+    width: calc(100% - 2rem);
+    max-width: 500px;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    padding: 28px;
+    gap: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 24px 80px -24px rgb(15 23 42 / 32%);
+}
+.feedback-heading { display: flex; align-items: flex-start; gap: 14px; }
+:global(.feedback-dialog .feedback-header) { align-items: start; justify-items: start; text-align: left; }
+.feedback-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #2563eb;
+}
+[data-feedback-type='success'] .feedback-icon { background: #ecfdf5; color: #059669; }
+[data-feedback-type='error'] .feedback-icon,
+[data-feedback-type='danger'] .feedback-icon { background: #fff1f2; color: #e11d48; }
+[data-feedback-type='prompt'] .feedback-icon { background: #fffbeb; color: #b45309; }
+:global(.feedback-dialog .feedback-title) { font-size: 18px; font-weight: 600; line-height: 1.5; letter-spacing: -0.025em; color: #0f172a; overflow-wrap: anywhere; text-align: left; }
+:global(.feedback-dialog .feedback-description) { font-size: 14px; line-height: 1.75; font-weight: 400; color: #64748b; overflow-wrap: anywhere; white-space: pre-line; text-align: left; }
+:global(.feedback-dialog .feedback-actions) {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 24px 0 0;
+    padding: 20px 0 0;
+    border-top: 1px solid #f1f5f9;
+    border-radius: 0;
+    background: transparent;
+}
+.feedback-button { min-height: 42px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1.5; cursor: pointer; transition: background-color 150ms; overflow-wrap: anywhere; }
+.feedback-button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 3px; }
+.feedback-cancel { border: 1px solid #e2e8f0; background: white; color: #475569; }
+.feedback-cancel:hover { background: #f8fafc; }
+.feedback-confirm { border: 1px solid transparent; background: #0f172a; color: white; }
+.feedback-confirm:hover { background: #1e293b; }
+.feedback-destructive { background: #dc2626; }
+.feedback-destructive:hover { background: #b91c1c; }
+@media (max-width: 480px) {
+    :global(.feedback-dialog[data-slot='alert-dialog-content']) { padding: 22px; }
+    .feedback-heading { flex-direction: column; gap: 14px; }
+    :global(.feedback-dialog .feedback-actions) { flex-direction: column-reverse; }
+    .feedback-button { width: 100%; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    :global(.feedback-dialog[data-slot='alert-dialog-content']), .feedback-button { animation: none; transition: none; }
+}
+</style>

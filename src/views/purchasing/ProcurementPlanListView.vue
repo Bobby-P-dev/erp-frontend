@@ -1,13 +1,14 @@
 <script setup>
-import PageHeader from '../../components/ui/PageHeader.vue'
+import { ref } from 'vue'
+import ProcurementPlanDetailModal from '../../components/purchasing/plan/ProcurementPlanDetailModal.vue'
+import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
 import ProcurementQueueTab from '../../components/purchasing/plan/list/ProcurementQueueTab.vue'
 import ProcurementPlansTab from '../../components/purchasing/plan/list/ProcurementPlansTab.vue'
 import ConsolidatedPrModal from '../../components/purchasing/plan/list/ConsolidatedPrModal.vue'
 import { useProcurementPlanList } from '../../composables/purchasing/useProcurementPlanList.js'
-import { Layers, Plus, ClipboardList } from '@lucide/vue'
+import { Plus } from '@lucide/vue'
 
 const {
-    router,
     activeMainTab,
     isLoadingQueue,
     queueSearch,
@@ -19,7 +20,6 @@ const {
     selectedMethod,
     pagination,
     groupedPurchaseRequisitions,
-    stats,
     statusTabs,
     methodOptions,
     queueTableColumns,
@@ -54,77 +54,32 @@ const {
     handleActivate,
     handleCancel
 } = useProcurementPlanList()
+const selectedDetailId = ref(null)
+const openDetail = plan => {
+    isPrModalOpen.value = false
+    selectedDetailId.value = plan.id
+}
+const refreshAfterDetailChange = () => {
+    fetchPlans(searchQuery.value, pagination.value?.current_page || 1)
+    fetchQueue()
+}
 </script>
 
 <template>
-    <div class="space-y-6">
-        <!-- Page Header -->
-        <PageHeader 
-            title="Rencana Pengadaan (Procurement Plans)" 
-            description="Pilih Purchase Requisition (PR) approved untuk dibuatkan strategi pengadaan (Direct Purchase vs Tender RFQ) dan alokasi item."
-            :breadcrumbs="[
-                { label: 'Purchasing', to: { name: 'user.purchasing' } },
-                { label: 'Rencana Pengadaan' }
-            ]"
-        >
-            <template #actions>
-                <button
-                    v-if="activeMainTab === 'plans'"
-                    type="button"
-                    @click="activeMainTab = 'pending'"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-200 transition-all hover:-translate-y-0.5 cursor-pointer"
-                >
-                    <Plus class="w-4 h-4" />
-                    <span>Pilih PR untuk Dibuat Rencana</span>
-                </button>
-                <div v-else class="text-xs text-slate-500 bg-blue-50/70 border border-blue-200/80 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                    <span>Pilih salah satu PR di bawah ini untuk membuat rencana</span>
-                </div>
-            </template>
-        </PageHeader>
-
-        <!-- Primary High-Level View Switcher Tabs -->
-        <div class="flex items-center gap-2 border-b border-slate-200">
-            <button
-                type="button"
-                @click="activeMainTab = 'pending'"
-                class="pb-3.5 px-3 text-sm font-bold flex items-center gap-2.5 border-b-2 transition-all cursor-pointer -mb-px"
-                :class="activeMainTab === 'pending'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'"
-            >
-                <ClipboardList class="w-4 h-4" />
-                <span>Purchase Siap Diplanning</span>
-                <span 
-                    class="px-2 py-0.5 rounded-full text-xs font-mono font-bold transition-colors"
-                    :class="activeMainTab === 'pending'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-600'"
-                >
-                    {{ groupedPurchaseRequisitions.length }}
-                </span>
+    <div class="procurement-plans space-y-6">
+        <BaseBreadcrumb :items="[{ label: 'Purchasing', to: { name: 'user.purchasing' } }, { label: 'Rencana Pengadaan' }]" />
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Rencana pengadaan</h1>
+                <p class="mt-2 text-sm text-slate-500 leading-relaxed">Atur kebutuhan dari PR yang disetujui menjadi pembelian langsung atau tender RFQ.</p>
+            </div>
+            <button v-if="activeMainTab === 'plans'" type="button" @click="activeMainTab = 'pending'" class="inline-flex items-center justify-center gap-2 self-start shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium bg-[#014BAA] hover:bg-blue-800 text-white">
+                <Plus class="size-4" />Buat rencana
             </button>
-
-            <button
-                type="button"
-                @click="activeMainTab = 'plans'"
-                class="pb-3.5 px-3 text-sm font-bold flex items-center gap-2.5 border-b-2 transition-all cursor-pointer -mb-px"
-                :class="activeMainTab === 'plans'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'"
-            >
-                <Layers class="w-4 h-4" />
-                <span>Dokumen Rencana Pengadaan</span>
-                <span 
-                    class="px-2 py-0.5 rounded-full text-xs font-mono font-bold transition-colors"
-                    :class="activeMainTab === 'plans'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-600'"
-                >
-                    {{ stats.total }}
-                </span>
-            </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200" aria-label="Tampilan rencana pengadaan">
+            <button type="button" @click="activeMainTab = 'pending'" :aria-pressed="activeMainTab === 'pending'" class="pb-3 text-sm font-medium border-b-2 -mb-px" :class="activeMainTab === 'pending' ? 'border-[#014BAA] text-[#014BAA]' : 'border-transparent text-slate-500 hover:text-slate-900'">PR siap direncanakan</button>
+            <button type="button" @click="activeMainTab = 'plans'" :aria-pressed="activeMainTab === 'plans'" class="pb-3 text-sm font-medium border-b-2 -mb-px" :class="activeMainTab === 'plans' ? 'border-[#014BAA] text-[#014BAA]' : 'border-transparent text-slate-500 hover:text-slate-900'">Daftar rencana</button>
         </div>
 
         <!-- Tab 1: Purchase Siap Diplanning -->
@@ -162,7 +117,6 @@ const {
             :plans="plans"
             :is-loading-plans="isLoadingPlans"
             :selected-status="selectedStatus"
-            :stats="stats"
             :status-tabs="statusTabs"
             :method-options="methodOptions"
             :table-columns="tableColumns"
@@ -178,6 +132,7 @@ const {
             @page-change="handlePageChange"
             @switch-tab="activeMainTab = $event"
             @open-pr-modal="openPrModal"
+            @open-detail="openDetail"
             @activate="handleActivate"
             @cancel="handleCancel"
         />
@@ -187,7 +142,15 @@ const {
             v-model="isPrModalOpen"
             :plan="selectedPlanForPrModal"
             :pr-count="getMultiPrCount(selectedPlanForPrModal)"
-            @open-detail="router.push({ name: 'user.purchasing.plans.detail', params: { id: $event.id } })"
+            @open-detail="openDetail"
         />
+        <ProcurementPlanDetailModal v-if="selectedDetailId" :key="selectedDetailId" :plan-id="selectedDetailId" @close="selectedDetailId = null" @changed="refreshAfterDetailChange" />
     </div>
 </template>
+
+<style scoped>
+.procurement-plans { min-width: 0; }
+.procurement-plans :deep(button) { cursor: pointer; }
+.procurement-plans :deep(button:disabled) { cursor: not-allowed; }
+.procurement-plans :deep(button:focus-visible), .procurement-plans :deep(a:focus-visible) { outline: 2px solid #014baa; outline-offset: 3px; border-radius: 6px; }
+</style>

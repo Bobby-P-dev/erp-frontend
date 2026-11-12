@@ -19,6 +19,7 @@ const props = defineProps({
         type: String,
         default: 'md', // 'sm', 'md', 'lg'
     },
+    appearance: { type: String, default: 'default' },
 })
 
 const badgeConfig = computed(() => {
@@ -128,12 +129,15 @@ const sizeClasses = computed(() => {
 <template>
     <span
         :class="[
-            'inline-flex items-center justify-center font-bold rounded-full border whitespace-nowrap transition-all select-none tracking-tight shadow-2xs',
+            appearance === 'subtle'
+                ? 'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium whitespace-nowrap'
+                : 'inline-flex items-center justify-center font-bold rounded-full border whitespace-nowrap transition-all select-none tracking-tight shadow-2xs',
             badgeConfig.classes,
-            sizeClasses.badge
+            appearance === 'subtle' ? '' : sizeClasses.badge
         ]"
     >
         <span
+            v-if="appearance !== 'subtle'"
             :class="[
                 'rounded-full flex items-center justify-center shrink-0 text-white shadow-2xs',
                 badgeConfig.iconBg,
@@ -142,6 +146,7 @@ const sizeClasses = computed(() => {
         >
             <component :is="badgeConfig.icon" :class="sizeClasses.icon" />
         </span>
+        <component v-else :is="badgeConfig.icon" class="size-3.5 shrink-0" aria-hidden="true" />
         <span class="leading-none pt-0.5">{{ badgeConfig.label }}</span>
     </span>
 </template>

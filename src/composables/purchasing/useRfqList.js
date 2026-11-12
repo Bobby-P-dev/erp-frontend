@@ -1,21 +1,24 @@
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getRfqs, publishRfq, cancelRfq } from '../../services/rfqServices.js'
 import { getProcurementPlans } from '../../services/procurementPlanServices.js'
 import { showSuccess, showError, showConfirm, showPrompt } from '../../utils/swal.js'
+import { useRfqDeadline } from './useRfqDeadline.js'
 import { formatDate } from '../useFormatter.js'
 
 export function useRfqList() {
+    const { getDeadlineInfo: getServerDeadlineInfo } = useRfqDeadline()
     const router = useRouter()
     const route = useRoute()
 
     // Primary Tab Switcher ('queue' for Rencana Siap Tender, 'rfqs' for Dokumen Tender RFQ)
-    const activeMainTab = ref(route.query.tab || 'queue')
+    const activeMainTab = ref(route.query.tab === 'rfqs' ? 'rfqs' : 'queue')
 
     // ==========================================
     // STATE TAB 1: RENCANA SIAP DITENDERKAN (QUEUE)
     // ==========================================
     const queuePlans = ref([])
+    const queuePagination = ref({ current_page: 1, last_page: 1, per_page: 10, total: 0 })
     const isLoadingQueue = ref(false)
     const queueSearch = ref('')
     const onlyWithQuota = ref(true)
@@ -24,12 +27,10 @@ export function useRfqList() {
 
     const queueColumns = [
         { key: 'select', label: '', width: '48px', align: 'center', class: 'text-center' },
-        { key: 'no', label: 'No', width: '60px', align: 'center', class: 'text-center' },
-        { key: 'pp_number', label: 'No. Rencana & Tanggal', minWidth: '190px' },
-        { key: 'pr_info', label: 'Dokumen PR Asal', minWidth: '220px' },
-        { key: 'company_division', label: 'Perusahaan & Divisi', minWidth: '220px' },
-        { key: 'items_summary', label: 'Keperluan & Rincian Item', minWidth: '230px' },
-        { key: 'quota', label: 'Status & Sisa Kuota', minWidth: '170px', align: 'center', class: 'text-center' },
+        { key: 'pp_number', label: 'Rencana pengadaan', minWidth: '220px' },
+        { key: 'company_division', label: 'Perusahaan', minWidth: '190px' },
+        { key: 'items_summary', label: 'Kebutuhan', minWidth: '210px' },
+        { key: 'quota', label: 'Ketersediaan', minWidth: '150px', align: 'center', class: 'text-center' },
         { key: 'actions', label: 'Aksi', minWidth: '170px', align: 'center', class: 'text-center' }
     ]
 
@@ -53,15 +54,18 @@ export function useRfqList() {
         return 0
     }
 
-    const fetchQueuePlans = async () => {
+    const fetchQueuePlans = async (page = queuePagination.value.current_page) => {
         try {
             isLoadingQueue.value = true
             const response = await getProcurementPlans({
                 status: 'active',
-                procurement_method: 'rfq',
-                per_page: 50
-            }, 1, 50)
+                procurement_method: 'rfq'
+            }, page, queuePagination.value.per_page)
             queuePlans.value = response.data || []
+            const meta = response.meta || response.pagination || {}
+            queuePagination.value = { current_page: meta.current_page || page, last_page: meta.last_page || 1, per_page: meta.per_page || 10, total: meta.total ?? queuePlans.value.length }
+            selectedPlanIds.value = []
+            expandedPlans.value = {}
         } catch (error) {
             showError('Gagal Memuat Antrean Rencana!', 'Terjadi kesalahan saat memuat daftar rencana pengadaan RFQ yang siap ditenderkan.', error)
         } finally {
@@ -117,6 +121,7 @@ export function useRfqList() {
     })
 
     const toggleSelectPlan = (plan) => {
+        if (!hasRemainingQuota(plan)) return
         const idx = selectedPlanIds.value.indexOf(plan.id)
         if (idx >= 0) {
             selectedPlanIds.value.splice(idx, 1)
@@ -176,21 +181,11 @@ export function useRfqList() {
         total: 0
     })
 
-    const stats = ref({
-        total: 0,
-        draft: 0,
-        published: 0,
-        evaluation: 0,
-        completed: 0,
-        cancelled: 0
-    })
-
     const tableColumns = [
-        { key: 'no', label: 'No', width: '60px', align: 'center', class: 'text-center' },
-        { key: 'rfq_number', label: 'No. RFQ & Judul Tender', minWidth: '240px' },
-        { key: 'procurement_plan', label: 'Rencana Pengadaan (PP)', minWidth: '220px' },
-        { key: 'deadline', label: 'Batas Waktu (Deadline)', minWidth: '190px' },
-        { key: 'progress', label: 'Progres Penawaran Masuk', minWidth: '190px', align: 'center', class: 'text-center' },
+        { key: 'rfq_number', label: 'Dokumen tender', minWidth: '250px' },
+        { key: 'procurement_plan', label: 'Rencana & perusahaan', minWidth: '210px' },
+        { key: 'deadline', label: 'Batas penawaran', minWidth: '175px' },
+        { key: 'progress', label: 'Penawaran', minWidth: '150px', align: 'center', class: 'text-center' },
         { key: 'status', label: 'Status', minWidth: '150px', align: 'center', class: 'text-center' },
         { key: 'actions', label: 'Aksi', minWidth: '160px', align: 'center', class: 'text-center' }
     ]
@@ -231,15 +226,6 @@ export function useRfqList() {
                 }
             }
 
-            const list = rfqs.value
-            stats.value = {
-                total: pagination.value.total || list.length,
-                draft: list.filter(r => (r.status?.value || r.status) === 'draft').length,
-                published: list.filter(r => (r.status?.value || r.status) === 'published').length,
-                evaluation: list.filter(r => (r.status?.value || r.status) === 'evaluation').length,
-                completed: list.filter(r => (r.status?.value || r.status) === 'completed').length,
-                cancelled: list.filter(r => (r.status?.value || r.status) === 'cancelled').length
-            }
         } catch (error) {
             console.error('Failed to fetch RFQs:', error)
             showError('Gagal Memuat Tender RFQ', error.response?.data?.message || 'Terjadi kesalahan saat memuat daftar RFQ.')
@@ -248,35 +234,11 @@ export function useRfqList() {
         }
     }
 
-    const getDeadlineInfo = (deadlineDate) => {
-        if (!deadlineDate) return { text: 'Tidak ada deadline', badgeClass: 'bg-slate-100 text-slate-600 border-slate-200' }
-
-        const now = new Date()
-        now.setHours(0, 0, 0, 0)
-        const target = new Date(deadlineDate)
-        target.setHours(0, 0, 0, 0)
-
-        const diffMs = target.getTime() - now.getTime()
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-
-        if (diffDays < 0) {
-            return {
-                text: `Lewat ${Math.abs(diffDays)} hari`,
-                isExpired: true,
-                badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 font-semibold'
-            }
-        }
-        if (diffDays === 0) {
-            return {
-                text: 'Hari ini batas akhir',
-                isWarning: true,
-                badgeClass: 'bg-amber-50 text-amber-800 border-amber-200 font-bold'
-            }
-        }
-        return {
-            text: `Sisa ${diffDays} hari`,
-            badgeClass: 'bg-blue-50 text-blue-700 border-blue-200 font-medium'
-        }
+    const getDeadlineInfo = (rfq) => {
+        const status = rfq.status?.value || rfq.status
+        if (status !== 'published') return null
+        const info = getServerDeadlineInfo(rfq)
+        return { text: info.label, badgeClass: info.class }
     }
 
     const handlePageChange = (page) => {
@@ -348,6 +310,11 @@ export function useRfqList() {
         }, 350)
     })
 
+    onBeforeUnmount(() => clearTimeout(searchTimer))
+
+    // Selection belongs to the visible page and must never include hidden plans.
+    watch([queueSearch, onlyWithQuota], () => { selectedPlanIds.value = [] })
+
     watch(activeMainTab, (newTab) => {
         router.replace({ query: { ...route.query, tab: newTab } })
     })
@@ -370,6 +337,7 @@ export function useRfqList() {
     return {
         activeMainTab,
         queuePlans,
+        queuePagination,
         isLoadingQueue,
         queueSearch,
         onlyWithQuota,
@@ -394,7 +362,6 @@ export function useRfqList() {
         searchQuery,
         selectedStatus,
         pagination,
-        stats,
         tableColumns,
         statusTabs,
         fetchRfqs,

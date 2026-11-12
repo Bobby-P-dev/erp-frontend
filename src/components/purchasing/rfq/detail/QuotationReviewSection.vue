@@ -41,29 +41,31 @@ const refreshApproval = async () => {
 </script>
 
 <template>
-    <section v-if="quotations.length" class="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <div>
-            <h2 class="text-sm font-bold text-slate-900">Pemeriksaan Penawaran</h2>
-            <p class="text-xs text-slate-600 mt-1">Penawaran yang diterima perlu disahkan internal sebelum award atau PO baru. Pengesahan belum menetapkan pemenang tender.</p>
+    <section v-if="quotations.length" class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div><h2 class="text-base font-semibold text-slate-900">Rincian penawaran supplier</h2>
+            <p class="text-sm text-slate-500 mt-2">Bandingkan isi penawaran dan minta revisi bila diperlukan. Evaluasi serta alasan pemilihan dicatat saat memilih pemenang.</p></div>
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ quotations.length }} penawaran</p>
         </div>
-        <div v-for="quote in quotations" :key="quotationId(quote)" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-            <div class="text-xs">
+        <div v-for="quote in quotations" :key="quotationId(quote)" class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5">
+            <div class="min-w-0 flex-1 text-sm">
                 <p class="font-semibold text-slate-900">{{ quote.supplier_name || quote.supplier?.name || quote.quotation_number }}</p>
-                <p class="text-slate-600">{{ quote.quotation_number }} · {{ quotationReviewLabel(quote) }} · Versi {{ quote.review_version || '—' }}</p>
-                <p v-if="quotationReviewReason(quote)" class="text-amber-800 mt-1">{{ quotationReviewReason(quote) }}</p>
+                <p class="mt-1 text-slate-500">{{ quote.quotation_number }} · Versi {{ quote.review_version || '—' }}</p>
+                <span class="mt-3 inline-block rounded-full px-3 py-1 text-sm" :class="quote.review_status === 'approved' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'">{{ quotationReviewLabel(quote) }}</span>
+                <p v-if="quotationReviewReason(quote)" class="text-slate-600 mt-2">{{ quotationReviewReason(quote) }}</p>
             </div>
-            <BaseButton variant="outline" size="sm" :disabled="disabled || loading || submitting" @click="inspect(quote)">Periksa Penawaran</BaseButton>
+            <BaseButton variant="secondary" size="sm" :disabled="disabled || loading || submitting" @click="inspect(quote)">Lihat penawaran</BaseButton>
         </div>
     </section>
 
-    <BaseModal :model-value="modalOpen" title="Review Quotation" size="4xl" :close-on-backdrop="!submitting && !revisionBusy" :close-on-escape="!submitting && !revisionBusy" @update:model-value="value => { if (!submitting && !loading && !revisionBusy) modalOpen = value }">
+    <BaseModal :model-value="modalOpen" title="Rincian & pemeriksaan penawaran" size="4xl" :close-on-backdrop="!submitting && !revisionBusy" :close-on-escape="!submitting && !revisionBusy" @update:model-value="value => { if (!submitting && !loading && !revisionBusy) modalOpen = value }">
         <p v-if="loading" class="text-sm text-slate-600" role="status">Memuat rincian quotation...</p>
         <p v-if="error" class="text-sm text-rose-800 mb-3" role="alert">{{ error }}</p>
         <div v-if="selected && !loading" class="space-y-4 text-sm text-slate-800">
             <div>
                 <h3 class="font-bold">{{ selected.quotation_number }} · {{ selected.supplier?.name }}</h3>
                 <p>{{ quotationReviewLabel(selected) }} · Versi {{ selected.review_version }}</p>
-                <p class="text-xs text-slate-600">{{ selected.review_mode === 'direct' ? 'Pengesahan langsung oleh buyer berizin' : 'Approval oleh pemeriksa terpisah' }}</p>
+                <p class="text-xs text-slate-600">{{ selected.review_mode === 'none' ? 'Approval cukup pada PR. Penawaran tidak memerlukan pengesahan tambahan.' : selected.review_mode === 'direct' ? 'Pengesahan langsung oleh buyer berizin' : 'Approval oleh pemeriksa terpisah' }}</p>
                 <p v-if="quotationReviewReason(selected)" class="text-xs text-amber-800 mt-1">{{ quotationReviewReason(selected) }}</p>
             </div>
             <dl class="grid grid-cols-2 gap-3 text-xs">

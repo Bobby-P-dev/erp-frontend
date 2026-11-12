@@ -92,7 +92,7 @@ const handleDownloadPdf = async () => {
         @update:model-value="$emit('update:modelValue', $event)"
         @close="close"
         size="5xl"
-        body-class="p-5 sm:p-6 space-y-6 text-xs bg-slate-50/30"
+        body-class="pr-detail p-5 sm:p-7 space-y-7 text-sm bg-white"
     >
         <!-- 1. HEADER MODAL -->
         <template #header>
@@ -111,7 +111,7 @@ const handleDownloadPdf = async () => {
                         <StatusBadge 
                             v-if="item?.status" 
                             :status="item.status" 
-                            size="md" 
+                            size="sm" :dot="false"
                         />
                     </div>
                     <p class="text-xs text-slate-500">
@@ -177,12 +177,12 @@ const handleDownloadPdf = async () => {
                     :aria-expanded="sections.summary"
                 >
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        <span class="text-sm font-semibold text-slate-800">
                             Ringkasan Dokumen
                         </span>
                     </div>
-                    <ChevronDown 
-                        class="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-200" 
+                    <ChevronDown
+                        class="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-200"
                         :class="{'rotate-180': sections.summary}"
                     />
                 </button>
@@ -192,6 +192,32 @@ const handleDownloadPdf = async () => {
                 </div>
             </div>
 
+            <!-- 6. SECTION D: DAFTAR BARANG / JASA -->
+            <div class="space-y-2.5">
+                <button
+                    type="button"
+                    @click="toggleSection('items')"
+                    class="w-full flex items-center justify-between text-left py-1 group cursor-pointer select-none"
+                    :aria-expanded="sections.items"
+                >
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-slate-800">
+                            Daftar Barang / Jasa
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/70">
+                            {{ item.items?.length || 0 }} Item
+                        </span>
+                    </div>
+                    <ChevronDown
+                        class="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-200"
+                        :class="{'rotate-180': sections.items}"
+                    />
+                </button>
+
+                <div v-show="sections.items">
+                    <PRItemsTable :item="item" />
+                </div>
+            </div>
             <!-- 4. SECTION B: APPROVAL (ALUR PERSETUJUAN) -->
             <div class="space-y-2.5">
                 <button
@@ -201,7 +227,7 @@ const handleDownloadPdf = async () => {
                     :aria-expanded="sections.approval"
                 >
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        <span class="text-sm font-semibold text-slate-800">
                             Approval
                         </span>
                         <span 
@@ -231,7 +257,7 @@ const handleDownloadPdf = async () => {
                     :aria-expanded="sections.process"
                 >
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        <span class="text-sm font-semibold text-slate-800">
                             Tahapan Proses
                         </span>
                         <span class="text-[11px] text-slate-400 font-normal">
@@ -249,32 +275,6 @@ const handleDownloadPdf = async () => {
                 </div>
             </div>
 
-            <!-- 6. SECTION D: DAFTAR BARANG / JASA -->
-            <div class="space-y-2.5">
-                <button
-                    type="button"
-                    @click="toggleSection('items')"
-                    class="w-full flex items-center justify-between text-left py-1 group cursor-pointer select-none"
-                    :aria-expanded="sections.items"
-                >
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                            Daftar Barang / Jasa
-                        </span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/70">
-                            {{ item.items?.length || 0 }} Item
-                        </span>
-                    </div>
-                    <ChevronDown 
-                        class="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-200" 
-                        :class="{'rotate-180': sections.items}"
-                    />
-                </button>
-
-                <div v-show="sections.items">
-                    <PRItemsTable :item="item" />
-                </div>
-            </div>
         </template>
 
         <!-- 7. FOOTER MODAL & ACTION BUTTONS -->
@@ -331,3 +331,12 @@ const handleDownloadPdf = async () => {
         </template>
     </BaseModal>
 </template>
+
+<style scoped>
+:global(.pr-detail) { max-height: min(70vh, calc(100dvh - 230px)); }
+:global(.pr-detail > .space-y-2\.5) { border-top: 1px solid #f1f5f9; padding-top: 20px; }
+:global(.pr-detail > .space-y-2\.5:first-of-type) { border-top: 0; padding-top: 0; }
+:global(.pr-detail button:focus-visible), :global(.pr-detail a:focus-visible) { outline: 2px solid #014baa; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { :global(.pr-detail *) { transition: none !important; animation: none !important; } }
+@media (max-width: 639px) { :global(.pr-detail) { max-height: max(120px, calc(100dvh - 330px)); } }
+</style>

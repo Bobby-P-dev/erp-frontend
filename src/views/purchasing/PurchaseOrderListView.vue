@@ -2,10 +2,11 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getPurchaseOrders } from '../../services/purchaseOrderServices.js'
-import { showError } from '../../utils/swal.js'
 import { formatCurrency, formatDate } from '../../composables/useFormatter.js'
 
-import PageHeader from '../../components/ui/PageHeader.vue'
+import SearchInput from '../../components/ui/SearchInput.vue'
+import TableDocumentCell from '../../components/ui/TableDocumentCell.vue'
+import PurchaseOrderDetailModal from '../../components/purchasing/order/PurchaseOrderDetailModal.vue'
 import BaseButton from '../../components/ui/BaseButton.vue'
 import BaseTable from '../../components/ui/BaseTable.vue'
 import Pagination from '../../components/ui/Pagination.vue'
@@ -16,9 +17,6 @@ import {
     ChevronRight,
     FileText,
     RefreshCw,
-    Search,
-    Calendar,
-    Building2,
     Eye
 } from '@lucide/vue'
 
@@ -27,6 +25,9 @@ const route = useRoute()
 
 const purchaseOrders = ref([])
 const isLoading = ref(false)
+const previewId = ref(null)
+const loadError = ref('')
+let requestVersion = 0
 const searchQuery = ref('')
 const selectedStatus = ref('')
 const rfqFilter = ref(route.query.rfq_id || '')
@@ -45,22 +46,26 @@ const statusTabs = [
     { id: 'approved', label: 'Disetujui' },
     { id: 'issued', label: 'Diterbitkan ke Vendor' },
     { id: 'acknowledged', label: 'Dikonfirmasi Vendor' },
+    { id: 'partially_received', label: 'Diterima Sebagian' },
+    { id: 'revision_requested', label: 'Revisi (proses lama)' },
+    { id: 'rejected', label: 'Ditolak (proses lama)' },
     { id: 'completed', label: 'Selesai' },
     { id: 'cancelled', label: 'Dibatalkan' }
 ]
 
 const tableColumns = [
-    { key: 'no', label: 'No', width: '60px', align: 'center', class: 'text-center' },
-    { key: 'po_number', label: 'Nomor PO & Sumber Tender', minWidth: '230px' },
-    { key: 'supplier', label: 'Vendor / Pemasok', minWidth: '220px' },
-    { key: 'po_date', label: 'Tanggal PO & Target Kirim', minWidth: '190px' },
-    { key: 'total_amount', label: 'Total Nilai PO', minWidth: '170px', align: 'right', class: 'text-right' },
-    { key: 'status', label: 'Status PO', minWidth: '170px', align: 'center', class: 'text-center' },
-    { key: 'actions', label: 'Aksi', minWidth: '130px', align: 'center', class: 'text-center' }
+    { key: 'po_number', label: 'Purchase Order', minWidth: '200px' },
+    { key: 'supplier', label: 'Pemasok', minWidth: '200px' },
+    { key: 'delivery', label: 'Target kirim', minWidth: '140px' },
+    { key: 'total_amount', label: 'Total pesanan', minWidth: '160px', align: 'right' },
+    { key: 'status', label: 'Status', minWidth: '170px' },
+    { key: 'actions', label: 'Detail', width: '85px', align: 'center' }
 ]
 
 const fetchPurchaseOrders = async (search = searchQuery.value, page = 1) => {
+    const version = ++requestVersion
     isLoading.value = true
+    loadError.value = ''
     try {
         const filters = {
             per_page: pagination.value.per_page
@@ -69,6 +74,7 @@ const fetchPurchaseOrders = async (search = searchQuery.value, page = 1) => {
         if (rfqFilter.value) filters.rfq_id = rfqFilter.value
 
         const response = await getPurchaseOrders(search, page, filters)
+        if (version !== requestVersion) return
         purchaseOrders.value = response.data || []
 
         if (response.meta) {
@@ -80,9 +86,9 @@ const fetchPurchaseOrders = async (search = searchQuery.value, page = 1) => {
             }
         }
     } catch (err) {
-        showError(err.response?.data?.message || 'Gagal memuat daftar Purchase Order')
+        if (version === requestVersion) loadError.value = err.response?.data?.message || 'Gagal memuat daftar Purchase Order'
     } finally {
-        isLoading.value = false
+        if (version === requestVersion) isLoading.value = false
     }
 }
 
@@ -106,214 +112,47 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-6">
-        <PageHeader
-            title="Pesanan Pembelian (Purchase Order)"
-            subtitle="Kelola dokumen pesanan pembelian resmi kepada vendor pemenang tender"
-        >
-            <template #breadcrumbs>
-                <div class="flex items-center gap-2 text-xs text-slate-600">
-                    <RouterLink :to="{ name: 'user.dashboard' }" class="hover:text-blue-700">
-                        <Home class="w-3.5 h-3.5" />
-                    </RouterLink>
-                    <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <RouterLink :to="{ name: 'user.purchasing' }" class="hover:text-blue-700">
-                        Purchasing
-                    </RouterLink>
-                    <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
-                    <span class="text-slate-900 font-semibold">Purchase Order (PO)</span>
-                </div>
-            </template>
-
-            <template #actions>
-                <div class="flex items-center gap-2.5">
-                    <BaseButton
-                        variant="outline"
-                        size="sm"
-                        @click="fetchPurchaseOrders(searchQuery, pagination.current_page)"
-                        :disabled="isLoading"
-                    >
-                        <RefreshCw class="w-4 h-4 mr-1.5" :class="{ 'animate-spin': isLoading }" />
-                        Muat Ulang
-                    </BaseButton>
-                    <BaseButton
-                        variant="primary"
-                        size="sm"
-                        @click="router.push({ name: 'user.purchasing.rfq' })"
-                        class="bg-blue-600 hover:bg-blue-700"
-                    >
-                        <FileText class="w-4 h-4 mr-1.5" />
-                        Lihat Tender RFQ
-                    </BaseButton>
-                </div>
-            </template>
-        </PageHeader>
-
-        <!-- Filter & Search Bar -->
-        <div class="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <!-- Status Tabs -->
-                <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
-                    <button
-                        v-for="tab in statusTabs"
-                        :key="tab.id"
-                        type="button"
-                        @click="selectedStatus = tab.id"
-                        class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border"
-                        :class="selectedStatus === tab.id
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'"
-                    >
-                        {{ tab.label }}
-                    </button>
-                </div>
-
-                <!-- Search Input -->
-                <form @submit.prevent="handleSearch" class="flex items-center gap-2 w-full md:w-80">
-                    <div class="relative flex-1">
-                        <Search class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                            v-model="searchQuery"
-                            type="text"
-                            placeholder="Cari nomor PO, vendor, atau RFQ..."
-                            class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                    </div>
-                    <BaseButton type="submit" variant="outline" size="sm">
-                        Cari
-                    </BaseButton>
+    <div class="min-w-0 space-y-6">
+        <nav class="flex items-center gap-2 text-xs text-slate-500" aria-label="Breadcrumb">
+            <RouterLink :to="{ name: 'user.dashboard' }" aria-label="Dashboard"><Home class="size-3.5" /></RouterLink><ChevronRight class="size-3.5 text-slate-300" />
+            <RouterLink :to="{ name: 'user.purchasing' }">Purchasing</RouterLink><ChevronRight class="size-3.5 text-slate-300" /><span class="font-medium text-slate-700">Purchase Order</span>
+        </nav>
+        <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div><p class="mb-2 text-xs font-medium uppercase tracking-widest text-slate-400">Purchasing</p><h1 class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Pesanan pembelian</h1><p class="mt-2 text-sm text-slate-500">Pantau pesanan, penerbitan PO, dan konfirmasi pemasok.</p></div>
+            <div class="flex flex-wrap gap-2">
+                <BaseButton variant="secondary" size="sm" :disabled="isLoading" @click="fetchPurchaseOrders(searchQuery, pagination.current_page)"><RefreshCw class="size-4" :class="{ 'animate-spin': isLoading }" />Muat ulang</BaseButton>
+                <BaseButton variant="secondary" size="sm" @click="router.push({ name: 'user.purchasing.rfq' })"><FileText class="size-4" />Tender RFQ</BaseButton>
+            </div>
+        </div>
+        <section class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="Daftar pesanan pembelian">
+            <div class="border-b border-slate-100 px-5 py-5 sm:px-6">
+                <h2 class="text-base font-semibold text-slate-900">Daftar Purchase Order <span class="ml-2 text-sm font-normal text-slate-400">{{ pagination.total }} dokumen</span></h2><p class="mt-1 text-sm text-slate-500">Buka nomor PO untuk melihat barang dan ketentuan pesanan.</p>
+            </div>
+            <div class="space-y-3 border-b border-slate-100 p-5 sm:px-6">
+                <form class="flex flex-col gap-3 sm:flex-row sm:items-center" @submit.prevent="handleSearch">
+                    <div class="w-full sm:max-w-md"><SearchInput v-model="searchQuery" compact clearable label="Cari Purchase Order" placeholder="Cari nomor PO, pemasok, atau RFQ…" /></div>
+                    <label class="flex items-center gap-3 text-sm text-slate-500"><span class="shrink-0">Status</span><select v-model="selectedStatus" class="min-w-0 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 sm:w-56"><option v-for="tab in statusTabs" :key="tab.id" :value="tab.id">{{ tab.label }}</option></select></label>
+                    <BaseButton type="submit" variant="secondary" size="sm">Cari</BaseButton>
                 </form>
+                <div v-if="rfqFilter" class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800"><span>Disaring dari RFQ #{{ rfqFilter }}</span><button type="button" class="font-medium hover:underline" @click="clearRfqFilter">Tampilkan semua PO</button></div>
             </div>
-
-            <div v-if="rfqFilter" class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3.5 py-2 text-xs text-blue-900">
-                <span>Menampilkan Purchase Order yang berasal dari Tender RFQ #{{ rfqFilter }}</span>
-                <button type="button" @click="clearRfqFilter" class="font-bold underline hover:text-blue-700 cursor-pointer">
-                    Tampilkan Semua PO
-                </button>
-            </div>
-        </div>
-
-        <!-- Table -->
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <BaseTable :columns="tableColumns">
-                <tr v-if="isLoading">
-                    <td colspan="7" class="px-6 py-14 text-center text-sm text-slate-500">
-                        <div class="inline-flex items-center gap-2 font-medium">
-                            <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
-                            Memuat daftar Purchase Order (PO)...
-                        </div>
-                    </td>
-                </tr>
-
-                <tr v-else-if="purchaseOrders.length === 0">
-                    <td colspan="7" class="px-6 py-14 text-center">
-                        <div class="flex flex-col items-center justify-center max-w-md mx-auto text-slate-500 space-y-2">
-                            <div class="p-3 bg-slate-100 rounded-xl border border-slate-200">
-                                <FileText class="w-6 h-6 text-slate-400" />
-                            </div>
-                            <div class="text-sm font-bold text-slate-800">
-                                Belum Ada Dokumen Purchase Order (PO)
-                            </div>
-                            <p class="text-xs text-slate-500">
-                                PO dapat diterbitkan secara otomatis dari halaman Perbandingan Harga atau Detail Tender RFQ yang sudah ditetapkan pemenangnya.
-                            </p>
-                        </div>
-                    </td>
-                </tr>
-
-                <tr
-                    v-else
-                    v-for="(item, index) in purchaseOrders"
-                    :key="item.id"
-                    class="hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-b-0"
-                >
-                    <td class="px-6 py-4 text-center">
-                        <span class="text-xs font-mono font-semibold text-slate-600">
-                            {{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}
-                        </span>
-                    </td>
-
-                    <td class="px-6 py-4">
-                        <div>
-                            <RouterLink
-                                :to="{ name: 'user.purchasing.orders.detail', params: { id: item.id } }"
-                                class="text-sm font-bold font-mono text-blue-700 hover:text-blue-900 hover:underline"
-                            >
-                                {{ item.po_number }}
-                            </RouterLink>
-                            <div class="flex flex-wrap items-center gap-1.5 mt-1 text-xs text-slate-600">
-                                <span v-if="item.rfq" class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono text-[11px]">
-                                    {{ item.rfq.rfq_number }}
-                                </span>
-                                <span v-if="item.supplier_quotation" class="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-mono text-[11px]">
-                                    {{ item.supplier_quotation.quotation_number }}
-                                </span>
-                            </div>
-                        </div>
-                    </td>
-
-                    <td class="px-6 py-4">
-                        <div class="flex items-start gap-2">
-                            <Building2 class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                            <div>
-                                <div class="text-sm font-bold text-slate-900">
-                                    {{ item.supplier?.name || `Vendor #${item.supplier_id}` }}
-                                </div>
-                                <div class="text-xs text-slate-500 font-mono">
-                                    {{ item.supplier?.supplier_code || '-' }}
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-
-                    <td class="px-6 py-4">
-                        <div class="text-xs space-y-1">
-                            <div class="flex items-center gap-1.5 text-slate-800 font-medium">
-                                <Calendar class="w-3.5 h-3.5 text-slate-400" />
-                                <span>Tgl PO: {{ formatDate(item.po_date) }}</span>
-                            </div>
-                            <div class="text-slate-600">
-                                Target Kirim: <strong>{{ formatDate(item.expected_delivery_date) || '-' }}</strong>
-                            </div>
-                        </div>
-                    </td>
-
-                    <td class="px-6 py-4 text-right">
-                        <div class="text-sm font-bold font-mono text-slate-900">
-                            {{ formatCurrency(item.total_amount) }}
-                        </div>
-                        <div class="text-[11px] text-slate-500">
-                            {{ item.items?.length || 0 }} jenis barang • {{ item.payment_terms || 'Standar' }}
-                        </div>
-                    </td>
-
-                    <td class="px-6 py-4 text-center">
-                        <StatusBadge :status="item.status" :label="item.status_label" />
-                    </td>
-
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex items-center justify-center">
-                            <RouterLink
-                                :to="{ name: 'user.purchasing.orders.detail', params: { id: item.id } }"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
-                            >
-                                <Eye class="w-3.5 h-3.5" />
-                                <span>Lihat Detail</span>
-                            </RouterLink>
-                        </div>
-                    </td>
-                </tr>
+            <BaseTable :columns="tableColumns" min-width="980px" label="Daftar Purchase Order" :busy="isLoading">
+                <tr v-if="isLoading && !previewId"><td colspan="6" class="py-16! text-center text-slate-500"><span role="status">Memuat pesanan pembelian…</span></td></tr>
+                <tr v-else-if="loadError"><td colspan="6" class="text-center"><p role="alert" class="text-rose-700">{{ loadError }}</p><BaseButton variant="secondary" size="sm" class="mt-3" @click="fetchPurchaseOrders(searchQuery, pagination.current_page)">Coba lagi</BaseButton></td></tr>
+                <tr v-else-if="!purchaseOrders.length"><td colspan="6" class="py-16! text-center"><FileText class="mx-auto mb-3 size-8 text-slate-300" /><p class="font-medium text-slate-800">{{ searchQuery || selectedStatus || rfqFilter ? 'Tidak ada PO yang cocok' : 'Belum ada Purchase Order' }}</p><p class="mt-2 text-sm text-slate-500">{{ searchQuery || selectedStatus || rfqFilter ? 'Coba kata kunci atau status lainnya.' : 'Buat PO dari tender yang sudah ditetapkan pemenangnya.' }}</p></td></tr>
+                <template v-else>
+                    <tr v-for="item in purchaseOrders" :key="item.id">
+                        <td><TableDocumentCell :number="item.po_number" :description="formatDate(item.po_date)" @open="previewId = item.id" /></td>
+                        <td><p class="font-medium text-slate-800">{{ item.supplier?.name || `Pemasok #${item.supplier_id}` }}</p><p v-if="item.supplier?.supplier_code" class="mt-1 text-xs text-slate-400">{{ item.supplier.supplier_code }}</p></td>
+                        <td class="text-slate-600 whitespace-nowrap">{{ formatDate(item.expected_delivery_date) }}</td>
+                        <td class="text-right font-medium tabular-nums text-slate-900 whitespace-nowrap">{{ formatCurrency(item.total_amount, item.currency) }}</td>
+                        <td><StatusBadge :status="item.status" :label="item.status_label" /></td>
+                        <td class="text-center"><button type="button" :aria-label="`Lihat detail ${item.po_number}`" class="inline-flex rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-[#014baa]" @click="previewId = item.id"><Eye class="size-4" /></button></td>
+                    </tr>
+                </template>
             </BaseTable>
-
-            <div v-if="pagination.last_page > 1" class="px-6 py-4 border-t border-slate-200 bg-slate-50">
-                <Pagination
-                    :current-page="pagination.current_page"
-                    :total-pages="pagination.last_page"
-                    :total-items="pagination.total"
-                    :per-page="pagination.per_page"
-                    @page-change="(p) => fetchPurchaseOrders(searchQuery, p)"
-                />
-            </div>
-        </div>
+            <Pagination v-if="!isLoading && !loadError && pagination.total" :pagination="pagination" @change-page="page => fetchPurchaseOrders(searchQuery, page)" />
+        </section>
+        <PurchaseOrderDetailModal v-if="previewId" :order-id="previewId" @close="previewId = null" @changed="fetchPurchaseOrders(searchQuery, pagination.current_page)" />
     </div>
 </template>

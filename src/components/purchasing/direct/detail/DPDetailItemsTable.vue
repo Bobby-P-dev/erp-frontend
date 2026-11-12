@@ -1,102 +1,50 @@
 <script setup>
-import BaseTable from '../../../ui/BaseTable.vue'
 import { formatCurrency } from '../../../../utils/stringUtils.js'
-import { Package, ExternalLink } from '@lucide/vue'
+import { Package } from '@lucide/vue'
+import DPItemDescription from './DPItemDescription.vue'
 
 defineProps({
-    dp: { type: Object, required: true },
-    tableColumns: { type: Array, required: true }
+    dp: { type: Object, required: true }
 })
 </script>
 
 <template>
-    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+    <div class="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
         <div class="p-5 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <Package class="w-4 h-4 text-blue-600" />
-                <h3 class="text-sm font-bold text-slate-900">Daftar Barang yang Dibeli</h3>
+                <h3 class="text-sm font-semibold text-slate-900">Barang pembelian</h3>
             </div>
             <span class="text-xs font-semibold text-slate-500">
-                {{ dp.items?.length || 0 }} Item Transaksi
+                {{ dp.items?.length || 0 }} barang
             </span>
         </div>
 
-        <BaseTable :columns="tableColumns">
-            <tr 
-                v-for="(item, idx) in dp.items" 
-                :key="item.id"
-                class="hover:bg-slate-50/70 transition-colors"
-            >
-                <!-- No -->
-                <td class="px-6 py-4 text-sm text-slate-500 text-center font-medium">
-                    {{ idx + 1 }}
-                </td>
-
-                <!-- Item details -->
-                <td class="px-6 py-4">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="font-bold text-slate-900 text-sm">
-                                {{ item.item?.name || item.description || 'Item Pengadaan' }}
-                            </span>
-                            <span 
-                                v-if="!item.item_id" 
-                                class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
-                            >
-                                Non-Katalog
-                            </span>
-                            <span 
-                                v-else-if="item.item?.code" 
-                                class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600"
-                            >
-                                {{ item.item.code }}
-                            </span>
-                        </div>
-
-                        <!-- Product link -->
-                        <a 
-                            v-if="item.product_url" 
-                            :href="item.product_url" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium"
-                        >
-                            <ExternalLink class="w-3 h-3" />
-                            <span>Buka Link Produk</span>
-                        </a>
-                    </div>
-                </td>
-
-                <!-- Unit -->
-                <td class="px-6 py-4 text-center text-xs font-semibold text-gray-700">
-                    {{ item.unit?.code || item.unit?.name || '-' }}
-                </td>
-
-                <!-- Qty -->
-                <td class="px-6 py-4 text-right font-black text-gray-900 text-sm">
-                    {{ Number(item.quantity).toLocaleString('id-ID') }}
-                </td>
-
-                <!-- Unit Price -->
-                <td class="px-6 py-4 text-right font-mono text-gray-800 text-xs">
-                    {{ formatCurrency(item.unit_price, dp.currency) }}
-                </td>
-
-                <!-- Item Discount -->
-                <td class="px-6 py-4 text-right font-mono text-emerald-700 text-xs">
-                    {{ Number(item.discount_amount) > 0 ? formatCurrency(item.discount_amount, dp.currency) : '-' }}
-                </td>
-
-                <!-- Subtotal -->
-                <td class="px-6 py-4 text-right font-black font-mono text-gray-900 text-sm">
-                    {{ formatCurrency(item.total || item.subtotal, dp.currency) }}
-                </td>
-
-                <!-- Notes -->
-                <td class="px-6 py-4 text-xs text-gray-500 italic">
-                    {{ item.notes || '-' }}
-                </td>
-            </tr>
-        </BaseTable>
+        <ul class="divide-y divide-slate-100 sm:hidden">
+            <li v-for="item in dp.items" :key="item.id" class="space-y-4 p-5">
+                <DPItemDescription :item="item" :currency="dp.currency || 'IDR'" show-price />
+                <dl class="grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-3 text-sm">
+                    <div><dt class="text-xs text-slate-500">Jumlah</dt><dd class="mt-1 text-slate-800">{{ Number(item.quantity).toLocaleString('id-ID') }} {{ item.unit?.code || item.unit?.name || '' }}</dd></div>
+                    <div class="text-right"><dt class="text-xs text-slate-500">Subtotal</dt><dd class="mt-1 break-words font-medium text-slate-900 tabular-nums">{{ formatCurrency(item.total ?? item.subtotal, dp.currency) }}</dd></div>
+                </dl>
+            </li>
+            <li v-if="!dp.items?.length" class="p-8 text-center text-sm text-slate-500">Belum ada barang.</li>
+        </ul>
+        <div class="hidden overflow-x-auto sm:block">
+        <table class="w-full text-left text-sm">
+            <thead class="border-b border-slate-100 bg-slate-50/70 text-xs text-slate-500"><tr><th class="px-5 py-3 font-medium">Barang</th><th class="px-5 py-3 text-right font-medium">Jumlah</th><th class="hidden px-5 py-3 text-right font-medium sm:table-cell">Harga satuan</th><th class="px-5 py-3 text-right font-medium">Subtotal</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr v-for="item in dp.items" :key="item.id">
+                    <td class="px-5 py-4 min-w-40 align-top">
+                        <DPItemDescription :item="item" :currency="dp.currency || 'IDR'" />
+                    </td>
+                    <td class="px-5 py-4 text-right tabular-nums align-top whitespace-nowrap">{{ Number(item.quantity).toLocaleString('id-ID') }}<span class="mt-1 block text-xs text-slate-500">{{ item.unit?.code || item.unit?.name || '—' }}</span></td>
+                    <td class="hidden px-5 py-4 text-right tabular-nums align-top whitespace-nowrap sm:table-cell">{{ formatCurrency(item.unit_price, dp.currency) }}</td>
+                    <td class="px-5 py-4 text-right tabular-nums align-top font-medium whitespace-nowrap">{{ formatCurrency(item.total ?? item.subtotal, dp.currency) }}</td>
+                </tr>
+                <tr v-if="!dp.items?.length"><td colspan="4" class="p-8 text-center text-slate-500">Belum ada barang.</td></tr>
+            </tbody>
+        </table>
+        </div>
     </div>
 </template>

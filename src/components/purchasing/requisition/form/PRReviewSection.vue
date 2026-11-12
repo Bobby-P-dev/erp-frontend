@@ -48,7 +48,7 @@ defineEmits(['go-to-step'])
 </script>
 
 <template>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+    <div class="pr-review grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div class="lg:col-span-2 space-y-6">
             <!-- Card 1: Ringkasan Pengajuan -->
             <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 space-y-5 shadow-xs">
@@ -140,7 +140,7 @@ defineEmits(['go-to-step'])
                 <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Total Estimasi Anggaran
                 </p>
-                <p class="font-mono text-3xl sm:text-4xl font-bold tracking-tight text-[#014BAA] mt-2">
+                <p class="tabular-nums text-2xl font-semibold tracking-tight text-slate-900 mt-2 break-all">
                     {{ formatCurrency(totalEstimatedAmount, form.currency) }}
                 </p>
                 <p v-if="form.currency !== 'IDR'" class="text-xs sm:text-sm text-slate-500 font-mono mt-1 pt-2 border-t border-slate-100">
@@ -161,3 +161,13 @@ defineEmits(['go-to-step'])
         </aside>
     </div>
 </template>
+
+<style scoped>
+.pr-review :deep(dd) { min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.pr-review :deep(dt) { flex-shrink: 0; }
+@media (max-width: 639px) {
+    .pr-review :deep(dl > div) { flex-direction: column; gap: 6px; }
+    .pr-review :deep(dd) { text-align: left; }
+    .pr-review :deep(.divide-y > div) { flex-wrap: wrap; }
+}
+</style>

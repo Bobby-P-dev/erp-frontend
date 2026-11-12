@@ -1,4 +1,6 @@
-export const quotationReviewLabel = quotation => ({
+export const quotationReviewLabel = quotation => quotation?.review_mode === 'none'
+    && ['pending_review', 'legacy_unreviewed'].includes(quotation.review_status)
+    ? 'Siap dievaluasi' : ({
     legacy_unreviewed: 'Penawaran lama — belum diperiksa',
     pending_review: 'Menunggu pemeriksaan buyer',
     pending_approval: 'Menunggu approval',
@@ -8,6 +10,7 @@ export const quotationReviewLabel = quotation => ({
 })[quotation?.review_status] || 'Status review belum tersedia'
 
 export const quotationReviewReason = quotation => {
+    if (quotation?.review_mode === 'none') return quotation.review_block_reason || null
     if (!quotation?.review_status || quotation?.is_review_approved === true) return null
     if (quotation.review_status === 'pending_approval') return 'Menunggu keputusan approver sebelum award atau PO baru.'
     if (quotation.review_status === 'revision_requested') return 'Quotation perlu direvisi sebelum dapat disahkan kembali.'

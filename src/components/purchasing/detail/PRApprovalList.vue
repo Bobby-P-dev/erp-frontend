@@ -39,15 +39,6 @@ const completedActions = computed(() => {
     return acts.filter(a => ['approve', 'reject', 'request_revision', 'revision'].includes(a.action))
 })
 
-const getApproverInitials = (label) => {
-    if (!label) return 'AP'
-    const words = label.trim().split(/\s+/)
-    if (words.length >= 2) {
-        return (words[0][0] + words[1][0]).toUpperCase()
-    }
-    return label.slice(0, 2).toUpperCase()
-}
-
 const getLevelComputedStatus = (lvl) => {
     // If the whole PR was rejected and this level was active
     if (props.item?.status === 'rejected' && lvl.step_order === currentStepOrder.value) {
@@ -79,13 +70,13 @@ const getLevelComputedStatus = (lvl) => {
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+    <div class="pr-approvals bg-white overflow-hidden">
         <!-- Approver Rows -->
         <div v-if="levels.length > 0" class="divide-y divide-slate-100">
             <div 
                 v-for="lvl in levels" 
                 :key="lvl.id || lvl.step_order"
-                class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-slate-50/60"
+                class="py-4 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 :class="{
                     'bg-blue-50/30': getLevelComputedStatus(lvl) === 'in_review'
                 }"
@@ -105,20 +96,6 @@ const getLevelComputedStatus = (lvl) => {
                         {{ lvl.step_order }}
                     </div>
 
-                    <!-- Initials Avatar -->
-                    <div 
-                        class="w-9 h-9 rounded-lg font-mono text-xs font-bold flex items-center justify-center shrink-0 border"
-                        :class="[
-                            getLevelComputedStatus(lvl) === 'approved'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : getLevelComputedStatus(lvl) === 'in_review'
-                                    ? 'bg-[#EAF2FF] text-[#014BAA] border-[#014BAA]/20'
-                                    : 'bg-slate-100 text-slate-500 border-slate-200/80'
-                        ]"
-                    >
-                        {{ getApproverInitials(lvl.assignee_label || lvl.specific_user?.name || lvl.position?.name || lvl.role?.name) }}
-                    </div>
-
                     <!-- Detail Level -->
                     <div class="min-w-0 space-y-0.5">
                         <div class="flex items-center gap-2">
@@ -129,7 +106,6 @@ const getLevelComputedStatus = (lvl) => {
                                 v-if="getLevelComputedStatus(lvl) === 'in_review'" 
                                 class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#EAF2FF] text-[#014BAA] border border-[#014BAA]/20"
                             >
-                                <span class="w-1.5 h-1.5 rounded-full bg-[#014BAA] animate-pulse"></span>
                                 Tahap Berjalan
                             </span>
                         </div>
@@ -202,3 +178,9 @@ const getLevelComputedStatus = (lvl) => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.pr-approvals :deep(h5) { font-weight: 500; white-space: normal; overflow-wrap: anywhere; }
+.pr-approvals :deep(p.flex) { flex-wrap: wrap; white-space: normal; overflow-wrap: anywhere; font-weight: 400; }
+.pr-approvals :deep(p.flex svg) { display: none; }
+</style>

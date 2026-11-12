@@ -48,18 +48,19 @@ const hasExtraDetail = (item) => {
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-4">
+    <div class="dp-section dp-items bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-6">
         <div class="flex items-center justify-between gap-3 pb-3.5 border-b border-slate-100 flex-wrap">
             <div>
-                <h3 class="text-sm font-bold text-slate-900">Rincian Barang & Realisasi Harga Beli</h3>
-                <p class="text-xs text-slate-500">Masukkan kuantitas dan harga satuan aktual sesuai transaksi toko/marketplace.</p>
+                <h3 class="text-sm font-bold text-slate-900">Barang yang dibeli</h3>
+                <p class="text-xs text-slate-500 mt-2">Isi jumlah dan harga aktual. Link produk, diskon, dan catatan tersedia di detail barang.</p>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <div v-if="extraPlanItemOptions.length > 0" class="flex items-center gap-1.5">
+            <div class="flex items-center gap-2 flex-wrap min-w-0 max-w-full">
+                <div v-if="extraPlanItemOptions.length > 0" class="flex items-center gap-1.5 min-w-0 max-w-full">
                     <select
                         :value="selectedExtraPlanItemId"
                         @change="$emit('update:selectedExtraPlanItemId', $event.target.value)"
-                        class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-600 max-w-xs"
+                        aria-label="Tambah item dari rencana"
+                        class="min-w-0 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-blue-600 max-w-xs"
                     >
                         <option value="">-- Tambah Item dari Rencana --</option>
                         <option v-for="opt in extraPlanItemOptions" :key="opt.value" :value="opt.value">
@@ -105,12 +106,12 @@ const hasExtraDetail = (item) => {
                 </div>
             </div>
 
-            <div class="overflow-x-auto border border-slate-200/80 rounded-lg">
-                <table class="w-full text-left border-collapse text-xs">
+            <div class="items-container border border-slate-200/80 rounded-xl">
+                <table class="items-table w-full text-left border-collapse text-sm">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200/80 font-semibold text-slate-600">
                             <th v-if="isBulkMode || (allowRemoveItem && form.items.length > 1)" class="px-2.5 py-2.5 text-center w-10"></th>
-                            <th class="px-3.5 py-2.5 min-w-[220px]">Barang / Spesifikasi</th>
+                            <th class="px-3.5 py-2.5 min-w-[220px]">Barang / spesifikasi</th>
                             <th class="px-3 py-2.5 text-right w-28">Kuota</th>
                             <th class="px-3 py-2.5 w-32">Qty Beli</th>
                             <th class="px-3 py-2.5 w-44">Harga Satuan</th>
@@ -119,19 +120,20 @@ const hasExtraDetail = (item) => {
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <template v-for="(item, idx) in form.items" :key="item.purchase_requisition_item_id || item.procurement_plan_item_id || idx">
-                            <tr class="hover:bg-slate-50/60 transition-colors" :class="{ 'bg-rose-50/20': Number(item.allocated_qty) <= 0 }">
+                            <tr class="item-row hover:bg-slate-50/60 transition-colors" :class="{ 'bg-rose-50/20': Number(item.allocated_qty) <= 0 }">
                                 <td v-if="isBulkMode || (allowRemoveItem && form.items.length > 1)" class="px-2.5 py-3 text-center align-top">
                                     <button 
                                         type="button" 
                                         @click="isBulkMode ? $emit('remove-bulk-item', idx) : $emit('remove-item', idx)"
                                         class="text-slate-400 hover:text-rose-600 transition-colors p-1 rounded hover:bg-rose-50 cursor-pointer"
                                         title="Hapus dari daftar"
+                                        :aria-label="`Hapus ${item.item_name}`"
                                     >
                                         <Trash2 class="w-3.5 h-3.5" />
                                     </button>
                                 </td>
 
-                                <td class="px-3.5 py-3 align-top">
+                                <td class="item-description px-3.5 py-3 align-top">
                                     <div class="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
                                         <span v-if="item.pr_number" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                             {{ item.pr_number }}
@@ -153,11 +155,12 @@ const hasExtraDetail = (item) => {
                                         <button
                                             type="button"
                                             @click="toggleItemDetails(idx)"
+                                            :aria-expanded="Boolean(expandedDetails[idx])"
                                             class="inline-flex items-center gap-1 text-[11px] font-medium transition-colors cursor-pointer"
                                             :class="expandedDetails[idx] || hasExtraDetail(item) ? 'text-blue-600 hover:text-blue-700' : 'text-slate-400 hover:text-slate-600'"
                                         >
                                             <Link2 class="w-3 h-3" />
-                                            <span>{{ hasExtraDetail(item) ? 'Edit Link / Diskon / Catatan' : '+ Link Produk / Diskon / Catatan' }}</span>
+                                            <span>{{ expandedDetails[idx] ? 'Tutup detail' : hasExtraDetail(item) ? 'Lihat detail tambahan' : 'Tambah detail' }}</span>
                                             <ChevronUp v-if="expandedDetails[idx]" class="w-3 h-3" />
                                             <ChevronDown v-else class="w-3 h-3" />
                                         </button>
@@ -166,12 +169,12 @@ const hasExtraDetail = (item) => {
                                         </span>
                                     </div>
 
-                                    <p v-if="item.error" class="text-[11px] text-rose-600 font-semibold mt-1">
+                                    <p v-if="item.error" :id="`dp-item-error-${idx}`" class="text-xs text-rose-600 font-medium mt-2" role="alert">
                                         {{ item.error }}
                                     </p>
                                 </td>
 
-                                <td class="px-3 py-3 text-right font-semibold align-top">
+                                <td data-label="Sisa kebutuhan" class="px-3 py-3 text-right font-semibold align-top">
                                     <div v-if="Number(item.allocated_qty) <= 0" class="inline-flex items-center text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
                                         Habis (0)
                                     </div>
@@ -182,7 +185,7 @@ const hasExtraDetail = (item) => {
                                     </div>
                                 </td>
 
-                                <td class="px-3 py-3 align-top">
+                                <td data-label="Jumlah beli" class="px-3 py-3 align-top">
                                     <div class="relative flex items-center">
                                         <input 
                                             type="number" 
@@ -191,6 +194,9 @@ const hasExtraDetail = (item) => {
                                             :max="item.allocated_qty"
                                             :disabled="Number(item.allocated_qty) <= 0"
                                             v-model="item.quantity" 
+                                            :aria-label="`Jumlah beli ${item.item_name}`"
+                                            :aria-invalid="Boolean(item.error)"
+                                            :aria-describedby="item.error ? `dp-item-error-${idx}` : undefined"
                                             class="w-full py-1.5 pl-2.5 pr-9 border rounded-lg font-bold font-mono text-right focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                                             :class="[
                                                 Number(item.allocated_qty) <= 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : (item.error ? 'border-rose-400' : 'border-slate-200')
@@ -202,7 +208,7 @@ const hasExtraDetail = (item) => {
                                     </div>
                                 </td>
 
-                                <td class="px-3 py-3 align-top">
+                                <td data-label="Harga satuan" class="px-3 py-3 align-top">
                                     <div class="relative flex items-center">
                                         <span class="absolute left-2.5 text-[10px] font-bold text-slate-400 font-mono pointer-events-none">{{ form.currency }}</span>
                                         <input 
@@ -210,6 +216,9 @@ const hasExtraDetail = (item) => {
                                             step="any" 
                                             min="0"
                                             v-model="item.unit_price" 
+                                            :aria-label="`Harga satuan ${item.item_name}`"
+                                            :aria-invalid="Boolean(item.error)"
+                                            :aria-describedby="item.error ? `dp-item-error-${idx}` : undefined"
                                             placeholder="0"
                                             class="w-full py-1.5 pr-2.5 pl-10 border rounded-lg font-bold text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                                             :class="item.error ? 'border-rose-400' : 'border-slate-200'"
@@ -217,13 +226,13 @@ const hasExtraDetail = (item) => {
                                     </div>
                                 </td>
 
-                                <td class="px-3.5 py-3 text-right font-bold text-slate-900 font-mono text-xs align-top pt-4">
+                                <td data-label="Subtotal" class="item-subtotal px-3.5 py-3 text-right font-semibold text-slate-900 tabular-nums text-sm align-top pt-4">
                                     {{ formatCurrency(Math.max(0, ((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)) - (Number(item.discount_amount) || 0)), form.currency) }}
                                 </td>
                             </tr>
 
                             <!-- Collapsible Secondary Item Details (Product URL, Notes, Item Discount) -->
-                            <tr v-if="expandedDetails[idx] || hasExtraDetail(item)" class="bg-slate-50/70 border-b border-slate-100">
+                            <tr v-if="expandedDetails[idx]" class="item-extra bg-slate-50/70 border-b border-slate-100">
                                 <td v-if="isBulkMode || (allowRemoveItem && form.items.length > 1)"></td>
                                 <td colspan="5" class="px-3.5 py-2.5">
                                     <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
@@ -232,6 +241,7 @@ const hasExtraDetail = (item) => {
                                             <input 
                                                 type="url" 
                                                 v-model="item.product_url" 
+                                                :aria-label="`Link produk ${item.item_name}`"
                                                 placeholder="Link produk (https://tokopedia.com/...)"
                                                 class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-[11px] focus:outline-none focus:border-blue-600 font-mono"
                                             />
@@ -241,6 +251,7 @@ const hasExtraDetail = (item) => {
                                             <input 
                                                 type="text" 
                                                 v-model="item.notes" 
+                                                :aria-label="`Catatan ${item.item_name}`"
                                                 placeholder="Catatan varian / warna / spek..."
                                                 class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-[11px] focus:outline-none focus:border-blue-600"
                                             />
@@ -252,6 +263,7 @@ const hasExtraDetail = (item) => {
                                                 step="any" 
                                                 min="0"
                                                 v-model="item.discount_amount" 
+                                                :aria-label="`Diskon ${item.item_name}`"
                                                 placeholder="0"
                                                 class="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-md text-right font-mono text-[11px] focus:outline-none focus:border-blue-600"
                                             />
@@ -266,3 +278,24 @@ const hasExtraDetail = (item) => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.items-container { overflow-x: auto; }
+.items-table { min-width: 850px; }
+.items-table td { padding-top: 20px; padding-bottom: 20px; }
+.item-description { overflow-wrap: anywhere; }
+input { min-width: 0; }
+@media(max-width: 767px) {
+    .items-container { overflow: visible; border: 0; }
+    .items-table, .items-table tbody { display: block; min-width: 0; }
+    .items-table thead { display: none; }
+    .item-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; border-top: 1px solid #e2e8f0; padding: 20px 0; }
+    .items-table td { display: block; padding: 0; min-width: 0; text-align: left; }
+    .item-description, .item-subtotal { grid-column: 1 / -1; }
+    td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 8px; font-size: 12px; font-weight: 500; color: #64748b; }
+    .item-subtotal { display: flex !important; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .item-extra { display: block; padding: 16px; border-radius: 12px; margin-bottom: 20px; }
+    .item-extra td:empty { display: none; }
+    .item-extra td > div { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+}
+</style>

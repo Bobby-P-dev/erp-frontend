@@ -31,6 +31,14 @@ export const remainingAwardQuantity = item => {
     return Math.max(0, Math.round((Number(item.target_quantity) - committed) * 10000) / 10000)
 }
 
+// Four-decimal quantities match the API's award arithmetic.
+export const splitAwardMaximum = (item, allocations, current) => {
+    const otherQuantity = allocations.filter(row => row !== current && row.quotation_id)
+        .reduce((sum, row) => sum + Math.max(0, Math.round((Number(row.awarded_quantity) || 0) * 10000)), 0)
+    const available = Math.max(0, Math.round(remainingAwardQuantity(item) * 10000) - otherQuantity) / 10000
+    return Math.min(available, Number(current.max_offered) || 0)
+}
+
 export const defaultSplitOffer = (item, isEligible = () => true) => {
     const offers = Object.entries(item.vendor_offers || {})
         .filter(([quotationId, offer]) => offer.quoted && !offer.purchase_order_id && isEligible(quotationId))

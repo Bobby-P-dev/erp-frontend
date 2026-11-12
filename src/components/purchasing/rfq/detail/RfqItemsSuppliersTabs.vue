@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from 'vue-router'
-import { Package, Users, Plus, CheckCircle2, Eye, XCircle, Clock, Check, Copy } from '@lucide/vue'
+import { Plus, Eye, Check, Copy } from '@lucide/vue'
+import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { formatCurrency, formatDate } from '@/composables/useFormatter.js'
 import { invitationLabel, invitationError, canSendInvitation } from '@/utils/rfqInvitation.js'
@@ -35,287 +36,142 @@ defineProps({
 })
 
 defineEmits(['update:activeTab', 'open-manual-modal', 'copy-magic-link', 'send-invitation', 'refresh-invitations'])
+const itemColumns = [
+    { key: 'item', label: 'Barang / jasa' },
+    { key: 'quantity', label: 'Kebutuhan', width: '150px', align: 'right' },
+    { key: 'price', label: 'HPS satuan', width: '160px', align: 'right' },
+    { key: 'subtotal', label: 'Estimasi', width: '170px', align: 'right' },
+]
+const supplierColumns = [
+    { key: 'supplier', label: 'Supplier' },
+    { key: 'response', label: 'Respons', width: '170px' },
+    { key: 'invitation', label: 'Undangan email', width: '200px' },
+    { key: 'actions', label: 'Tindakan', width: '210px', align: 'right' },
+]
+const responseLabel = status => ({ submitted: 'Penawaran masuk', received: 'Penawaran masuk', viewed: 'Sudah dilihat', declined: 'Menolak tender' }[status] || 'Menunggu respons')
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <!-- Tab Header Nav -->
-        <div class="flex items-center justify-between px-6 border-b border-slate-200 bg-slate-50/50">
-            <div class="flex items-center gap-6">
-                <button
-                    type="button"
-                    @click="$emit('update:activeTab', 'items')"
-                    class="py-4 text-xs font-semibold transition-all border-b-2 flex items-center gap-2 cursor-pointer"
-                    :class="[
-                        activeTab === 'items' 
-                            ? 'border-blue-600 text-blue-600' 
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    ]"
-                >
-                    <Package class="w-4 h-4" />
-                    Item yang Ditenderkan
-                    <span class="px-2 py-0.5 rounded-full text-[11px]" :class="activeTab === 'items' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'">
-                        {{ rfq.items?.length || 0 }}
-                    </span>
-                </button>
-
-                <button
-                    type="button"
-                    @click="$emit('update:activeTab', 'suppliers')"
-                    class="py-4 text-xs font-semibold transition-all border-b-2 flex items-center gap-2 cursor-pointer"
-                    :class="[
-                        activeTab === 'suppliers' 
-                            ? 'border-blue-600 text-blue-600' 
-                            : 'border-transparent text-slate-500 hover:text-slate-800'
-                    ]"
-                >
-                    <Users class="w-4 h-4" />
-                    Vendor Undangan & Penawaran Masuk
-                    <span class="px-2 py-0.5 rounded-full text-[11px]" :class="activeTab === 'suppliers' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'">
-                        {{ invitedSuppliers.length }}
-                    </span>
-                </button>
-            </div>
-
-            <div v-if="activeTab === 'suppliers'">
-                <BaseButton variant="outline" size="sm" @click="$emit('refresh-invitations')">Perbarui Status</BaseButton>
-                <BaseButton
-                    variant="primary"
-                    size="sm"
-                    @click="$emit('open-manual-modal')"
-                    :disabled="!canReceiveQuotation"
-                    class="bg-blue-600 hover:bg-blue-700"
-                >
-                    <Plus class="w-4 h-4 mr-1.5" />
-                    Input Penawaran Manual
-                </BaseButton>
+    <section class="rfq-records min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <nav aria-label="Bagian detail tender" class="flex flex-wrap gap-2 border-b border-slate-100 p-4 sm:px-5">
+            <button v-for="tab in [
+                { key: 'items', label: 'Barang / jasa', count: rfq.items?.length || 0 },
+                { key: 'suppliers', label: 'Supplier & undangan', count: invitedSuppliers.length },
+                { key: 'review', label: 'Rincian & revisi', count: rfq.quotations?.length || 0 },
+            ]" :key="tab.key" type="button" :aria-pressed="activeTab === tab.key"
+                class="detail-tab rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer"
+                :class="activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                @click="$emit('update:activeTab', tab.key)">
+                {{ tab.label }} <span class="ml-2 opacity-75">{{ tab.count }}</span>
+            </button>
+        </nav>
+        <div v-if="activeTab === 'items'" class="record-table">
+            <BaseTable :columns="itemColumns" layout="fixed" label="Barang tender RFQ">
+                <tr v-if="!rfq.items?.length"><td colspan="4" class="text-center text-slate-500">Belum ada barang dalam tender ini.</td></tr>
+                <tr v-for="item in rfq.items" :key="item.id" class="record-row">
+                    <td class="item-cell">
+                        <p class="break-words font-medium text-slate-900">{{ (item.item_name && item.item_name !== 'Item Tanpa Nama') ? item.item_name : (item.item?.name || 'Item Tanpa Nama') }}</p>
+                        <p v-if="item.item?.code || item.item?.item_code" class="mt-1 text-slate-500">{{ item.item?.code || item.item?.item_code }}</p>
+                        <details class="mt-3 text-slate-600">
+                            <summary class="cursor-pointer font-medium text-blue-700">Rincian barang</summary>
+                            <dl class="mt-3 space-y-3 break-words">
+                                <div v-if="item.item_specifications || item.item?.description"><dt class="text-slate-500">Spesifikasi</dt><dd class="mt-1 whitespace-pre-line">{{ item.item_specifications || item.item?.description }}</dd></div>
+                                <div v-if="item.source_pp_number || item.source_pr_number"><dt class="text-slate-500">Dokumen sumber</dt><dd class="mt-1">{{ [item.source_pp_number, item.source_pr_number].filter(Boolean).join(' · ') }}</dd></div>
+                                <div><dt class="text-slate-500">Dibutuhkan pada</dt><dd class="mt-1">{{ item.required_delivery_date ? formatDate(item.required_delivery_date) : 'Belum ditentukan' }}</dd></div>
+                                <div><dt class="text-slate-500">Catatan</dt><dd class="mt-1 whitespace-pre-line">{{ item.notes || 'Tidak ada catatan' }}</dd></div>
+                            </dl>
+                        </details>
+                    </td>
+                    <td data-label="Kebutuhan" class="text-right tabular-nums"><span>{{ Number(item.target_quantity || 0).toLocaleString('id-ID') }} {{ item.unit?.name || 'Unit' }}</span></td>
+                    <td data-label="HPS satuan" class="text-right tabular-nums"><span>{{ formatCurrency(item.target_price) }}</span></td>
+                    <td data-label="Estimasi" class="text-right font-medium tabular-nums text-slate-900"><span>{{ item.target_price != null && item.target_price !== '' ? formatCurrency(Number(item.target_price) * Number(item.target_quantity || 0)) : '—' }}</span></td>
+                </tr>
+            </BaseTable>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-5 text-sm">
+                <span class="text-slate-500">{{ rfq.items?.length || 0 }} barang / jasa</span>
+                <p class="text-slate-600">Total estimasi HPS <strong class="ml-3 font-semibold tabular-nums text-slate-900">{{ formatCurrency(totalTargetHps) }}</strong></p>
             </div>
         </div>
-
-        <!-- Tab 1: Line Items -->
-        <div v-if="activeTab === 'items'" class="p-6">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50/70">
-                            <th class="w-12 text-center text-xs font-semibold text-slate-600 py-3 px-4">No</th>
-                            <th class="text-left text-xs font-semibold text-slate-600 py-3 px-4">Barang & Spesifikasi</th>
-                            <th class="text-center text-xs font-semibold text-slate-600 py-3 px-4">Satuan</th>
-                            <th class="text-right text-xs font-semibold text-slate-600 py-3 px-4">Target Qty</th>
-                            <th class="text-right text-xs font-semibold text-slate-600 py-3 px-4">HPS / Target Harga</th>
-                            <th class="text-right text-xs font-semibold text-slate-600 py-3 px-4">Subtotal Target</th>
-                            <th class="text-center text-xs font-semibold text-slate-600 py-3 px-4">Tgl Dibutuhkan</th>
-                            <th class="text-left text-xs font-semibold text-slate-600 py-3 px-4">Catatan</th>
-                        </tr>
-                    </thead>
-
-                    <tbody class="divide-y divide-slate-100">
-                        <tr v-if="!rfq.items || rfq.items.length === 0">
-                            <td colspan="8" class="text-center py-8 text-sm text-slate-400">
-                                Tidak ada rincian item dalam tender ini.
-                            </td>
-                        </tr>
-                        <tr 
-                            v-for="(item, idx) in rfq.items" 
-                            :key="item.id"
-                            class="hover:bg-slate-50/80 transition-colors border-b border-slate-100"
-                        >
-                            <td class="text-center text-xs text-slate-500 py-3 px-4 font-medium">{{ idx + 1 }}</td>
-                            <td class="py-3 px-4">
-                                <div class="font-semibold text-xs text-slate-900">
-                                    {{ (item.item_name && item.item_name !== 'Item Tanpa Nama') ? item.item_name : (item.item?.name || 'Item Tanpa Nama') }}
+        <div v-if="activeTab === 'suppliers'">
+            <div class="flex flex-wrap items-center justify-between gap-4 px-5 py-5">
+                <p class="text-sm text-slate-600">Pantau respons dan pengiriman undangan supplier.</p>
+                <div class="flex flex-wrap gap-2">
+                    <BaseButton variant="secondary" size="sm" :disabled="sendingInvitation !== null" @click="$emit('refresh-invitations')">Perbarui status</BaseButton>
+                    <BaseButton size="sm" :disabled="!canReceiveQuotation" @click="$emit('open-manual-modal')"><Plus class="size-4" />Catat penawaran</BaseButton>
+                </div>
+                <p v-if="!canReceiveQuotation" class="w-full text-sm text-slate-500">Pencatatan penawaran dan pengiriman undangan tidak tersedia saat tender tidak menerima respons.</p>
+            </div>
+            <div class="record-table">
+                <BaseTable :columns="supplierColumns" layout="fixed" label="Supplier dan undangan RFQ">
+                    <tr v-if="!invitedSuppliers.length"><td colspan="4" class="text-center text-slate-500">Belum ada supplier yang diundang.</td></tr>
+                    <tr v-for="sup in invitedSuppliers" :key="sup.id" class="record-row">
+                        <td class="item-cell">
+                            <p class="break-words font-medium text-slate-900">{{ sup.supplier?.name || `Supplier #${sup.supplier_id}` }}</p>
+                            <p class="mt-1 break-all text-slate-500">{{ sup.email || sup.phone || 'Kontak belum tersedia' }}</p>
+                            <details class="mt-3 text-slate-600">
+                                <summary class="cursor-pointer font-medium text-blue-700">Kontak & akses supplier</summary>
+                                <p class="mt-3">{{ sup.contact_person || sup.supplier?.contact_name || 'Nama kontak belum tersedia' }}</p>
+                                <p v-if="sup.supplier?.supplier_code" class="mt-1">{{ sup.supplier.supplier_code }}</p>
+                                <p v-if="sup.phone" class="mt-1">{{ sup.phone }}</p>
+                                <div v-if="sup.portal_access_token" class="mt-3 flex flex-wrap gap-3">
+                                    <BaseButton variant="secondary" size="sm" @click="$emit('copy-magic-link', sup.portal_access_token)"><Check v-if="copiedToken === sup.portal_access_token" class="size-4" /><Copy v-else class="size-4" />{{ copiedToken === sup.portal_access_token ? 'Tautan tersalin' : 'Salin tautan' }}</BaseButton>
+                                    <RouterLink :to="`/portal/rfq/${sup.portal_access_token}`" class="inline-flex items-center gap-2 font-medium text-blue-700 underline underline-offset-4"><Eye class="size-4" />Lihat form supplier</RouterLink>
                                 </div>
-                                <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                    <span class="text-[11px] text-slate-500 font-mono">
-                                        {{ item.item?.code || item.item?.item_code || '-' }}
-                                    </span>
-                                    <span v-if="item.source_pp_number" class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200">
-                                        {{ item.source_pp_number }}
-                                    </span>
-                                    <span v-if="item.source_pr_number" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-mono text-[10px] border border-blue-200">
-                                        {{ item.source_pr_number }}
-                                    </span>
+                                <p v-else class="mt-3 text-slate-500">Tautan tersedia setelah tender diterbitkan.</p>
+                            </details>
+                        </td>
+                        <td data-label="Respons"><div>
+                            <p class="font-medium" :class="['submitted', 'received'].includes(sup.quote_status) ? 'text-emerald-800' : sup.quote_status === 'declined' ? 'text-rose-700' : 'text-slate-700'">{{ responseLabel(sup.quote_status) }}</p>
+                            <p v-if="sup.submitted_at" class="mt-2 text-slate-500">{{ formatRfqTimestamp(sup.submitted_at) }}</p>
+                        </div></td>
+                        <td data-label="Undangan email"><div>
+                            <p class="font-medium text-slate-700">{{ invitationLabel(sup.invitation_status) }}</p>
+                            <p v-if="sup.invitation_status === 'sent'" class="mt-2 text-slate-500">{{ formatRfqTimestamp(sup.invitation_sent_at) }}</p>
+                            <p v-if="['failed', 'unknown'].includes(sup.invitation_status) && sup.invitation_attempts?.[0]?.error_code" class="mt-2 text-amber-800">{{ invitationError(sup.invitation_attempts[0].error_code) }}</p>
+                            <details v-if="sup.invitation_attempts?.length" class="mt-3">
+                                <summary class="cursor-pointer text-blue-700">Riwayat pengiriman ({{ sup.invitation_attempts.length }})</summary>
+                                <div v-for="attempt in sup.invitation_attempts" :key="attempt.id" class="mt-3 space-y-1 text-slate-600">
+                                    <p>{{ formatRfqTimestamp(attempt.queued_at) }} · {{ invitationLabel(attempt.status) }}</p>
+                                    <p class="break-all">{{ attempt.recipient || 'Email kosong' }}</p>
+                                    <p v-if="attempt.error_code">{{ invitationError(attempt.error_code) }}</p>
+                                    <p v-if="attempt.resolution_note">Hasil pemeriksaan: {{ attempt.resolution_note }}</p>
                                 </div>
-                                <div v-if="item.item_specifications || item.item?.description" class="text-[11px] text-slate-500 italic mt-0.5 line-clamp-1">
-                                    {{ item.item_specifications || item.item?.description }}
-                                </div>
-                            </td>
-                            <td class="text-center text-xs text-slate-600 py-3 px-4">
-                                {{ item.unit?.name || 'Unit' }}
-                            </td>
-                            <td class="text-right text-xs font-semibold text-slate-800 py-3 px-4 font-mono">
-                                {{ Number(item.target_quantity).toLocaleString('id-ID') }}
-                            </td>
-                            <td class="text-right text-xs text-slate-700 py-3 px-4 font-mono">
-                                {{ item.target_price ? formatCurrency(item.target_price) : '-' }}
-                            </td>
-                            <td class="text-right text-xs font-semibold text-slate-900 py-3 px-4 font-mono">
-                                {{ item.target_price ? formatCurrency(Number(item.target_price) * Number(item.target_quantity)) : '-' }}
-                            </td>
-                            <td class="text-center text-xs text-slate-600 py-3 px-4">
-                                {{ formatDate(item.required_delivery_date) }}
-                            </td>
-                            <td class="text-xs text-slate-500 py-3 px-4">
-                                {{ item.notes || '-' }}
-                            </td>
-                        </tr>
-                    </tbody>
-
-                    <tfoot>
-                        <tr class="bg-slate-50 font-bold border-t-2 border-slate-200">
-                            <td colspan="3" class="text-left text-xs text-slate-800 py-3 px-4">
-                                Total {{ rfq.items?.length || 0 }} Rincian Barang
-                            </td>
-                            <td class="text-right text-xs text-slate-800 py-3 px-4 font-mono">
-                                {{ rfq.items?.reduce((sum, it) => sum + Number(it.target_quantity || 0), 0).toLocaleString('id-ID') }}
-                            </td>
-                            <td class="text-right text-xs text-slate-600 py-3 px-4">
-                                Total HPS:
-                            </td>
-                            <td class="text-right text-xs text-blue-700 py-3 px-4 font-mono">
-                                {{ formatCurrency(totalTargetHps) }}
-                            </td>
-                            <td colspan="2" class="py-3 px-4"></td>
-                        </tr>
-                    </tfoot>
-                </table>
+                            </details>
+                        </div></td>
+                        <td data-label="Tindakan" class="text-right"><div class="flex flex-wrap justify-end gap-2">
+                            <BaseButton v-if="canSendInvitation(sup, canReceiveQuotation)" variant="secondary" size="sm" :disabled="sendingInvitation !== null" @click="$emit('send-invitation', sup)">{{ sendingInvitation === sup.id ? 'Memproses…' : sup.invitation_status === 'failed' ? 'Coba kirim lagi' : 'Kirim undangan' }}</BaseButton>
+                            <BaseButton variant="secondary" size="sm" :disabled="!canReceiveQuotation" @click="$emit('open-manual-modal', sup.supplier_id)">Catat penawaran</BaseButton>
+                        </div></td>
+                    </tr>
+                </BaseTable>
             </div>
         </div>
-
-        <!-- Tab 2: Invited Vendors & Quotes -->
-        <div v-if="activeTab === 'suppliers'" class="p-6">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50/50">
-                            <th class="py-3 px-4 text-xs font-semibold text-slate-600">Vendor / Pemasok</th>
-                            <th class="py-3 px-4 text-xs font-semibold text-slate-600">Kontak Person</th>
-                            <th class="py-3 px-4 text-xs font-semibold text-slate-600 text-center">Status Penawaran</th>
-                            <th class="py-3 px-4 text-xs font-semibold text-slate-600">Tautan Form Vendor</th>
-                            <th class="py-3 px-4 text-xs font-semibold text-slate-600">Waktu Aktivitas</th>
-                            <th class="py-3 px-4 text-xs font-semibold text-slate-600 text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr v-if="invitedSuppliers.length === 0">
-                            <td colspan="6" class="py-8 text-center text-sm text-slate-400">
-                                Belum ada vendor yang diundang dalam tender ini.
-                            </td>
-                        </tr>
-                        <tr 
-                            v-for="sup in invitedSuppliers" 
-                            :key="sup.id"
-                            class="hover:bg-slate-50/80 transition-colors"
-                        >
-                            <td class="py-3 px-4">
-                                <div class="font-semibold text-xs text-slate-900">
-                                    {{ sup.supplier?.name || `Supplier #${sup.supplier_id}` }}
-                                </div>
-                                <div class="text-[11px] text-slate-500 font-mono mt-0.5">
-                                    {{ sup.supplier?.supplier_code || '-' }}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4">
-                                <div class="text-xs text-slate-800 font-medium">{{ sup.contact_person || sup.supplier?.contact_name || '-' }}</div>
-                                <div class="text-[11px] text-slate-500 mt-0.5">
-                                    {{ sup.email || sup.phone || '-' }}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <span 
-                                    v-if="sup.quote_status === 'submitted' || sup.quote_status === 'received'"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                >
-                                    <CheckCircle2 class="w-3 h-3" />
-                                    Penawaran Masuk
-                                </span>
-                                <span 
-                                    v-else-if="sup.quote_status === 'viewed'"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200"
-                                >
-                                    <Eye class="w-3 h-3" />
-                                    Telah Dilihat
-                                </span>
-                                <span 
-                                    v-else-if="sup.quote_status === 'declined'"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200"
-                                >
-                                    <XCircle class="w-3 h-3" />
-                                    Menolak Tender
-                                </span>
-                                <span 
-                                    v-else
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200"
-                                >
-                                    <Clock class="w-3 h-3" />
-                                    Menunggu Respon
-                                </span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <div v-if="sup.portal_access_token" class="flex items-center gap-1.5 flex-wrap">
-                                    <button
-                                        type="button"
-                                        @click="$emit('copy-magic-link', sup.portal_access_token)"
-                                        class="text-xs text-blue-700 hover:text-blue-900 flex items-center gap-1 font-medium bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded border border-blue-200 transition-colors cursor-pointer"
-                                        title="Salin tautan form penawaran untuk dikirim ke vendor"
-                                    >
-                                        <Check v-if="copiedToken === sup.portal_access_token" class="w-3.5 h-3.5 text-emerald-600" />
-                                        <Copy v-else class="w-3.5 h-3.5" />
-                                        <span>{{ copiedToken === sup.portal_access_token ? 'Tautan Tersalin' : 'Salin Tautan' }}</span>
-                                    </button>
-                                    <RouterLink
-                                        :to="`/portal/rfq/${sup.portal_access_token}`"
-                                        class="text-xs text-slate-700 hover:text-blue-700 flex items-center gap-1 font-medium bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded border border-slate-200 transition-colors"
-                                        title="Lihat halaman form penawaran vendor"
-                                    >
-                                        <Eye class="w-3.5 h-3.5 text-slate-500" />
-                                        <span>Lihat Form</span>
-                                    </RouterLink>
-                                </div>
-                                <span v-else class="text-xs text-slate-400 italic">Tautan belum aktif (terbitkan tender dulu)</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <div class="text-[11px] text-slate-600">
-                                    <span class="font-medium">{{ invitationLabel(sup.invitation_status) }}</span>
-                                    <div v-if="sup.invitation_status === 'sent'">{{ formatRfqTimestamp(sup.invitation_sent_at) }}</div>
-                                    <div v-if="['failed', 'unknown'].includes(sup.invitation_status) && sup.invitation_attempts?.[0]?.error_code" class="text-amber-700">{{ invitationError(sup.invitation_attempts[0].error_code) }}</div>
-                                    <details v-if="sup.invitation_attempts?.length" class="mt-1">
-                                        <summary class="cursor-pointer">Riwayat pengiriman ({{ sup.invitation_attempts.length }})</summary>
-                                        <div v-for="attempt in sup.invitation_attempts" :key="attempt.id" class="mt-1">
-                                            {{ formatRfqTimestamp(attempt.queued_at) }} · {{ invitationLabel(attempt.status) }}
-                                            <div>{{ attempt.recipient || 'Email kosong' }}</div>
-                                            <div v-if="attempt.error_code">{{ invitationError(attempt.error_code) }}</div>
-                                            <div v-if="attempt.resolution_note">Hasil pemeriksaan: {{ attempt.resolution_note }}</div>
-                                        </div>
-                                    </details>
-                                </div>
-                                <div v-if="sup.submitted_at" class="text-[11px] text-emerald-700 font-medium mt-0.5">
-                                    <span class="text-slate-400">Penawaran Masuk:</span> {{ formatDate(sup.submitted_at) }}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <BaseButton v-if="canSendInvitation(sup, canReceiveQuotation)" variant="outline" size="sm"
-                                        :disabled="sendingInvitation !== null" @click="$emit('send-invitation', sup)">
-                                        {{ sendingInvitation === sup.id ? 'Memproses...' : (sup.invitation_status === 'failed' ? 'Coba Kirim Lagi' : 'Kirim Undangan') }}
-                                    </BaseButton>
-                                    <BaseButton
-                                        variant="outline"
-                                        size="sm"
-                                        @click="$emit('open-manual-modal', sup.supplier_id)"
-                                        :disabled="!canReceiveQuotation"
-                                        class="text-xs"
-                                        title="Catat penawaran vendor secara manual"
-                                    >
-                                        <Plus class="w-3.5 h-3.5 mr-1" />
-                                        Catat Penawaran
-                                    </BaseButton>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div v-show="activeTab === 'review'" class="review-content p-5 sm:p-6">
+            <p v-if="!rfq.quotations?.length" class="py-5 text-center text-sm text-slate-500">Belum ada penawaran yang dapat diperiksa.</p>
+            <slot name="review" />
         </div>
-    </div>
+    </section>
 </template>
+
+<style scoped>
+.detail-tab:focus-visible, summary:focus-visible { outline: 2px solid #014baa; outline-offset: 3px; }
+.record-table :deep(td) { vertical-align: top; overflow-wrap: anywhere; }
+.record-table :deep(th) { font-size: 14px; }
+.review-content :deep(section) { border: 0; padding: 0; border-radius: 0; }
+.review-content :deep(.text-xs) { font-size: 14px; line-height: 1.6; }
+.review-content :deep(h2) { font-size: 18px; font-weight: 600; }
+@media (max-width: 900px) {
+    .record-table :deep(table), .record-table :deep(tbody) { display: block; }
+    .record-table :deep(thead) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .record-table :deep(.record-row) { display: block; padding: 20px; }
+    .record-table :deep(.record-row > td) { display: flex; width: 100%; padding: 10px 0; justify-content: space-between; gap: 20px; text-align: left; }
+    .record-table :deep(.record-row > td.item-cell) { display: block; padding-top: 0; }
+    .record-table :deep(td[data-label]::before) { content: attr(data-label); color: #64748b; flex-shrink: 0; font-weight: 400; }
+    .record-table :deep(td[data-label] > *) { min-width: 0; }
+    .record-table :deep(td:last-child .flex) { justify-content: flex-start; }
+}
+@media (max-width: 500px) {
+    .detail-tab { flex: 1 1 100%; text-align: left; }
+    .record-table :deep(.record-row > td[data-label="Tindakan"]) { flex-wrap: wrap; }
+}
+</style>
