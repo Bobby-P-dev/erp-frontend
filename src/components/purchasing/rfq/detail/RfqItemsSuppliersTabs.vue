@@ -1,13 +1,14 @@
 <script setup>
 import { RouterLink } from 'vue-router'
-import { Plus, Eye, Check, Copy } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { Plus, Eye, Check, Copy, Package, Users, FileText, ChevronDown, CalendarDays, ClipboardList, StickyNote, Wallet } from '@lucide/vue'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { formatCurrency, formatDate } from '@/composables/useFormatter.js'
 import { invitationLabel, invitationError, canSendInvitation } from '@/utils/rfqInvitation.js'
 import { formatRfqTimestamp } from '@/utils/rfqTimestamp.js'
 
-defineProps({
+const props = defineProps({
     sendingInvitation: { type: Number, default: null },
     canReceiveQuotation: {
         type: Boolean,
@@ -49,47 +50,71 @@ const supplierColumns = [
     { key: 'actions', label: 'Tindakan', width: '210px', align: 'right' },
 ]
 const responseLabel = status => ({ submitted: 'Penawaran masuk', received: 'Penawaran masuk', viewed: 'Sudah dilihat', declined: 'Menolak tender' }[status] || 'Menunggu respons')
+const expandedItems = ref(new Set())
+const allItemsExpanded = computed(() => !!props.rfq.items?.length && props.rfq.items.every(item => expandedItems.value.has(item.id)))
+function toggleItem(id) {
+    if (expandedItems.value.has(id)) expandedItems.value.delete(id)
+    else expandedItems.value.add(id)
+}
+function toggleAllItems() {
+    expandedItems.value = allItemsExpanded.value ? new Set() : new Set((props.rfq.items || []).map(item => item.id))
+}
 </script>
 
 <template>
     <section class="rfq-records min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <nav aria-label="Bagian detail tender" class="flex flex-wrap gap-2 border-b border-slate-100 p-4 sm:px-5">
             <button v-for="tab in [
-                { key: 'items', label: 'Barang / jasa', count: rfq.items?.length || 0 },
-                { key: 'suppliers', label: 'Supplier & undangan', count: invitedSuppliers.length },
-                { key: 'review', label: 'Rincian & revisi', count: rfq.quotations?.length || 0 },
+                { key: 'items', label: 'Barang / jasa', icon: Package, count: rfq.items?.length || 0 },
+                { key: 'suppliers', label: 'Supplier & undangan', icon: Users, count: invitedSuppliers.length },
+                { key: 'review', label: 'Rincian & revisi', icon: FileText, count: rfq.quotations?.length || 0 },
             ]" :key="tab.key" type="button" :aria-pressed="activeTab === tab.key"
-                class="detail-tab rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer"
+                class="detail-tab inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition-colors"
                 :class="activeTab === tab.key ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'"
                 @click="$emit('update:activeTab', tab.key)">
-                {{ tab.label }} <span class="ml-2 opacity-75">{{ tab.count }}</span>
+                <component :is="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
+                {{ tab.label }} <span class="ml-1 rounded-md px-1.5 py-0.5 text-xs" :class="activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'">{{ tab.count }}</span>
             </button>
         </nav>
         <div v-if="activeTab === 'items'" class="record-table">
+              <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-5">
+                  <div><h3 class="text-base font-semibold text-slate-900">Kebutuhan tender</h3><p class="mt-1 text-sm text-slate-500">Bandingkan jumlah dan estimasi. Buka rincian untuk melihat spesifikasi serta asal kebutuhan.</p></div>
+                  <BaseButton v-if="rfq.items?.length" variant="secondary" size="sm" :aria-expanded="allItemsExpanded" @click="toggleAllItems"><ClipboardList class="size-4" aria-hidden="true" />{{ allItemsExpanded ? 'Tutup semua rincian' : 'Buka semua rincian' }}</BaseButton>
+              </div>
             <BaseTable :columns="itemColumns" layout="fixed" label="Barang tender RFQ">
                 <tr v-if="!rfq.items?.length"><td colspan="4" class="text-center text-slate-500">Belum ada barang dalam tender ini.</td></tr>
-                <tr v-for="item in rfq.items" :key="item.id" class="record-row">
+                  <template v-for="(item, index) in rfq.items" :key="item.id">
+                  <tr class="record-row" :class="{ 'item-row-open': expandedItems.has(item.id) }">
                     <td class="item-cell">
+                          <div class="flex items-start gap-3">
+                          <span class="flex size-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-xs font-semibold text-blue-700" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
+                          <div class="min-w-0">
                         <p class="break-words font-medium text-slate-900">{{ (item.item_name && item.item_name !== 'Item Tanpa Nama') ? item.item_name : (item.item?.name || 'Item Tanpa Nama') }}</p>
-                        <p v-if="item.item?.code || item.item?.item_code" class="mt-1 text-slate-500">{{ item.item?.code || item.item?.item_code }}</p>
-                        <details class="mt-3 text-slate-600">
-                            <summary class="cursor-pointer font-medium text-blue-700">Rincian barang</summary>
-                            <dl class="mt-3 space-y-3 break-words">
-                                <div v-if="item.item_specifications || item.item?.description"><dt class="text-slate-500">Spesifikasi</dt><dd class="mt-1 whitespace-pre-line">{{ item.item_specifications || item.item?.description }}</dd></div>
-                                <div v-if="item.source_pp_number || item.source_pr_number"><dt class="text-slate-500">Dokumen sumber</dt><dd class="mt-1">{{ [item.source_pp_number, item.source_pr_number].filter(Boolean).join(' · ') }}</dd></div>
-                                <div><dt class="text-slate-500">Dibutuhkan pada</dt><dd class="mt-1">{{ item.required_delivery_date ? formatDate(item.required_delivery_date) : 'Belum ditentukan' }}</dd></div>
-                                <div><dt class="text-slate-500">Catatan</dt><dd class="mt-1 whitespace-pre-line">{{ item.notes || 'Tidak ada catatan' }}</dd></div>
-                            </dl>
-                        </details>
+                          <span v-if="item.item?.code || item.item?.item_code" class="mt-1 inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ item.item?.code || item.item?.item_code }}</span>
+                          <button type="button" class="item-toggle mt-2 flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-blue-700 hover:bg-blue-50 cursor-pointer transition-colors" :aria-expanded="expandedItems.has(item.id)" :aria-controls="`rfq-${rfq.id}-item-${item.id}`" :aria-label="`Rincian barang ${index + 1}: ${item.item_name || item.item?.name || 'Item Tanpa Nama'}`" @click="toggleItem(item.id)">Rincian barang<ChevronDown class="size-4 transition-transform" :class="{ 'rotate-180': expandedItems.has(item.id) }" aria-hidden="true" /></button>
+                          </div></div>
                     </td>
-                    <td data-label="Kebutuhan" class="text-right tabular-nums"><span>{{ Number(item.target_quantity || 0).toLocaleString('id-ID') }} {{ item.unit?.name || 'Unit' }}</span></td>
-                    <td data-label="HPS satuan" class="text-right tabular-nums"><span>{{ formatCurrency(item.target_price) }}</span></td>
-                    <td data-label="Estimasi" class="text-right font-medium tabular-nums text-slate-900"><span>{{ item.target_price != null && item.target_price !== '' ? formatCurrency(Number(item.target_price) * Number(item.target_quantity || 0)) : '—' }}</span></td>
+                      <td data-label="Kebutuhan" class="text-right tabular-nums"><span class="inline-flex flex-wrap items-baseline justify-end gap-1.5 font-semibold text-slate-800">{{ Number(item.target_quantity || 0).toLocaleString('id-ID') }} <span class="text-xs font-medium text-slate-500">{{ item.unit?.name || 'Unit' }}</span></span></td>
+                      <td data-label="HPS satuan" class="text-right tabular-nums"><span>{{ item.target_price != null && item.target_price !== '' ? formatCurrency(item.target_price) : '—' }}</span></td>
+                      <td data-label="Estimasi" class="text-right font-semibold tabular-nums text-slate-900"><span class="inline-block rounded-lg bg-slate-50 px-2.5 py-1.5">{{ item.target_price != null && item.target_price !== '' ? formatCurrency(Number(item.target_price) * Number(item.target_quantity || 0)) : '—' }}</span></td>
                 </tr>
+                  <tr v-show="expandedItems.has(item.id)" class="item-detail-row">
+                      <td colspan="4">
+                          <div :id="`rfq-${rfq.id}-item-${item.id}`" class="rounded-xl border border-blue-100 bg-slate-50/70 p-4 sm:p-5">
+                              <dl class="grid gap-5 break-words text-sm sm:grid-cols-3">
+                                  <div v-if="item.item_specifications || item.item?.description" class="sm:col-span-3 border-b border-slate-200/70 pb-4"><dt class="flex items-center gap-2 font-medium text-slate-500"><Package class="size-4" aria-hidden="true" />Spesifikasi</dt><dd class="mt-2 whitespace-pre-line leading-relaxed text-slate-800">{{ item.item_specifications || item.item?.description }}</dd></div>
+                                  <div><dt class="flex items-center gap-2 font-medium text-slate-500"><ClipboardList class="size-4 shrink-0" aria-hidden="true" />Dokumen sumber</dt><dd class="mt-2 flex flex-wrap gap-2"><span v-for="(source, sourceIndex) in [item.source_pp_number, item.source_pr_number].filter(Boolean)" :key="sourceIndex" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-700">{{ source }}</span><span v-if="!item.source_pp_number && !item.source_pr_number" class="text-slate-500">Belum tersedia</span></dd></div>
+                                  <div><dt class="flex items-center gap-2 font-medium text-slate-500"><CalendarDays class="size-4 shrink-0" aria-hidden="true" />Dibutuhkan pada</dt><dd class="mt-2 text-slate-800">{{ item.required_delivery_date ? formatDate(item.required_delivery_date) : 'Belum ditentukan' }}</dd></div>
+                                  <div><dt class="flex items-center gap-2 font-medium text-slate-500"><StickyNote class="size-4 shrink-0" aria-hidden="true" />Catatan</dt><dd class="mt-2 whitespace-pre-line leading-relaxed" :class="item.notes ? 'text-slate-800' : 'text-slate-500'">{{ item.notes || 'Tidak ada catatan tambahan' }}</dd></div>
+                              </dl>
+                          </div>
+                      </td>
+                  </tr>
+                  </template>
             </BaseTable>
-            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-5 text-sm">
-                <span class="text-slate-500">{{ rfq.items?.length || 0 }} barang / jasa</span>
-                <p class="text-slate-600">Total estimasi HPS <strong class="ml-3 font-semibold tabular-nums text-slate-900">{{ formatCurrency(totalTargetHps) }}</strong></p>
+              <div class="flex flex-wrap items-center justify-between gap-4 border-t border-blue-100 bg-blue-50/50 px-5 py-5 text-sm">
+                  <div class="flex items-center gap-3"><span class="flex size-10 items-center justify-center rounded-xl border border-blue-100 bg-white text-blue-700"><Wallet class="size-5" aria-hidden="true" /></span><div><p class="font-medium text-slate-800">Total estimasi HPS</p><p class="mt-0.5 text-xs text-slate-500">{{ rfq.items?.length || 0 }} barang / jasa · Acuan estimasi tender</p></div></div>
+                  <strong class="text-xl font-semibold tabular-nums text-blue-900">{{ formatCurrency(totalTargetHps) }}</strong>
             </div>
         </div>
         <div v-if="activeTab === 'suppliers'">
@@ -154,7 +179,9 @@ const responseLabel = status => ({ submitted: 'Penawaran masuk', received: 'Pena
 </template>
 
 <style scoped>
-.detail-tab:focus-visible, summary:focus-visible { outline: 2px solid #014baa; outline-offset: 3px; }
+.detail-tab:focus-visible, .item-toggle:focus-visible, summary:focus-visible { outline: 2px solid #014baa; outline-offset: 3px; }
+.record-table :deep(.item-row-open) { background: #f8faff; }
+.record-table :deep(.item-detail-row > td) { padding-top: 0; border-top: 0; }
 .record-table :deep(td) { vertical-align: top; overflow-wrap: anywhere; }
 .record-table :deep(th) { font-size: 14px; }
 .review-content :deep(section) { border: 0; padding: 0; border-radius: 0; }
@@ -164,6 +191,8 @@ const responseLabel = status => ({ submitted: 'Penawaran masuk', received: 'Pena
     .record-table :deep(table), .record-table :deep(tbody) { display: block; }
     .record-table :deep(thead) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .record-table :deep(.record-row) { display: block; padding: 20px; }
+    .record-table :deep(.item-detail-row) { display: block; }
+    .record-table :deep(.item-detail-row > td) { display: block; padding: 0 20px 20px; }
     .record-table :deep(.record-row > td) { display: flex; width: 100%; padding: 10px 0; justify-content: space-between; gap: 20px; text-align: left; }
     .record-table :deep(.record-row > td.item-cell) { display: block; padding-top: 0; }
     .record-table :deep(td[data-label]::before) { content: attr(data-label); color: #64748b; flex-shrink: 0; font-weight: 400; }
@@ -173,5 +202,8 @@ const responseLabel = status => ({ submitted: 'Penawaran masuk', received: 'Pena
 @media (max-width: 500px) {
     .detail-tab { flex: 1 1 100%; text-align: left; }
     .record-table :deep(.record-row > td[data-label="Tindakan"]) { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .detail-tab, .item-toggle, .item-toggle svg { transition: none; }
 }
 </style>

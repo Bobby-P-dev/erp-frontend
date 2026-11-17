@@ -6,23 +6,25 @@ import RfqPlanSelectionSection from '../../components/purchasing/rfq/form/RfqPla
 import RfqTermsFormSection from '../../components/purchasing/rfq/form/RfqTermsFormSection.vue'
 import RfqItemsTableSection from '../../components/purchasing/rfq/form/RfqItemsTableSection.vue'
 import RfqSuppliersInviteSection from '../../components/purchasing/rfq/form/RfqSuppliersInviteSection.vue'
+import RfqInitialNeedItemsSection from '../../components/purchasing/rfq/form/RfqInitialNeedItemsSection.vue'
+import RfqSourceNotice from '../../components/purchasing/rfq/detail/RfqSourceNotice.vue'
 import { useRfqCreateForm } from '../../composables/purchasing/useRfqCreateForm.js'
 import { Save, Send } from '@lucide/vue'
 
 const {
+    isInitialSource, changeSource, initialItems, addInitialItem, removeInitialItem,
+    unitOptions, isLoadingUnits, unitsError, fetchUnits, fieldErrors,
     isSubmitting,
     isLoadingPlans,
     isLoadingPlanDetail,
-    isLoadingSuppliers,
+    supplierCandidates,
     selectedPlan,
     additionalPlanIds,
     additionalPlans,
     form,
     planItems,
-    selectedSupplierIds,
     primaryPlanOptions,
     availableAdditionalPlanOptions,
-    supplierOptions,
     selectedSuppliers,
     activeItems,
     totalEstimatedHpsAmount,
@@ -30,7 +32,6 @@ const {
     getPlanPurposeSummary,
     getPlanDivisionSummary,
     selectAllItems,
-    removeSupplier,
     handleSubmit
 } = useRfqCreateForm()
 </script>
@@ -52,10 +53,32 @@ const {
             </p>
         </div>
 
+        <nav aria-label="Bagian form tender" class="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+            <a v-for="(step, index) in [{ id: 'rfq-source', label: 'Asal kebutuhan', done: true }, { id: 'rfq-terms-heading', label: 'Informasi tender', done: Boolean(form.title && form.deadline_date) }, { id: isInitialSource ? 'rfq-initial-items-heading' : 'rfq-items-heading', label: 'Barang', done: activeItems.length > 0 }, { id: 'rfq-suppliers-heading', label: 'Supplier', done: selectedSuppliers.length > 0 }]" :key="step.id" :href="`#${step.id}`" class="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-blue-600">
+                <span class="flex size-6 items-center justify-center rounded-full text-xs font-semibold" :class="step.done ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'">{{ index + 1 }}</span>{{ step.label }}
+            </a>
+        </nav>
+
         <!-- Form Container -->
         <form @submit.prevent class="space-y-5" :aria-busy="isSubmitting || isLoadingPlanDetail">
+            <fieldset :disabled="isSubmitting" class="min-w-0 space-y-5">
+            <section id="rfq-source" class="rfq-form-section scroll-mt-6" aria-labelledby="rfq-source-heading">
+                <div class="rfq-section-heading"><div><h2 id="rfq-source-heading">1. Asal kebutuhan</h2><p>Mulai dari kebutuhan awal atau PP. Mengganti sumber akan mengosongkan judul, pilihan rencana dan daftar barang.</p></div></div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label v-for="source in [{ id: 'initial_need', title: 'Kebutuhan awal', description: 'Minta harga supplier terlebih dahulu, sebelum membuat PR.' }, { id: 'procurement_plan', title: 'Dari rencana pengadaan', description: 'Gunakan barang dan kuota dari PP yang sudah tersedia.' }]" :key="source.id" class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors" :class="form.source_type === source.id ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:bg-slate-50'">
+                        <input type="radio" name="rfq-source" :value="source.id" :checked="form.source_type === source.id" :disabled="isSubmitting" class="mt-1 size-4 accent-blue-700" @change="changeSource(source.id)" />
+                        <span><span class="block text-sm font-semibold text-slate-900">{{ source.title }}</span><span class="mt-1 block text-sm leading-relaxed text-slate-500">{{ source.description }}</span></span>
+                    </label>
+                </div>
+            </section>
+            <RfqSourceNotice v-if="isInitialSource" :rfq="form" />
+            <div v-if="Object.keys(fieldErrors).length" id="rfq-validation-errors" tabindex="-1" role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-900">
+                <p class="font-semibold">Periksa isian berikut sebelum melanjutkan</p>
+                <ul class="mt-2 list-disc space-y-1 pl-5"><li v-for="(messages, field) in fieldErrors" :key="field"><span class="font-medium">{{ field.startsWith('items.') ? `Barang ${Number(field.split('.')[1]) + 1}: ` : '' }}</span>{{ Array.isArray(messages) ? messages.join(' ') : messages }}</li></ul>
+            </div>
             <!-- Step 1: Pilih Alokasi Rencana Pengadaan -->
             <RfqPlanSelectionSection
+                v-if="!isInitialSource"
                 :form="form"
                 :primary-plan-options="primaryPlanOptions"
                 :available-additional-plan-options="availableAdditionalPlanOptions"
@@ -70,23 +93,22 @@ const {
             />
 
             <!-- Step 2: Informasi Tender & Ketentuan -->
-            <RfqTermsFormSection :form="form" />
+            <RfqTermsFormSection :form="form" :errors="fieldErrors" />
 
             <!-- Step 3: Rincian Item yang Ditenderkan -->
             <RfqItemsTableSection
+                v-if="!isInitialSource"
                 :has-plan-selected="Boolean(form.procurement_plan_id)"
                 :plan-items="planItems"
                 :active-items-count="activeItems.length"
                 @select-all="selectAllItems"
             />
 
+            <RfqInitialNeedItemsSection v-else :items="initialItems" :units="unitOptions" :loading-units="isLoadingUnits" :units-error="unitsError" :errors="fieldErrors" @add="addInitialItem" @remove="removeInitialItem" @search-units="fetchUnits" />
+
             <!-- Step 4: Undang Supplier / Rekanan Tender -->
             <RfqSuppliersInviteSection
-                v-model:selected-supplier-ids="selectedSupplierIds"
-                :supplier-options="supplierOptions"
-                :selected-suppliers="selectedSuppliers"
-                :is-loading-suppliers="isLoadingSuppliers"
-                @remove-supplier="removeSupplier"
+                :state="supplierCandidates"
             />
 
             <section class="rfq-form-section" aria-labelledby="rfq-summary-heading">
@@ -97,7 +119,7 @@ const {
                         </h2>
                         <p class="mt-2 text-sm text-slate-500">
                             {{ activeItems.length }} barang dipilih · {{ selectedSuppliers.length }} supplier
-                            · {{ selectedPlan ? 1 + additionalPlans.length : 0 }} rencana
+                            · {{ isInitialSource ? 'Kebutuhan awal' : `${selectedPlan ? 1 + additionalPlans.length : 0} rencana` }}
                         </p>
                     </div>
                     <div class="sm:text-right">
@@ -127,7 +149,7 @@ const {
                             class="rfq-secondary-button justify-center"
                             :disabled="
                                 isSubmitting ||
-                                isLoadingPlans ||
+                                (!isInitialSource && isLoadingPlans) ||
                                 isLoadingPlanDetail ||
                                 activeItems.length === 0
                             "
@@ -140,7 +162,7 @@ const {
                             class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#014BAA] px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             :disabled="
                                 isSubmitting ||
-                                isLoadingPlans ||
+                                (!isInitialSource && isLoadingPlans) ||
                                 isLoadingPlanDetail ||
                                 activeItems.length === 0
                             "
@@ -151,6 +173,7 @@ const {
                     </div>
                 </div>
             </section>
+            </fieldset>
         </form>
     </div>
 </template>
@@ -162,7 +185,9 @@ const {
     border: 1px solid #e2e8f0;
     border-radius: 16px;
     background: white;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 0.025);
 }
+.rfq-create :deep(h2[id]) { scroll-margin-top: 28px; }
 .rfq-create :deep(.rfq-form-section > * + *) {
     margin-top: 20px;
 }

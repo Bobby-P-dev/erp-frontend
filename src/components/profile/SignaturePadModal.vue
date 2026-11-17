@@ -21,7 +21,7 @@ const props = defineProps({
     },
     title: {
         type: String,
-        default: 'Spesimen Tanda Tangan Digital',
+        default: 'Tanda Tangan',
     },
 })
 

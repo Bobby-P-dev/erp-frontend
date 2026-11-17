@@ -183,7 +183,7 @@ export function useRfqList() {
 
     const tableColumns = [
         { key: 'rfq_number', label: 'Dokumen tender', minWidth: '250px' },
-        { key: 'procurement_plan', label: 'Rencana & perusahaan', minWidth: '210px' },
+        { key: 'procurement_plan', label: 'Sumber & perusahaan', minWidth: '210px' },
         { key: 'deadline', label: 'Batas penawaran', minWidth: '175px' },
         { key: 'progress', label: 'Penawaran', minWidth: '150px', align: 'center', class: 'text-center' },
         { key: 'status', label: 'Status', minWidth: '150px', align: 'center', class: 'text-center' },

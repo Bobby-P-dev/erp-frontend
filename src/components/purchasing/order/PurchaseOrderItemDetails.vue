@@ -1,5 +1,6 @@
 <script setup>
-import { formatDate } from '../../../composables/useFormatter.js'
+import { formatDate, formatCurrency } from '../../../composables/useFormatter.js'
+import { pricingModeLabel } from '../../../utils/rfqComparison.js'
 import { ClipboardList, ChevronDown, Package, Tag, Truck, FileText, Layers, PackageCheck, MessageSquareText } from '@lucide/vue'
 defineProps({ item: { type: Object, required: true } })
 </script>
@@ -12,6 +13,14 @@ defineProps({ item: { type: Object, required: true } })
             <ChevronDown class="item-chevron size-4 shrink-0 text-slate-400" aria-hidden="true" />
         </summary>
         <dl class="item-detail-grid border-t border-slate-100 p-4 text-sm">
+            <div v-if="item.pricing_snapshot?.pricing_schema_version > 0" class="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                <dt><Tag class="size-4" aria-hidden="true" />Harga yang disepakati</dt>
+                <dd>{{ pricingModeLabel(item.pricing_snapshot.pricing_mode) }}</dd>
+                <dd>{{ Number(item.pricing_snapshot.quantity).toLocaleString('id-ID') }} {{ item.unit?.name }} · {{ formatCurrency(item.pricing_snapshot.line_subtotal, item.pricing_snapshot.currency) }}</dd>
+                <dd v-if="item.pricing_snapshot.selected_min_quantity">Tingkat mulai {{ Number(item.pricing_snapshot.selected_min_quantity).toLocaleString('id-ID') }} {{ item.unit?.name }}</dd>
+                <dd class="text-xs text-slate-500">Mengikuti quotation versi {{ item.pricing_snapshot.quotation_version }}.</dd>
+                <dd v-if="Number(item.rounding_adjustment)" class="text-xs text-slate-600">Penyesuaian terhadap jumlah × harga satuan tampilan: {{ formatCurrency(item.rounding_adjustment, item.pricing_snapshot.currency) }}. Total asli penawaran dipertahankan.</dd>
+            </div>
             <div><dt><Package class="size-4" aria-hidden="true" />Spesifikasi</dt><dd class="whitespace-pre-wrap">{{ item.item_specifications || 'Belum dicantumkan' }}</dd></div>
             <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                 <div class="min-w-0 rounded-lg bg-slate-50 p-3"><dt><Tag class="size-4" aria-hidden="true" />Merek</dt><dd>{{ item.brand || '—' }}</dd></div>
@@ -19,7 +28,7 @@ defineProps({ item: { type: Object, required: true } })
             </div>
             <div class="space-y-3 rounded-lg border border-dashed border-slate-200 p-3">
                 <div><dt><FileText class="size-4" aria-hidden="true" />PR asal</dt><dd>{{ item.source_pr_number || '—' }}</dd></div>
-                <div><dt><Layers class="size-4" aria-hidden="true" />Rencana pengadaan</dt><dd>{{ item.source_pp_number || '—' }}</dd></div>
+                <div><dt><Layers class="size-4" aria-hidden="true" />Jalur pengadaan</dt><dd>{{ item.rfq_requisition_allocation_id ? 'Penawaran → PR disetujui → PO' : item.source_pp_number || '—' }}</dd></div>
             </div>
             <div v-if="item.received_quantity != null" class="rounded-lg bg-emerald-50 p-3"><dt><PackageCheck class="size-4" aria-hidden="true" />Sudah diterima</dt><dd>{{ Number(item.received_quantity).toLocaleString('id-ID') }} {{ item.unit?.name || 'Unit' }}</dd></div>
             <div v-if="item.notes"><dt><MessageSquareText class="size-4" aria-hidden="true" />Catatan barang</dt><dd class="whitespace-pre-wrap">{{ item.notes }}</dd></div>

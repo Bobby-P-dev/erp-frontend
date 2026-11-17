@@ -8,13 +8,15 @@ import SearchInput from '../../components/ui/SearchInput.vue'
 import Pagination from '../../components/ui/Pagination.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import PurchaseRequisitionDetailModal from '../../components/purchasing/PurchaseRequisitionDetailModal.vue'
+import PurchaseRequisitionSubmitModal from '../../components/purchasing/PurchaseRequisitionSubmitModal.vue'
 
 import { useDataTable } from '../../composables/useDataTable.js'
 import { useFormatter } from '../../composables/useFormatter.js'
 import {
     getPurchaseRequisitions,
     showPurchaseRequisition,
-    submitPurchaseRequisition
+    submitPurchaseRequisition,
+    deletePurchaseRequisition
 } from '../../services/purchaseRequisitionServices.js'
 import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
 import {
@@ -25,14 +27,17 @@ import {
     Eye,
     FileEdit,
     RefreshCw,
-    Download,
+    Trash2,
     Loader2
 } from '@lucide/vue'
 import { generatePurchaseRequisitionPdf } from '../../utils/pdf/purchaseRequisitionPdfGenerator.js'
 import { useAuthStore } from '../../stores/auth.js'
+import { canCreateRequisitionPo, usePurchaseOrderActions } from '../../composables/purchasing/usePurchaseOrderActions.js'
 
 const authStore = useAuthStore()
 const downloadingPrId = ref(null)
+const deletingPrId = ref(null)
+const { busy: poActionBusy, activeId: creatingPrId, createFromRequisition } = usePurchaseOrderActions()
 const { formatDate, formatCurrency } = useFormatter()
 
 // 1. Data Table Composable
@@ -61,6 +66,13 @@ const {
 const showDetailModal = ref(false)
 const selectedPR = ref(null)
 const isLoadingDetail = ref(false)
+const showSubmitModal = ref(false)
+const submittingPR = ref(null)
+const onSubmitted = (pr) => {
+    showDetailModal.value = false
+    showSuccess('Berhasil!', `PR ${pr.pr_number} berhasil diajukan untuk persetujuan.`)
+    fetchData(pagination.value.current_page)
+}
 
 
 const openDetail = async (pr) => {
@@ -96,12 +108,35 @@ const handleDownloadPdf = async (pr) => {
 }
 
 
+const handleDeletePR = async (pr) => {
+    if (!pr?.can_be_deleted || deletingPrId.value !== null) return
+    const confirmed = await showConfirm('Hapus PR?', `PR ${pr.pr_number} akan dihapus dari daftar dan pengajuan persetujuannya dihentikan. Kuota RFQ yang dicadangkan akan dilepas.`, 'Hapus PR')
+    if (!confirmed) return
+    deletingPrId.value = pr.id
+    try {
+        await deletePurchaseRequisition(pr.id)
+        showDetailModal.value = false
+        await fetchData(pagination.value.current_page)
+        showSuccess('PR dihapus', 'Pengajuan dihentikan dan daftar PR diperbarui.')
+    } catch (error) {
+        showError('PR belum dapat dihapus', error.response?.data?.message || 'Periksa status terbaru sebelum mencoba kembali.', error)
+    } finally {
+        deletingPrId.value = null
+    }
+}
+
 const handleSubmitPR = async (pr) => {
+    if (pr.status === 'draft') {
+        submittingPR.value = pr
+        showDetailModal.value = false
+        showSubmitModal.value = true
+        return
+    }
     const isRevision = pr.status === 'revision_requested'
     const confirmTitle = isRevision ? 'Ajukan Ulang PR?' : 'Ajukan PR untuk Persetujuan?'
     const confirmText = isRevision
         ? `Dokumen PR ${pr.pr_number} akan diajukan ulang ke alur persetujuan pimpinan setelah Anda perbaiki.`
-        : `Dokumen PR ${pr.pr_number} akan diajukan ke alur persetujuan. Anda tidak dapat mengubah data setelah diajukan.`
+        : `Dokumen PR ${pr.pr_number} akan diajukan ke alur persetujuan. Edit masih tersedia sampai ada persetujuan pertama.`
     const confirmBtn = isRevision ? 'Ya, Ajukan Ulang' : 'Ya, Ajukan'
 
     const confirmed = await showConfirm(confirmTitle, confirmText, confirmBtn)
@@ -137,7 +172,7 @@ const tableColumns = [
     { key: 'company_id', label: 'Perusahaan & divisi', minWidth: '210px', width: '20%' },
     { key: 'estimate', label: 'Estimasi', minWidth: '150px', width: '15%', align: 'right' },
     { key: 'status', label: 'Status', minWidth: '180px', width: '17%' },
-    { key: 'actions', label: 'Aksi', minWidth: '180px', width: '210px', align: 'right' }
+    { key: 'actions', label: 'Aksi', minWidth: '260px', width: '260px', align: 'right' }
 ]
 
 const getActiveStepName = (pr) => {
@@ -353,6 +388,13 @@ const getActiveStepName = (pr) => {
                     <!-- Actions -->
                     <td class="px-6 py-4.5 whitespace-nowrap text-center">
                         <div class="flex items-center justify-end gap-1">
+                            <button v-if="canCreateRequisitionPo(pr)" type="button"
+                                :disabled="poActionBusy || isLoading"
+                                :aria-label="'Buat draft PO dari ' + pr.pr_number"
+                                class="mr-1 inline-flex items-center gap-2 rounded-lg bg-[#014BAA] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                @click="createFromRequisition(pr, () => fetchData(pagination.current_page))">
+                                <Loader2 v-if="poActionBusy && creatingPrId === pr.id" class="size-4 animate-spin" /><Plus v-else class="size-4" />{{ poActionBusy && creatingPrId === pr.id ? 'Membuat…' : 'Buat draft PO' }}
+                            </button>
                             <button
                                 type="button"
                                 @click="openDetail(pr)"
@@ -363,32 +405,36 @@ const getActiveStepName = (pr) => {
                                 <Eye class="w-4.5 h-4.5" />
                             </button>
 
-                            <!-- Unduh Lembar Persetujuan (PDF) Langsung di Tabel -->
+                            <!-- Preview PDF sebelum unduh -->
                             <button
                                 v-if="canDownloadPdf(pr)"
                                 type="button"
                                 :disabled="downloadingPrId === pr.id"
                                 @click="handleDownloadPdf(pr)"
                                 class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                                title="Unduh Lembar Persetujuan (PDF)"
-                                :aria-label="'Unduh PDF ' + pr.pr_number"
+                                title="Preview Lembar Persetujuan (PDF)"
+                                :aria-label="'Preview PDF ' + pr.pr_number"
                             >
                                 <Loader2 v-if="downloadingPrId === pr.id" class="w-4.5 h-4.5 animate-spin text-blue-600" />
-                                <Download v-else class="w-4.5 h-4.5 text-slate-600 hover:text-blue-600" />
+                                <FileText v-else class="w-4.5 h-4.5 text-slate-600 hover:text-blue-600" />
                             </button>
 
                             <RouterLink
-                                v-if="pr.status === 'draft' || pr.status === 'revision_requested'"
+                                v-if="!pr.source && (pr.can_be_edited ?? ['draft', 'revision_requested'].includes(pr.status))"
                                 :to="{ name: 'user.purchasing.requisitions.edit', params: { id: pr.id } }"
                                 class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                                :title="pr.status === 'revision_requested' ? 'Perbaiki & Edit PR' : 'Edit Draft PR'"
+                                :title="pr.status === 'pending_approval' ? 'Edit PR dan kembalikan ke draft' : 'Edit PR'"
                                 :aria-label="'Edit ' + pr.pr_number"
                             >
                                 <FileEdit class="w-4.5 h-4.5" />
                             </RouterLink>
 
+                            <button v-if="pr.source && pr.can_be_edited" type="button" @click="openDetail(pr)" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" :aria-label="'Ubah pengajuan ' + pr.pr_number" title="Ubah pengajuan dari penawaran"><FileEdit class="w-4.5 h-4.5" /></button>
+
+                            <button v-if="pr.can_be_deleted" type="button" :disabled="deletingPrId !== null" @click="handleDeletePR(pr)" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg disabled:opacity-50" :aria-label="'Hapus ' + pr.pr_number" title="Hapus PR sebelum persetujuan"><Loader2 v-if="deletingPrId === pr.id" class="size-4 animate-spin" /><Trash2 v-else class="size-4" /></button>
+
                             <button
-                                v-if="pr.can_be_submitted || pr.status === 'draft' || pr.status === 'revision_requested'"
+                                v-if="pr.can_be_submitted ?? ['draft', 'revision_requested'].includes(pr.status)"
                                 type="button"
                                 @click="handleSubmitPR(pr)"
                                 class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#014BAA] rounded-lg text-xs font-medium transition-colors cursor-pointer"
@@ -413,11 +459,16 @@ const getActiveStepName = (pr) => {
         </div>
 
         <!-- 4. DETAIL MODAL COMPONENT -->
+        <PurchaseRequisitionSubmitModal v-model="showSubmitModal" :item="submittingPR" @submitted="onSubmitted" />
         <PurchaseRequisitionDetailModal
             v-model="showDetailModal"
             :item="selectedPR"
             :is-loading="isLoadingDetail"
+            allow-delete
+            :deleting="deletingPrId !== null"
             @submit-p-r="handleSubmitPR"
+            @delete-p-r="handleDeletePR"
+            @updated="selectedPR = $event; fetchData(pagination.current_page)"
         />
     </div>
 </template>

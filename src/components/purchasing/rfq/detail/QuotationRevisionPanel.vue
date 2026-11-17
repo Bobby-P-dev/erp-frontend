@@ -1,7 +1,9 @@
 <script setup>
 import { ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { getSupplierQuotationHistory, requestSupplierQuotationRevision, reviseSupplierQuotation } from '@/services/rfqServices.js'
+import { getSupplierQuotationHistory, requestSupplierQuotationRevision, reviseSupplierQuotation, previewQuotationPricing } from '@/services/rfqServices.js'
+import RfqQuotationItemEditor from '@/components/purchasing/rfq/RfqQuotationItemEditor.vue'
+import { quotationItem, compactQuantity } from '@/utils/quotationPricing.js'
 import { formatCurrency } from '@/composables/useFormatter.js'
 import { formatRfqTimestamp } from '@/utils/rfqTimestamp.js'
 import { uploadFile } from '@/services/fileServices.js'
@@ -29,7 +31,12 @@ watch(() => [props.quotation.id, props.quotation.review_version], () => {
 const allowed = action => props.quotation.revision_actions?.includes(action)
 const startEdit = () => {
     draft.value = Object.fromEntries(fields.map(field => [field, props.quotation[field]]))
-    draft.value.items = props.quotation.items.map(item => ({ ...item }))
+    draft.value.items = props.quotation.items.map(item => {
+        const requested = props.quotation.revision_request?.requested_quantities?.find(line => line.rfq_item_id === item.rfq_item_id)
+        const hydrated = { ...item, price_tiers: item.price_tiers?.map(tier => ({ ...tier })), item_name: item.item_name || item.item_description || `Barang #${item.rfq_item_id}` }
+        return requested ? { ...hydrated, _pricingMode: 'reconfirm', offered_quantity: requested.quantity,
+            requested_quantity: requested.quantity, price_basis_quantity: requested.quantity, price_input_basis: 'total', entered_total: '' } : hydrated
+    })
     attachment.value = null
     taxes.value = null
     editing.value = true
@@ -61,8 +68,7 @@ const saveRevision = () => run(async () => {
         const result = await uploadFile(attachment.value, 'supplier_quotations')
         payload.quotation_file_id = (result.data || result).id
     }
-    payload.items = draft.value.items.map(({ rfq_item_id, item_description, offered_quantity, unit_price, lead_time_days, brand, notes }) =>
-        ({ rfq_item_id, item_description, offered_quantity, unit_price, lead_time_days, brand, notes }))
+    payload.items = draft.value.items.map(item => ({ ...quotationItem(item), item_description: item.item_description }))
     await reviseSupplierQuotation(props.quotation.id, payload)
     editing.value = false
     emit('changed')
@@ -74,8 +80,9 @@ const saveRevision = () => run(async () => {
         <h4 class="font-bold text-sm">Revisi dan Riwayat Versi</h4>
         <p v-if="error" role="alert" class="text-rose-800">{{ error }}</p>
         <p v-if="quotation.revision_request" class="whitespace-pre-wrap text-amber-900">Pesan untuk supplier: {{ quotation.revision_request.supplier_message }}</p>
+        <p v-for="line in quotation.revision_request?.requested_quantities || []" :key="line.rfq_item_id" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Harga final diminta untuk {{ quotation.items.find(item => item.rfq_item_id === line.rfq_item_id)?.item_description || `Barang #${line.rfq_item_id}` }}: <strong>{{ compactQuantity(line.quantity) }}</strong>. Menunggu penawaran baru dari supplier.</p>
         <div v-if="allowed('request_revision') || allowed('submit_revision')" class="space-y-3">
-            <p>Revisi memerlukan pengesahan ulang. Batalkan award atau selesaikan perubahan komitmen PO sebelum merevisi penawaran yang terikat.</p>
+            <p>Periksa kembali harga dan evaluasi setelah revisi diterima. Penawaran yang terikat award atau PO harus dilepas terlebih dahulu. Jika batas respons berakhir, perpanjang deadline tender sebelum meminta revisi.</p>
             <label class="block">Alasan internal / alasan perubahan
                 <textarea v-model="reason" :disabled="busy || disabled" maxlength="2000" class="block w-full border rounded p-2 mt-1" />
             </label>
@@ -104,12 +111,9 @@ const saveRevision = () => run(async () => {
                         <option v-for="tax in taxes" :key="tax.id" :value="tax.id">{{ tax.name }} · {{ tax.rate }}%</option>
                     </select>
                 </label>
-                <div v-for="(item, index) in draft.items" :key="item.rfq_item_id" class="rounded border p-3 grid grid-cols-2 gap-2">
-                    <p class="col-span-2 font-semibold">Barang {{ index + 1 }}: {{ item.item_description }}</p>
-                    <label v-for="field in ['item_description', 'offered_quantity', 'unit_price', 'lead_time_days', 'brand', 'notes']" :key="field">{{ ({ item_description: 'Spesifikasi', offered_quantity: 'Qty', unit_price: 'Harga satuan', lead_time_days: 'Waktu kirim (hari)', brand: 'Merk', notes: 'Catatan barang' })[field] }}
-                        <input v-model="item[field]" :disabled="busy || disabled" class="block w-full border rounded p-2">
-                    </label>
-                </div>
+                <fieldset :disabled="busy || disabled" class="space-y-4">
+                    <RfqQuotationItemEditor v-for="item in draft.items" :key="item.rfq_item_id" :item="item" :preview="previewQuotationPricing" :currency="draft.currency" />
+                </fieldset>
                 <BaseButton type="submit" size="sm" :disabled="busy || disabled">Simpan Versi Baru</BaseButton>
             </form>
         </div>

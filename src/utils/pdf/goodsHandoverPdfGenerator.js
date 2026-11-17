@@ -2,6 +2,7 @@ import pdfMake from 'pdfmake/build/pdfmake.js'
 import pdfFonts from 'pdfmake/build/vfs_fonts.js'
 import { showLoading, showError, closeSwal } from '../swal.js'
 import { toast } from 'vue-sonner'
+import { previewPdf } from './previewPdf.js'
 
 // Initialize pdfMake virtual file system for fonts
 if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
@@ -51,7 +52,7 @@ const formatDateTimePdf = (dateStr) => {
 }
 
 /**
- * Generate and download Berita Acara Serah Terima Barang (BAST / Goods Handover Note) PDF.
+ * Generate and preview Berita Acara Serah Terima Barang (BAST / Goods Handover Note) PDF.
  * Supports both saved BAST records and pre-submission preview data for hardcopy printing before signing.
  *
  * @param {Object} handover - Handover data object
@@ -80,12 +81,6 @@ export const generateGoodsHandoverPdf = async (handover, options = {}) => {
         const notes = handover.notes || '-'
         const printTimestamp = formatDateTimePdf(new Date())
         const currentUser = options.currentUser || handedOverByName
-
-        // Verification QR code content
-        const origin = typeof window !== 'undefined' ? window?.location?.origin || '' : ''
-        const verificationUrl = handover.id 
-            ? `${origin}/inventory/goods-receipts?handover_number=${docNumber}` 
-            : `BAST-VERIFY:${docNumber}:${recipientName}:${printTimestamp}`
 
         // Build item table rows
         let totalQty = 0
@@ -323,54 +318,11 @@ export const generateGoodsHandoverPdf = async (handover, options = {}) => {
                     },
                     margin: [0, 0, 0, 14]
                 },
-                // 7. FOOTER & QR VERIFIKASI AUDIT INTERNAL
                 {
-                    columns: [
-                        {
-                            width: 85,
-                            table: {
-                                widths: ['*'],
-                                body: [
-                                    [
-                                        {
-                                            stack: [
-                                                { qr: verificationUrl, fit: 70, eccLevel: 'M', alignment: 'center', margin: [0, 2, 0, 2] },
-                                                { text: 'AUDIT VERIFIKASI', style: 'qrCaptionBold', alignment: 'center' },
-                                                { text: 'Validasi Keaslian BAST', style: 'qrCaptionSub', alignment: 'center' }
-                                            ],
-                                            fillColor: '#ffffff',
-                                            alignment: 'center'
-                                        }
-                                    ]
-                                ]
-                            },
-                            layout: {
-                                hLineWidth: () => 0.5,
-                                vLineWidth: () => 0.5,
-                                hLineColor: () => '#94a3b8',
-                                vLineColor: () => '#94a3b8',
-                                paddingLeft: () => 4,
-                                paddingRight: () => 4,
-                                paddingTop: () => 3,
-                                paddingBottom: () => 3,
-                            }
-                        },
-                        {
-                            width: '*',
-                            margin: [10, 0, 0, 0],
-                            stack: [
-                                { text: 'LEMBAR ARSIP FISIK & AUDIT INTERNAL PERUSAHAAN', style: 'legalHeader' },
-                                { 
-                                    text: 'Dokumen BAST ini dicetak resmi dari modul Inventory Sistem ERP untuk keperluan audit internal, pembuktian serah terima barang fisik, dan pencocokan kartu stok gudang. Berkas asli yang telah dibubuhi tanda tangan basah wajib disimpan oleh bagian logistik dan diunggah salinannya ke sistem sebagai bukti digital.',
-                                    style: 'legalBody',
-                                    margin: [0, 2, 0, 3]
-                                },
-                                {
-                                    text: `No. BAST: ${docNumber} | Dicetak: ${printTimestamp} oleh ${currentUser}`,
-                                    style: 'legalMeta'
-                                }
-                            ]
-                        }
+                    stack: [
+                        { text: 'LEMBAR ARSIP SERAH TERIMA', style: 'legalHeader' },
+                        { text: 'Periksa rincian serah terima dan bubuhkan tanda tangan pada kolom yang tersedia. Simpan berkas yang telah ditandatangani sebagai bukti serah terima.', style: 'legalBody', margin: [0, 3, 0, 4] },
+                        { text: `No. BAST: ${docNumber} | Dicetak: ${printTimestamp} oleh ${currentUser}`, style: 'legalMeta' }
                     ]
                 }
             ],
@@ -399,8 +351,6 @@ export const generateGoodsHandoverPdf = async (handover, options = {}) => {
                 signDate: { fontSize: 6.5, color: '#64748b', alignment: 'center', margin: [0, 1, 0, 2] },
                 signerName: { fontSize: 8, bold: true, color: '#0f172a', alignment: 'center' },
                 signerTitle: { fontSize: 7, color: '#64748b', alignment: 'center' },
-                qrCaptionBold: { fontSize: 6.5, bold: true, color: '#0f172a', letterSpacing: 0.2 },
-                qrCaptionSub: { fontSize: 5.5, color: '#64748b' },
                 legalHeader: { fontSize: 7.5, bold: true, color: '#334155' },
                 legalBody: { fontSize: 6.5, color: '#64748b', leading: 1.2 },
                 legalMeta: { fontSize: 6, color: '#94a3b8' }
@@ -414,9 +364,9 @@ export const generateGoodsHandoverPdf = async (handover, options = {}) => {
         const sanitizedNumber = docNumber.replace(/[^a-zA-Z0-9-_]/g, '_')
         const fileName = `${sanitizedNumber}_BAST_Serah_Terima.pdf`
 
-        pdfMake.createPdf(docDefinition).download(fileName)
-
+        const blob = await pdfMake.createPdf(docDefinition).getBlob()
         closeSwal()
+        await previewPdf(blob, fileName)
         return true
     } catch (err) {
         console.error('Handover PDF Generation Error:', err)

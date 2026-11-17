@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { ref, computed } from 'vue'
 import * as validity from '../src/utils/quotationValidity.js'
+import * as pricing from '../src/utils/quotationPricing.js'
+import * as rfqSource from '../src/utils/rfqSource.js'
 import { rfqDeadlineInfo } from '../src/utils/rfqDeadline.js'
 
 const openDeadline = { server_now: '2026-11-09T12:00:00+07:00', deadline_at: '2026-11-09T23:59:59.999+07:00', can_receive_quotation: true }
@@ -29,6 +31,8 @@ function composable(name, services = {}) {
         '@/services/purchaseOrderServices.js': { createPurchaseOrderFromRfq: services.createPo || (async (...args) => { requests.push(args); return { data: [{ id: 9 }] } }) },
         '@/utils/swal.js': { showLoading: () => {}, showSuccess: async () => {}, showError: (...args) => errors.push(args), showConfirm: async () => true },
         '@/utils/quotationValidity.js': validity,
+        '@/utils/quotationPricing.js': pricing,
+        '@/utils/rfqSource.js': rfqSource,
         '@/composables/useFormatter.js': { formatCurrency: String }
     }
     const source = readFileSync(new URL(`../src/composables/purchasing/${name}.js`, import.meta.url), 'utf8')
@@ -39,6 +43,60 @@ function composable(name, services = {}) {
 }
 
 describe('Supplier requested revision', () => {
+    it('prefills requested quantity and requires a fresh total instead of prorating the old price', async () => {
+        const previous = { review_version: 4, currency: 'IDR', vendor_quotation_reference: 'FINAL-30', items: [{ rfq_item_id: 10,
+            pricing_schema_version: 1, pricing_mode: 'reconfirm', offered_quantity: '50', entered_total: '500000.00' }],
+            requested_quantities: [{ rfq_item_id: 10, quantity: '30.0000' }] }
+        const { state, requests } = composable('useSupplierPortalRfqForm', {
+            getPublicPortalRfq: async () => ({ data: { rfq: { ...openDeadline, items: [{ id: 10, target_quantity: 50 }] },
+                portal: { can_submit: true, can_revise: true }, existing_quotation: previous } }),
+        })
+        await state.loadPortalData()
+        const item = state.quoteForm.value.items[0]
+        assert.equal(item.offered_quantity, '30.0000')
+        assert.equal(item.entered_total, '')
+        item.entered_total = '360000'
+        state.quoteForm.value.revision_reason = 'Final price for 30'
+        await state.handleSubmit()
+        const sent = JSON.parse(requests[0][1].get('items'))[0]
+        assert.equal(sent.pricing_mode, 'reconfirm')
+        assert.equal(sent.offered_quantity, '30.0000')
+        assert.equal(sent.entered_total, '360000')
+        assert.equal('unit_price' in sent, false)
+    })
+    it('retains and submits original tiers on a reloaded v1 revision', async () => {
+        const item = { rfq_item_id: 10, pricing_schema_version: 1, pricing_mode: 'tiered', offered_quantity: '100',
+            unit_price: '40000', price_tiers: [{ min_quantity: '50', price_input_basis: 'total', entered_total: '2250000.00', price_basis_quantity: '50' }] }
+        const previous = { review_version: 4, vendor_quotation_reference: 'REV-4', currency: 'USD', exchange_rate: '16000', items: [item] }
+        const { state, requests, errors } = composable('useSupplierPortalRfqForm', {
+            getPublicPortalRfq: async () => ({ data: { rfq: { ...openDeadline, items: [{ id: 10, target_quantity: 100 }] },
+                portal: { can_submit: true, can_revise: true }, existing_quotation: previous } }),
+        })
+        await state.loadPortalData()
+        assert.deepEqual(state.quoteForm.value.items[0].price_tiers, item.price_tiers)
+        state.quoteForm.value.revision_reason = 'Revised prices'
+        await state.handleSubmit()
+        assert.equal(requests.length, 1)
+        const sent = JSON.parse(requests[0][1].get('items'))[0]
+        assert.equal(sent.pricing_mode, 'tiered')
+        assert.equal(sent.price_tiers[0].entered_total, '2250000.00')
+        assert.equal('unit_price' in sent, false)
+    })
+
+    it('submits a manual fixed total without a derived unit price', async () => {
+        const { state, requests, errors } = composable('useRfqDetail')
+        await state.fetchRfqDetail()
+        state.openManualModal()
+        state.manualForm.value.items[0]._pricingMode = 'fixed_quantity'
+        state.manualForm.value.items[0].entered_total = '100.00'
+        state.manualForm.value.supplier_id = 1
+        state.manualForm.value.vendor_quotation_reference = 'VENDOR-1'
+        await state.submitManualQuotation()
+        assert.equal(requests.length, 1)
+        assert.equal(requests[0].items[0].entered_total, '100.00')
+        assert.equal('unit_price' in requests[0].items[0], false)
+    })
+
     it('prefills previous offer and sends its version and revision reason', async () => {
         const previous = { review_version: 4, vendor_quotation_reference: 'SQ-VENDOR-4', quotation_date: '2026-11-09',
             currency: 'USD', exchange_rate: '16000', tax_rate: 0, shipping_cost: 5,

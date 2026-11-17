@@ -2,10 +2,11 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parse, compileScript } from '@vue/compiler-sfc'
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import * as comparison from '../src/utils/rfqComparison.js'
 import * as formatter from '../src/composables/useFormatter.js'
 import * as validity from '../src/utils/quotationValidity.js'
+import * as rfqSource from '../src/utils/rfqSource.js'
 
 const { awardSubtotal, sumComparisonAmounts, isLowestUnitPrice, isLowestTotalCost, remainingAwardQuantity, defaultSplitOffer, totalCostExclusionText } = comparison
 
@@ -32,10 +33,13 @@ function page(items = [item()], options = {}) {
     const errors = []
     const poRequests = []
     const refreshes = []
+    const revisionRequests = []
     const deps = {
-        vue: { ref, computed, onMounted: () => {} },
+        vue: { ref, computed, watch, onMounted: () => {} },
         'vue-router': { useRouter: () => ({}), useRoute: () => ({ params: { id: 7 } }) },
         '../../services/rfqServices.js': {
+            requestSupplierQuotationRevision: async (...args) => { revisionRequests.push(args); if (options.revisionError) throw options.revisionError },
+            previewAwardPricing: async (id, payload) => options.previewPricing ? options.previewPricing(id, payload) : { quotation_id: id, quotation_version: 1, lines: [] },
             getRfqComparisonMatrix: async () => {
                 refreshes.push(true)
                 if (options.refreshError) throw options.refreshError
@@ -50,6 +54,7 @@ function page(items = [item()], options = {}) {
         } },
         '../../utils/swal.js': { showLoading: () => {}, showConfirm: async () => true, showSuccess: async () => {}, showError: error => errors.push(error) },
         '../../utils/quotationValidity.js': validity,
+        '@/utils/rfqSource.js': rfqSource,
         '../../utils/rfqComparison.js': comparison,
         '../../composables/useFormatter.js': formatter
     }
@@ -63,8 +68,179 @@ function page(items = [item()], options = {}) {
     const state = component.setup({}, { expose: () => {} })
     state.matrixData.value = matrix
     state.matrixData.value.suppliers.forEach(supplier => { supplier.review_version = 1 })
-    return { state, requests, errors, poRequests, refreshes }
+    return { state, requests, errors, poRequests, refreshes, revisionRequests }
 }
+
+describe('RFQ quantity pricing allocation preview', () => {
+    it('keeps comparison available but blocks award and PO for initial needs', async () => {
+        const { state, requests, poRequests } = page()
+        state.matrixData.value.rfq.source_type = 'initial_need'
+        assert.equal(state.itemsMatrix.value.length, 1)
+        assert.equal(state.canAward.value, false)
+        state.openAwardModal()
+        assert.equal(state.isAwardModalOpen.value, false)
+        assert.ok(state.poValidityErrors.value.length)
+        await state.handleGeneratePurchaseOrders()
+        assert.equal(requests.length, 0)
+        assert.equal(poRequests.length, 0)
+    })
+    const flush = async () => { await nextTick(); await new Promise(setImmediate) }
+    const v1 = () => item({ 1: offer({ pricing_schema_version: 1, pricing_mode: 'tiered' }) })
+    const reply = (quantity, changes = {}) => ({ quotation_id: 1, quotation_version: 1, currency: 'USD',
+        lines: [{ supplier_quotation_item_id: 101, quantity: String(quantity), eligible: true,
+            effective_unit_price: '1.00000000', line_subtotal: '7.77', selected_min_quantity: '5.0000', ...changes }],
+        subtotal: '7.77', tax_amount: '0.85', shipping_cost: '2.00', total_amount: '10.62' })
+
+    it('requests supplier final pricing with the selected quantity and version without awarding', async () => {
+        const { state, requests, revisionRequests } = page([item({ 1: offer({ pricing_schema_version: 1, pricing_mode: 'reconfirm' }) })], {
+            previewPricing: async (id, payload) => reply(payload.allocations[0].quantity, { eligible: false, reason: 'requires_price_confirmation', line_subtotal: null }),
+        })
+        state.openAwardModal()
+        state.splitAwards.value[10][0].awarded_quantity = 6
+        await flush()
+        assert.equal(state.selectionReady.value, false)
+        await state.requestFinalPrice(state.decisionRows.value[0])
+        assert.equal(requests.length, 0)
+        assert.equal(revisionRequests[0][0], 1)
+        assert.equal(revisionRequests[0][1].expected_review_version, 1)
+        assert.deepEqual(revisionRequests[0][1].requested_quantities, [{ rfq_item_id: 10, quantity: '6' }])
+        assert.equal(state.isAwardModalOpen.value, false)
+        assert.equal(state.activeSection.value, 'review')
+    })
+
+    it('keeps the selection open when a price request is rejected', async () => {
+        const { state } = page([v1()], {
+            previewPricing: async (id, payload) => reply(payload.allocations[0].quantity, { eligible: false, reason: 'requires_price_confirmation' }),
+            revisionError: { response: { data: { message: 'Deadline expired. Extend RFQ first.' } } },
+        })
+        state.openAwardModal()
+        await flush()
+        await state.requestFinalPrice(state.decisionRows.value[0])
+        assert.equal(state.isAwardModalOpen.value, true)
+        assert.match(state.awardStepError.value, /Deadline expired/)
+    })
+
+    it('uses the server subtotal for the selected quantity and blocks while loading', async () => {
+        let resolvePreview
+        const calls = []
+        const { state, requests } = page([v1()], { previewPricing: (id, payload) => {
+            calls.push([id, payload]); return new Promise(resolve => { resolvePreview = resolve })
+        } })
+        state.suppliers.value[0].comparison_exchange_rate = 16000
+        state.openAwardModal()
+        await flush()
+        assert.equal(state.selectionReady.value, false)
+        assert.equal(state.decisionRows.value[0].subtotal, null)
+        await state.submitAward()
+        assert.equal(requests.length, 0)
+        assert.equal(calls[0][1].expected_review_version, 1)
+        assert.deepEqual(calls[0][1].allocations, [{ supplier_quotation_item_id: 101, quantity: '10' }])
+        resolvePreview(reply(10))
+        await flush()
+        assert.equal(state.selectionReady.value, true)
+        assert.equal(state.decisionRows.value[0].subtotal, 7.77 * 16000)
+        assert.equal(state.splitAwardTotalCost.value, 7.77 * 16000)
+        state.splitAwards.value[10][0].evaluation.selection_reason = 'Harga sesuai jumlah pilihan'
+        await state.submitAward()
+        assert.equal(requests.length, 1)
+        assert.equal(requests[0][1].awards[0].awarded_quantity, 10)
+        assert.equal('unit_price' in requests[0][1].awards[0], false)
+    })
+
+    it('rejects partial fixed quantity and network errors without falling back to summary rates', async () => {
+        const { state, requests } = page([v1()], { previewPricing: async () => reply(10, { eligible: false, reason: 'requires_full_quantity', line_subtotal: null }) })
+        state.suppliers.value[0].comparison_exchange_rate = 16000
+        state.openAwardModal()
+        await flush()
+        assert.equal(state.selectionReady.value, false)
+        assert.equal(state.decisionRows.value[0].subtotal, null)
+        assert.match(comparison.pricingReasonText(state.decisionRows.value[0].pricing.reason), /seluruhnya/)
+        await state.submitAward()
+        assert.equal(requests.length, 0)
+        const failed = page([v1()], { previewPricing: async () => { throw new Error('offline') } })
+        failed.state.openAwardModal()
+        await flush()
+        assert.match(failed.state.pricingError.value, /Gagal/)
+        assert.equal(failed.state.selectionReady.value, false)
+    })
+
+    it('explains the minimum on a 45/5 split and allows evaluation after correcting it to 40/10', async () => {
+        const production = { ...item({ 1: offer({ supplier_quotation_item_id: 201, offered_quantity: 50 }),
+            2: offer({ supplier_quotation_item_id: 202, offered_quantity: 50, pricing_schema_version: 1,
+                pricing_mode: 'flat', pricing_rules: { minimum_quantity: '10.0000' } }) }),
+            rfq_item_id: 12, item_name: 'Material Produksi', unit_name: 'UNIT', target_quantity: 50 }
+        const { state, requests } = page([production], { previewPricing: async (id, payload) => {
+            const quantity = payload.allocations[0].quantity
+            return { quotation_id: id, quotation_version: 1, lines: [{ supplier_quotation_item_id: 202,
+                quantity, eligible: Number(quantity) >= 10, reason: Number(quantity) < 10 ? 'below_minimum_quantity' : null,
+                line_subtotal: Number(quantity) >= 10 ? '170000.00' : null }] }
+        } })
+        state.suppliers.value[1].comparison_exchange_rate = 1
+        state.openAwardModal()
+        state.splitAwards.value[12][0].quotation_id = 1
+        state.onSplitVendorChange(12, 0)
+        state.splitAwards.value[12][0].awarded_quantity = 45
+        state.addSplitSupplier(production)
+        const split = state.splitAwards.value[12][1]
+        split.quotation_id = 2
+        state.onSplitVendorChange(12, 1)
+        await flush()
+        assert.equal(split.awarded_quantity, 5)
+        assert.equal(state.selectionReady.value, false)
+        assert.match(state.allocationPricingIssue(split), /Minimum supplier: 10 UNIT/)
+        assert.match(state.selectionBlocker.value, /Material Produksi · IDR supplier/)
+        assert.match(state.selectionBlocker.value, /Ubah pembagian jumlah/)
+        await state.submitAward()
+        assert.equal(requests.length, 0)
+        state.splitAwards.value[12][0].awarded_quantity = 40
+        split.awarded_quantity = 10
+        await flush()
+        assert.equal(state.allocationPricingIssue(split), '')
+        assert.equal(state.selectionBlocker.value, '')
+        assert.equal(state.selectionReady.value, true)
+        state.nextAwardStep()
+        assert.equal(state.awardStep.value, 2)
+    })
+
+    it('provides a retryable explanation for unavailable pricing and clears it after recovery', async () => {
+        let offline = true
+        const { state } = page([v1()], { previewPricing: async () => {
+            if (offline) throw new Error('offline')
+            return reply(10)
+        } })
+        state.suppliers.value[0].comparison_exchange_rate = 16000
+        state.openAwardModal()
+        await flush()
+        assert.match(state.selectionBlocker.value, /Gagal menghitung harga/)
+        offline = false
+        await state.refreshAwardPricing()
+        assert.equal(state.selectionReady.value, true)
+        assert.equal(state.selectionBlocker.value, '')
+    })
+
+    it('discards a late response after quantity changes', async () => {
+        const pending = []
+        const { state } = page([v1()], { previewPricing: (_id, payload) => new Promise(resolve => pending.push({ payload, resolve })) })
+        state.suppliers.value[0].comparison_exchange_rate = 16000
+        state.openAwardModal()
+        await flush()
+        state.splitAwards.value[10][0].awarded_quantity = 4
+        await flush()
+        assert.equal(pending.length, 2)
+        pending[1].resolve(reply(4, { line_subtotal: '12.34' }))
+        await flush()
+        assert.equal(state.decisionRows.value[0].subtotal, 12.34 * 16000)
+        pending[0].resolve(reply(10))
+        await flush()
+        assert.equal(state.decisionRows.value[0].subtotal, 12.34 * 16000)
+    })
+
+    it('reads a saved awarded subtotal instead of multiplying the reference rate', () => {
+        const { state } = page([item({ 1: offer({ pricing_schema_version: 1, is_awarded: true,
+            awarded_quantity: 3, base_awarded_subtotal: '1600000.00000000', base_awarded_unit_price: '533333.33328000' }) })])
+        assert.equal(state.awardedGoodsTotal.value, 1600000)
+    })
+})
 
 describe('RFQ comparison currency and ranking', () => {
     it('guides selection and evaluation before review without submitting early', () => {

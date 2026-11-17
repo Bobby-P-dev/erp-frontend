@@ -266,6 +266,7 @@ onMounted(() => {
                     <SupplierRfqSubmittedReceipt
                         v-if="portalData.portal.quote_status === 'received' && portalData.existing_quotation && !portalData.portal.can_revise"
                         :existing-quotation="portalData.existing_quotation"
+                        :rfq-items="portalData.rfq.items"
                     />
 
                     <!-- STATE B: DECLINED NOTICE -->
@@ -313,11 +314,11 @@ onMounted(() => {
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 text-slate-700">
                                 <div class="flex items-center gap-2 font-medium">
                                     <span class="w-5 h-5 rounded bg-slate-200 text-slate-900 text-xs font-bold flex items-center justify-center shrink-0">1</span>
-                                    <span>Isi <strong>Harga Satuan</strong> & <strong>Waktu Kirim</strong></span>
+                                    <span>Isi <strong>Jumlah, Harga & Waktu Kirim</strong></span>
                                 </div>
                                 <div class="flex items-center gap-2 font-medium">
                                     <span class="w-5 h-5 rounded bg-slate-200 text-slate-900 text-xs font-bold flex items-center justify-center shrink-0">2</span>
-                                    <span>Isi <strong>Nomor Surat Penawaran</strong> Anda</span>
+                                    <span>Lengkapi <strong>Dokumen & Ketentuan</strong></span>
                                 </div>
                                 <div class="flex items-center gap-2 font-medium">
                                     <span class="w-5 h-5 rounded bg-slate-200 text-slate-900 text-xs font-bold flex items-center justify-center shrink-0">3</span>
@@ -326,10 +327,10 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <SupplierRfqItemsTable :items="quoteForm.items" />
+                        <SupplierRfqItemsTable :items="quoteForm.items" :token="String($route.params.token)" :currency="portalData.existing_quotation?.currency || 'IDR'" />
 
-                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                            <div class="lg:col-span-8">
+                        <div class="space-y-6">
+                            <div class="w-full">
                                 <SupplierRfqCommercialForm
                                     :quote-form="quoteForm"
                                     :selected-file="selectedFile"
@@ -339,7 +340,7 @@ onMounted(() => {
                                 />
                             </div>
 
-                            <div class="lg:col-span-4">
+                            <div class="w-full">
                                 <SupplierRfqCostSidebar
                                     :quote-form="quoteForm"
                                     :subtotal-amount="subtotalAmount"

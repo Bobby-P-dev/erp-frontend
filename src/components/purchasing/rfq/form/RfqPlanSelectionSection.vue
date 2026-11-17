@@ -25,7 +25,7 @@ const emit = defineEmits(['update:additionalPlanIds'])
     <section class="rfq-form-section" aria-labelledby="rfq-plan-heading">
         <div class="rfq-section-heading">
             <div>
-                <h2 id="rfq-plan-heading">1. Rencana pengadaan</h2>
+                <h2 id="rfq-plan-heading">Rencana pengadaan sumber</h2>
                 <p>Tentukan sumber barang untuk paket tender ini.</p>
             </div>
             <RouterLink

@@ -1,11 +1,14 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import RfqSourceNotice from '@/components/purchasing/rfq/detail/RfqSourceNotice.vue'
+import RfqRequisitionForm from '@/components/purchasing/rfq/RfqRequisitionForm.vue'
+import { rfqPurchaseBlockReason, rfqSourceLabel } from '@/utils/rfqSource.js'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { getRfqComparisonMatrix, awardRfq } from '../../services/rfqServices.js'
+import { getRfqComparisonMatrix, awardRfq, previewAwardPricing, requestSupplierQuotationRevision } from '../../services/rfqServices.js'
 import { createPurchaseOrderFromRfq } from '../../services/purchaseOrderServices.js'
 import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
 import { formatCurrency } from '../../composables/useFormatter.js'
-import { comparisonNumber, awardSubtotal, sumComparisonAmounts, remainingAwardQuantity, splitAwardMaximum, defaultSplitOffer, totalCostExclusionText } from '../../utils/rfqComparison.js'
+import { comparisonNumber, awardSubtotal, sumComparisonAmounts, remainingAwardQuantity, splitAwardMaximum, defaultSplitOffer, totalCostExclusionText, pricingModeLabel, pricingReasonText, pricingQuantityHint } from '../../utils/rfqComparison.js'
 import { quotationValidityLabel, quotationValidityReason, canAwardQuotation, purchaseOrderValidityErrors } from '../../utils/quotationValidity.js'
 
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
@@ -106,7 +109,7 @@ const quotationFor = id => suppliers.value.find(supplier => String(supplier.quot
 const eligibleQuotation = id => !matrixLoadError.value && canAwardQuotation(quotationFor(id))
 const poValidityErrors = computed(() => matrixLoadError.value
     ? ['Data validitas gagal dimuat. Muat ulang sebelum membuat PO.']
-    : purchaseOrderValidityErrors(awardedSummaryList.value, suppliers.value))
+    : rfqPurchaseBlockReason(rfq.value) ? [rfqPurchaseBlockReason(rfq.value)] : purchaseOrderValidityErrors(awardedSummaryList.value, suppliers.value))
 
 const comparisonCurrency = computed(() => matrixData.value?.comparison_currency || 'IDR')
 const formatBaseCurrency = value => formatCurrency(value, comparisonCurrency.value)
@@ -139,7 +142,7 @@ const awardedSummaryList = computed(() => {
             const offer = item.vendor_offers?.[sup.quotation_id]
             if (offer && offer.is_awarded) {
                 const qty = Number(offer.awarded_quantity || 0)
-                const price = comparisonNumber(offer.base_unit_price)
+                const price = comparisonNumber(offer.base_awarded_unit_price ?? offer.base_unit_price)
                 list.push({
                     rfq_item_id: item.rfq_item_id,
                     item_name: item.item_name,
@@ -149,7 +152,7 @@ const awardedSummaryList = computed(() => {
                     quotation_id: sup.quotation_id,
                     awarded_quantity: qty,
                     unit_price: price,
-                    subtotal: awardSubtotal(qty, price),
+                    subtotal: offer.base_awarded_subtotal ?? (offer.pricing_schema_version > 0 ? null : awardSubtotal(qty, price)),
                     purchase_order_id: offer.purchase_order_id || null,
                     purchase_order_number: offer.purchase_order_number || null
                 })
@@ -201,7 +204,7 @@ const handleGeneratePurchaseOrders = async () => {
 
 // Check if awarding can be performed
 const canAward = computed(() => {
-    if (!rfq.value) return false
+    if (!rfq.value || rfqPurchaseBlockReason(rfq.value)) return false
     const status = rfq.value.status
     const isAllowedStatus = status === 'published' || status === 'evaluation'
     const hasQuotations = suppliers.value.some(supplier => eligibleQuotation(supplier.quotation_id))
@@ -210,6 +213,7 @@ const canAward = computed(() => {
 
 // Initialize Awarding Modal
 const openAwardModal = () => {
+    if (rfqPurchaseBlockReason(rfq.value)) return
     awardStep.value = 1
     awardStepError.value = ''
     if (!suppliers.value || suppliers.value.length === 0) {
@@ -336,11 +340,34 @@ const fullAwardSummary = computed(() => {
 const splitAwardTotalCost = computed(() => {
     return sumComparisonAmounts(Object.values(splitAwards.value).flat()
         .filter(split => split.quotation_id && Number(split.awarded_quantity) > 0)
-        .map(split => awardSubtotal(split.awarded_quantity, split.unit_price)))
+        .map(split => allocationSubtotal(split)))
 })
 
 const splitAwardCount = computed(() => Object.values(splitAwards.value).flat()
     .filter(split => split.quotation_id && Number(split.awarded_quantity) > 0).length)
+
+const pricingPreviews = ref({})
+const pricingLoading = ref(false)
+const pricingError = ref('')
+let pricingRequestSequence = 0
+const pricingPreviewFor = (offer, quantity, supplier) => {
+    const preview = pricingPreviews.value[supplier?.quotation_id]
+    return preview?.quotation_version === supplier?.review_version
+        ? preview?.lines?.find(line => line.supplier_quotation_item_id === offer.supplier_quotation_item_id && Number(line.quantity) === quantity)
+        : null
+}
+const pricingBaseSubtotal = (pricing, supplier) => {
+    const rate = comparisonNumber(supplier?.comparison_exchange_rate)
+    return pricing?.eligible && rate !== null ? Number(pricing.line_subtotal) * rate : null
+}
+const allocationSubtotal = split => {
+    const supplier = quotationFor(split.quotation_id)
+    const item = itemsMatrix.value.find(item => item.vendor_offers?.[split.quotation_id]?.supplier_quotation_item_id === split.quotation_item_id)
+    const offer = item?.vendor_offers?.[split.quotation_id]
+    return offer?.pricing_schema_version > 0
+        ? pricingBaseSubtotal(pricingPreviewFor(offer, Number(split.awarded_quantity), supplier), supplier)
+        : awardSubtotal(split.awarded_quantity, split.unit_price)
+}
 
 // Preview and evaluation use one identity per supplier allocation.
 const decisionRows = computed(() => itemsMatrix.value.flatMap(item => {
@@ -352,17 +379,87 @@ const decisionRows = computed(() => itemsMatrix.value.flatMap(item => {
             ? Math.min(remainingAwardQuantity(item), Number(offer?.offered_quantity || 0))
             : Number(split?.awarded_quantity || 0)
         if (!quoteId || !offer?.quoted || offer.purchase_order_id || !offer.supplier_quotation_item_id || remainingAwardQuantity(item) <= 0 || quantity <= 0) return []
-        return [{ key: `${item.rfq_item_id}:${quoteId}`, item, split, supplier: quotationFor(quoteId), quantity,
-            subtotal: awardSubtotal(quantity, offer.base_unit_price),
+        const supplier = quotationFor(quoteId)
+        const pricing = pricingPreviewFor(offer, quantity, supplier)
+        return [{ key: `${item.rfq_item_id}:${quoteId}`, item, split, supplier, quantity, offer, pricing,
+            subtotal: offer.pricing_schema_version > 0 ? pricingBaseSubtotal(pricing, supplier) : awardSubtotal(quantity, offer.base_unit_price),
             evaluation: awardMode.value === 'full' ? fullEvaluation.value : split.evaluation }]
     })
 }))
 const decisionTotal = computed(() => sumComparisonAmounts(decisionRows.value.map(row => row.subtotal)))
-const selectionReady = computed(() => !loading.value && !matrixLoadError.value && decisionRows.value.length > 0 &&
+const quantityPricingReady = computed(() => !decisionRows.value.some(row => row.offer.pricing_schema_version > 0 &&
+    (pricingLoading.value || pricingError.value || !row.pricing?.eligible || row.subtotal === null)))
+const refreshAwardPricing = async () => {
+    const sequence = ++pricingRequestSequence
+    pricingPreviews.value = {}
+    pricingError.value = ''
+    if (!isAwardModalOpen.value) { pricingLoading.value = false; return }
+    const rows = decisionRows.value
+    const quotationIds = [...new Set(rows.filter(row => row.offer.pricing_schema_version > 0).map(row => row.supplier.quotation_id))]
+    pricingLoading.value = quotationIds.length > 0
+    try {
+        const results = await Promise.all(quotationIds.map(async id => {
+            const selected = rows.filter(row => row.supplier.quotation_id === id)
+            const payload = { expected_review_version: awardMode.value === 'full' ? fullAwardVersion.value : selected[0].split.expected_review_version,
+                allocations: selected.map(row => ({ supplier_quotation_item_id: row.offer.supplier_quotation_item_id, quantity: String(row.quantity) })) }
+            return [id, await previewAwardPricing(id, payload)]
+        }))
+        if (sequence === pricingRequestSequence) pricingPreviews.value = Object.fromEntries(results)
+    } catch (error) {
+        if (sequence === pricingRequestSequence) pricingError.value = error.response?.data?.message || 'Gagal menghitung harga. Ubah jumlah atau muat ulang penawaran.'
+    } finally {
+        if (sequence === pricingRequestSequence) pricingLoading.value = false
+    }
+}
+watch(() => JSON.stringify([isAwardModalOpen.value, awardMode.value, decisionRows.value.map(row => [row.key, row.quantity,
+    row.offer.supplier_quotation_item_id, row.offer.pricing_schema_version, row.supplier.review_version,
+    row.split?.expected_review_version ?? fullAwardVersion.value])]), refreshAwardPricing)
+const selectionReady = computed(() => !loading.value && !matrixLoadError.value && decisionRows.value.length > 0 && quantityPricingReady.value &&
     (awardMode.value === 'full' ? eligibleQuotation(selectedFullSupplierId.value) : splitValidationErrors.value.length === 0))
+const pricingIssue = row => {
+    if (!row || !(row.offer.pricing_schema_version > 0) || pricingLoading.value) return ''
+    if (pricingError.value) return pricingError.value
+    if (!row.pricing) return 'Harga belum tersedia untuk jumlah ini. Coba hitung ulang harga.'
+    if (!row.pricing.eligible) return pricingReasonText(row.pricing.reason, row.offer, row.item.unit_name)
+    if (row.subtotal === null) return 'Konversi ke mata uang pembanding belum tersedia. Periksa kurs penawaran.'
+    return ''
+}
+const allocationPricingIssue = split => pricingIssue(decisionRows.value.find(row => row.split === split))
+const confirmationSubmitting = ref(false)
+const requestFinalPrice = async row => {
+    if (confirmationSubmitting.value || awardingSubmitting.value || pricingLoading.value) return
+    const rows = decisionRows.value.filter(line => line.supplier.quotation_id === row.supplier.quotation_id && line.pricing?.reason === 'requires_price_confirmation')
+    if (!rows.length) return
+    const summary = rows.map(line => `${line.item.item_name}: ${line.quantity} ${line.item.unit_name}`).join('; ')
+    const confirmed = await showConfirm('Minta harga final?', `Supplier diminta mengisi total baru untuk ${summary}. Ini belum menetapkan pemenang. Setelah revisi diterima, evaluasi dan pembagian jumlah perlu diperiksa kembali.`, 'Minta harga final', 'Batal')
+    if (!confirmed) return
+    confirmationSubmitting.value = true
+    try {
+        await requestSupplierQuotationRevision(row.supplier.quotation_id, {
+            expected_review_version: row.supplier.review_version,
+            reason: 'Konfirmasi harga karena perubahan jumlah pembelian.',
+            supplier_message: 'Mohon isi harga final untuk jumlah yang diminta pada setiap barang. Permintaan ini belum merupakan penetapan pemenang.',
+            requested_quantities: rows.map(line => ({ rfq_item_id: line.item.rfq_item_id, quantity: String(line.quantity) })),
+        })
+        closeAwardModal()
+        await fetchMatrix()
+        activeSection.value = 'review'
+        showSuccess('Permintaan harga tercatat', 'Supplier dapat mengisi harga final melalui tautan portal RFQ yang sama. Hubungi supplier untuk menindaklanjuti permintaan ini.')
+    } catch (error) {
+        awardStepError.value = error.response?.data?.message || 'Gagal meminta harga final. Muat ulang dan periksa masa respons tender.'
+    } finally { confirmationSubmitting.value = false }
+}
+const selectionBlocker = computed(() => {
+    if (loading.value || matrixLoadError.value) return 'Data penawaran belum siap. Muat ulang data sebelum melanjutkan.'
+    if (splitValidationErrors.value.length) return splitValidationErrors.value[0]
+    if (!decisionRows.value.length) return 'Pilih supplier dan jumlah untuk sedikitnya satu barang.'
+    if (pricingLoading.value) return 'Sedang menghitung harga sesuai jumlah pilihan…'
+    const blocked = decisionRows.value.find(row => pricingIssue(row))
+    return blocked ? `${blocked.item.item_name} · ${blocked.supplier?.supplier_name}: ${pricingIssue(blocked)}` : ''
+})
 const evaluationReady = computed(() => decisionRows.value.length > 0 && decisionRows.value.every(row => row.evaluation.selection_reason?.trim()))
 const nextAwardStep = () => {
-    if (!selectionReady.value) { awardStepError.value = 'Pilih supplier dan jumlah yang valid untuk sedikitnya satu barang.'; return }
+    if (!selectionReady.value) { awardStepError.value = selectionBlocker.value || 'Pilih supplier dan jumlah yang valid untuk sedikitnya satu barang.'; return }
     if (awardStep.value === 2 && !evaluationReady.value) {
         awardStepError.value = 'Isi alasan pemilihan untuk setiap barang yang dipilih.'
         return
@@ -373,6 +470,10 @@ const nextAwardStep = () => {
 // Submit Awarding
 const submitAward = async () => {
     if (awardingSubmitting.value || loading.value) return
+    if (!quantityPricingReady.value) {
+        showError('Tunggu perhitungan harga yang valid untuk jumlah pilihan sebelum menetapkan pemenang.')
+        return
+    }
     if (matrixLoadError.value) {
         showError('Data validitas gagal dimuat. Muat ulang sebelum menetapkan pemenang.')
         return
@@ -484,6 +585,7 @@ const submitAward = async () => {
                     >
                 </p>
                 <div v-if="rfq" class="mt-3 flex flex-wrap items-center gap-3">
+                    <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-sm text-slate-600">{{ rfqSourceLabel(rfq) }}</span>
                     <StatusBadge :status="rfq.status" /><span
                         v-if="rfq.is_awarded"
                         class="text-sm text-emerald-800"
@@ -512,6 +614,8 @@ const submitAward = async () => {
             Perbandingan belum dapat dimuat. Gunakan tombol Muat ulang untuk mencoba kembali.
         </div>
         <template v-if="matrixData">
+            <RfqSourceNotice :rfq="rfq" />
+            <RfqRequisitionForm v-if="rfq?.source_type === 'initial_need'" :key="rfqId" :matrix="matrixData" :unavailable="loading || matrixLoadError" @refresh="fetchMatrix()" />
             <p v-if="matrixLoadError" role="alert" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
                 Data terbaru gagal dimuat. Muat ulang sebelum menetapkan pemenang atau membuat PO.
             </p>
@@ -609,7 +713,7 @@ const submitAward = async () => {
 
                         <div class="flex items-center gap-2.5">
                             <BaseButton
-                                v-if="hasUnconvertedAwards"
+                                v-if="hasUnconvertedAwards && !rfqPurchaseBlockReason(rfq)"
                                 variant="primary"
                                 size="sm"
                                 :disabled="generatingPo || loading || poValidityErrors.length > 0"
@@ -759,10 +863,11 @@ const submitAward = async () => {
                                                 <select v-model="split.quotation_id" class="award-input mt-2" @change="onSplitVendorChange(item.rfq_item_id, index)"><option value="">Pilih supplier</option><template v-for="sup in suppliers" :key="sup.quotation_id"><option v-if="item.vendor_offers?.[sup.quotation_id]?.quoted && !item.vendor_offers[sup.quotation_id].purchase_order_id" :value="sup.quotation_id" :disabled="!eligibleQuotation(sup.quotation_id) || supplierAlreadySelected(item, split, sup.quotation_id)">{{ sup.supplier_name }} · {{ formatBaseCurrency(item.vendor_offers[sup.quotation_id].base_unit_price) }} / {{ item.unit_name }}</option></template></select>
                                             </label>
                                             <label v-if="split.quotation_id" class="text-sm font-medium text-slate-800">Jumlah ({{ item.unit_name }})
-                                                <input v-model.number="split.awarded_quantity" type="number" min="0.0001" :max="splitMaximum(item, split)" step="0.0001" class="award-input mt-2" @input="capSplitQuantity(item, split)" /><span class="mt-2 block text-sm font-normal text-slate-500">Maks. {{ splitMaximum(item, split) }} {{ item.unit_name }}</span>
+                                                <input v-model.number="split.awarded_quantity" type="number" min="0.0001" :max="splitMaximum(item, split)" step="0.0001" :aria-invalid="!!allocationPricingIssue(split)" class="award-input mt-2" :class="{ 'border-rose-400': allocationPricingIssue(split) }" @input="capSplitQuantity(item, split)" /><span class="mt-2 block text-sm font-normal text-slate-500">Maks. {{ splitMaximum(item, split) }} {{ item.unit_name }}</span><span v-if="pricingQuantityHint(item.vendor_offers?.[split.quotation_id], item.unit_name)" class="mt-1 block text-sm font-normal text-slate-600">{{ pricingQuantityHint(item.vendor_offers[split.quotation_id], item.unit_name) }}</span>
                                             </label>
                                         </div>
-                                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm"><span v-if="split.quotation_id" class="text-slate-600">Nilai barang <strong>{{ formatBaseCurrency(awardSubtotal(split.awarded_quantity, split.unit_price)) }}</strong></span><BaseButton variant="secondary" size="sm" @click="removeSplitSupplier(item, index)">Hapus supplier</BaseButton></div>
+                                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm"><span v-if="split.quotation_id" class="text-slate-600">Nilai barang <strong>{{ formatBaseCurrency(allocationSubtotal(split)) }}</strong></span><BaseButton variant="secondary" size="sm" @click="removeSplitSupplier(item, index)">Hapus supplier</BaseButton></div>
+                                        <p v-if="allocationPricingIssue(split)" role="alert" class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{{ allocationPricingIssue(split) }}</p>
                                     </div>
                                     <BaseButton variant="secondary" size="sm" @click="addSplitSupplier(item)">Tambah supplier</BaseButton>
                                     <p class="mt-3 text-sm text-slate-500">Bagi jumlah kebutuhan ke beberapa supplier. Batas setiap supplier mengikuti alokasi supplier lainnya. Alokasi tersimpan yang belum terikat PO ditampilkan untuk diperbarui bersama.</p>
@@ -780,9 +885,28 @@ const submitAward = async () => {
                         <article v-for="row in decisionRows" :key="row.key" class="rounded-xl border border-slate-200 p-5"><h4 class="text-base font-medium text-slate-900">{{ row.item.item_name }}</h4><p class="mt-2 text-sm text-slate-600">{{ row.supplier?.supplier_name }}</p><dl class="my-5 grid grid-cols-2 gap-4 text-sm"><div><dt class="text-slate-500">Jumlah</dt><dd class="mt-1 font-medium">{{ row.quantity }} {{ row.item.unit_name }}</dd></div><div><dt class="text-slate-500">Nilai barang</dt><dd class="mt-1 font-medium">{{ formatBaseCurrency(row.subtotal) }}</dd></div><div class="col-span-2"><dt class="text-slate-500">Kesesuaian spesifikasi</dt><dd class="mt-1">{{ {not_verified:'Belum diverifikasi',compliant:'Sesuai spesifikasi',deviation:'Ada penyimpangan spesifikasi'}[row.evaluation.technical_compliance] }}</dd></div></dl><p class="text-sm text-slate-500">Alasan pemilihan</p><p class="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">{{ row.evaluation.selection_reason }}</p><details v-if="row.evaluation.technical_notes || row.evaluation.commercial_notes || row.evaluation.warranty_terms || row.evaluation.evidence_reference" class="mt-4 text-sm"><summary class="cursor-pointer text-blue-700">Catatan & bukti</summary><dl class="mt-3 space-y-3"><template v-for="field in [{key:'technical_notes',label:'Catatan teknis'},{key:'commercial_notes',label:'Pembayaran & pengiriman'},{key:'warranty_terms',label:'Garansi'},{key:'evidence_reference',label:'Bukti'}]" :key="field.key"><div v-if="row.evaluation[field.key]"><dt class="text-slate-500">{{ field.label }}</dt><dd class="mt-1 whitespace-pre-wrap break-words">{{ row.evaluation[field.key] }}</dd></div></template></dl></details></article>
                         <div class="flex flex-wrap justify-between gap-3 rounded-xl bg-slate-50 p-5 text-sm"><span>{{ decisionRows.length }} alokasi supplier dipilih</span><span>Total nilai barang <strong>{{ formatBaseCurrency(decisionTotal) }}</strong></span><p class="w-full text-slate-500">Sebelum pajak & ongkir. Barang yang tidak tercantum tidak termasuk keputusan ini.</p></div>
                     </div>
+                    <section v-if="decisionRows.some(row => row.offer.pricing_schema_version > 0)" aria-live="polite" class="mt-5 space-y-3 rounded-xl border border-blue-100 bg-blue-50/50 p-5 text-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-3"><h4 class="font-semibold text-slate-900">Harga sesuai jumlah pilihan</h4><BaseButton v-if="!quantityPricingReady && !pricingLoading" variant="secondary" size="sm" @click="refreshAwardPricing">Hitung ulang harga</BaseButton></div>
+                        <p v-if="pricingLoading" class="text-slate-600">Menghitung harga, pajak, dan ongkir…</p>
+                        <p v-if="pricingError" role="alert" class="text-rose-800">{{ pricingError }}</p>
+                        <div v-for="row in decisionRows.filter(row => row.offer.pricing_schema_version > 0)" :key="row.key" class="rounded-lg bg-white p-3">
+                            <p class="font-medium">{{ row.item.item_name }} · {{ row.supplier.supplier_name }}</p>
+                            <p class="mt-1 text-slate-600">{{ pricingModeLabel(row.offer.pricing_mode) }} · {{ row.quantity }} {{ row.item.unit_name }}</p>
+                            <p v-if="row.pricing?.eligible" class="mt-2 text-blue-800">Nilai barang {{ formatCurrency(row.pricing.line_subtotal, row.supplier.currency) }}<span v-if="row.pricing.selected_min_quantity"> · Tingkat mulai {{ Number(row.pricing.selected_min_quantity) }} {{ row.item.unit_name }}</span></p>
+                            <p v-else-if="row.pricing" role="alert" class="mt-2 text-rose-800">{{ pricingReasonText(row.pricing.reason, row.offer, row.item.unit_name) }}</p>
+                            <BaseButton v-if="row.pricing?.reason === 'requires_price_confirmation'" variant="secondary" size="sm" class="mt-3" :disabled="confirmationSubmitting || awardingSubmitting || pricingLoading" @click="requestFinalPrice(row)">Minta harga final dari supplier</BaseButton>
+                        </div>
+                        <div v-for="preview in Object.values(pricingPreviews)" :key="preview.quotation_id" class="border-t border-blue-100 pt-3 text-slate-700">
+                            <p class="font-medium">{{ quotationFor(preview.quotation_id)?.supplier_name }} · {{ preview.currency }}</p>
+                            <p class="mt-1">Pajak {{ formatCurrency(preview.tax_amount, preview.currency) }} · Ongkir {{ formatCurrency(preview.shipping_cost, preview.currency) }}</p>
+                            <p class="mt-2 font-semibold">Total rencana PO {{ formatCurrency(preview.total_amount, preview.currency) }}</p>
+                        </div>
+                        <p class="text-slate-500">Harga dihitung ulang saat disimpan. Ongkir penuh dikenakan per PO supplier.</p>
+                    </section>
                     <p v-if="awardStepError" role="alert" class="mt-5 rounded-lg bg-rose-50 p-4 text-sm text-rose-800">{{ awardStepError }}</p>
                 </div>
-                <footer class="award-footer grid shrink-0 grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-7">
+                <footer class="award-footer grid shrink-0 grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-7">
+                    <p v-if="awardStep === 1 && !selectionReady && selectionBlocker" role="status" class="col-span-2 w-full text-sm" :class="pricingLoading ? 'text-slate-600' : 'text-rose-800'">{{ selectionBlocker }}</p>
                     <BaseButton variant="secondary" size="sm" :disabled="awardingSubmitting" @click="closeAwardModal">Batal</BaseButton>
                     <div class="contents sm:flex sm:flex-wrap sm:gap-2"><BaseButton v-if="awardStep > 1" variant="secondary" size="sm" :disabled="awardingSubmitting" @click="changeAwardStep(awardStep - 1)">Sebelumnya</BaseButton><BaseButton v-if="awardStep < 3" class="award-primary" size="sm" :disabled="loading || matrixLoadError || (awardStep === 1 && !selectionReady)" @click="nextAwardStep">{{ awardStep === 1 ? 'Lanjut ke evaluasi' : 'Periksa keputusan' }}<ArrowRight class="size-4" /></BaseButton><BaseButton v-else class="award-primary" size="sm" :disabled="awardingSubmitting || !selectionReady || !evaluationReady" @click="submitAward"><RefreshCw v-if="awardingSubmitting" class="size-4 animate-spin" /><Check v-else class="size-4" />{{ awardingSubmitting ? 'Menyimpan…' : 'Tetapkan pemenang' }}</BaseButton></div>
                 </footer>

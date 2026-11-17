@@ -54,6 +54,16 @@ export const submitPurchaseRequisition = async (id, data = {}) => {
     return response.data
 }
 
+export const cancelPurchaseRequisition = async (id, data) => {
+    const response = await api.post(`/api/v1/purchase-requisitions/${id}/cancel`, data)
+    return response.data
+}
+
+export const deletePurchaseRequisition = async (id) => {
+    const response = await api.delete(`/api/v1/purchase-requisitions/${id}`)
+    return response.data
+}
+
 /**
  * Confirm physical receipt/pickup of items for a purchase requisition by requester.
  */

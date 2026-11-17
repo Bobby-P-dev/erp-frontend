@@ -107,14 +107,14 @@ export const getApprovalOptions = async (filters = {}) => {
 /**
  * 2. APPROVAL CONFIGURATION CRUD
  */
-export const getApprovalConfigurations = async (arg1 = {}, arg2, arg3) => {
+export const getApprovalConfigurations = async (arg1 = {}, arg2, arg3, { allowMock = true } = {}) => {
     const params = normalizeParams(arg1, arg2, arg3)
     try {
         const query = buildQuery(params)
         const response = await api.get(`/api/v1/approval-configurations${query}`)
         return response.data
     } catch (error) {
-        if (error?.response?.status === 404 || error?.response?.status === 401) {
+        if (allowMock && (error?.response?.status === 404 || error?.response?.status === 401)) {
             console.warn('[ApprovalService] Route /api/v1/approval-configurations unavailable or unauthorized. Using fallback mock.')
             let list = [...mockConfigurations]
             if (params.search) {

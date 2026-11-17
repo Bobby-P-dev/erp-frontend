@@ -1,4 +1,6 @@
 <script setup>
+import RfqSourceNotice from '@/components/purchasing/rfq/detail/RfqSourceNotice.vue'
+import { rfqPurchaseBlockReason, rfqSourceLabel } from '@/utils/rfqSource.js'
 import { onMounted } from 'vue'
 import { useRfqDetail } from '@/composables/purchasing/useRfqDetail.js'
 import { formatRfqTimestamp } from '@/utils/rfqTimestamp.js'
@@ -87,6 +89,7 @@ onMounted(() => {
                 <div class="flex flex-wrap items-center gap-3">
                     <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ rfq?.rfq_number || 'Detail tender RFQ' }}</h1>
                     <StatusBadge v-if="rfq" :status="rfq.status" />
+                    <span v-if="rfq" class="rounded-lg bg-slate-100 px-2.5 py-1 text-sm text-slate-600">{{ rfqSourceLabel(rfq) }}</span>
                 </div>
                 <p v-if="rfq" class="mt-2 break-words text-base text-slate-600">{{ rfq.title }}</p>
             </div>
@@ -98,7 +101,7 @@ onMounted(() => {
                     <BaseButton v-if="['published', 'evaluation', 'completed'].includes(rfq.status)" :variant="rfq.status === 'evaluation' ? 'primary' : 'secondary'" size="sm" :disabled="loading" @click="router.push({ name: 'user.purchasing.rfq.comparison', params: { id: rfq.id } })"><Scale class="size-4" />{{ rfq.status === 'completed' ? 'Hasil perbandingan' : 'Bandingkan penawaran' }}</BaseButton>
                     <BaseButton v-if="rfq.status === 'published'" size="sm" :disabled="loading" @click="handleStartEvaluation"><CheckCheck class="size-4" />Mulai evaluasi</BaseButton>
                     <template v-if="rfq.status === 'completed'">
-                        <BaseButton v-if="hasUnconvertedAwardedItems" size="sm" :disabled="loading || generatingPo || poValidityErrors.length > 0" @click="handleGeneratePoFromDetail"><FileText class="size-4" />{{ generatingPo ? 'Menerbitkan PO…' : 'Terbitkan PO' }}</BaseButton>
+                        <BaseButton v-if="hasUnconvertedAwardedItems && !rfqPurchaseBlockReason(rfq)" size="sm" :disabled="loading || generatingPo || poValidityErrors.length > 0" @click="handleGeneratePoFromDetail"><FileText class="size-4" />{{ generatingPo ? 'Menerbitkan PO…' : 'Terbitkan PO' }}</BaseButton>
                         <BaseButton v-else-if="purchaseOrdersList.length === 1" size="sm" @click="router.push({ name: 'user.purchasing.orders.detail', params: { id: purchaseOrdersList[0].id } })"><FileText class="size-4" />Buka {{ purchaseOrdersList[0].po_number || 'PO' }}</BaseButton>
                         <BaseButton v-else-if="purchaseOrdersList.length > 1" size="sm" @click="router.push({ name: 'user.purchasing.orders', query: { rfq_id: rfq.id } })"><FileText class="size-4" />Lihat {{ purchaseOrdersList.length }} PO</BaseButton>
                     </template>
@@ -114,6 +117,7 @@ onMounted(() => {
 
         <div v-else-if="!rfq" role="alert" class="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Detail tender belum dapat dimuat. Gunakan tombol Muat ulang untuk mencoba kembali.</div>
         <template v-else-if="rfq">
+            <RfqSourceNotice :rfq="rfq" />
             <div v-if="hasUnconvertedAwardedItems && poValidityErrors.length" role="alert" class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
                 <p class="font-medium">Penawaran terpilih belum memenuhi syarat pembuatan PO.</p>
                 <details class="mt-2">

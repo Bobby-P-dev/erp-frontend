@@ -4,7 +4,7 @@ import RfqSupplierCostCard from './RfqSupplierCostCard.vue'
 import ReviewDisclosure from '../../ui/ReviewDisclosure.vue'
 import { Coins, ChevronDown } from '@lucide/vue'
 import { formatCurrency } from '../../../composables/useFormatter.js'
-import { isLowestUnitPrice, isLowestTotalCost, totalCostExclusionText } from '../../../utils/rfqComparison.js'
+import { isLowestUnitPrice, isLowestTotalCost, totalCostExclusionText, pricingModeLabel, pricingReasonText } from '../../../utils/rfqComparison.js'
 import {
     quotationValidityLabel,
     canAwardQuotation
@@ -142,6 +142,11 @@ const quantity = (value) => Number(value || 0).toLocaleString('id-ID')
                                             {{ money(offerFor(item, supplier).base_unit_price) }}
                                         </p>
                                         <span class="text-slate-500">/ {{ item.unit_name || 'Unit' }}</span>
+                                    </div>
+                                    <div v-if="offerFor(item, supplier).pricing_schema_version > 0" class="mt-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-sm">
+                                        <p class="font-medium text-blue-900">{{ pricingModeLabel(offerFor(item, supplier).pricing_mode) }}</p>
+                                        <p class="mt-1 text-slate-600">Harga acuan untuk {{ quantity(item.target_quantity) }} {{ item.unit_name }}. Harga pilihan dihitung ulang saat alokasi.</p>
+                                        <p v-if="!offerFor(item, supplier).reference_pricing?.eligible" class="mt-2 text-amber-800">{{ pricingReasonText(offerFor(item, supplier).reference_pricing?.reason) }}</p>
                                     </div>
                                     <p class="mt-2 min-h-6 text-emerald-800">
                                         <span v-if="isLowestUnitPrice(offerFor(item, supplier))">
@@ -308,6 +313,11 @@ const quantity = (value) => Number(value || 0).toLocaleString('id-ID')
                     >
                         <td data-label="Supplier">
                             <p class="font-medium text-slate-900">{{ supplier.supplier_name }}</p>
+                            <div v-if="offerFor(item, supplier)?.pricing_schema_version > 0" class="mt-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                                <p class="font-medium">{{ pricingModeLabel(offerFor(item, supplier).pricing_mode) }}</p>
+                                <p class="mt-1">Harga acuan: {{ quantity(item.target_quantity) }} {{ item.unit_name }}. Dihitung ulang saat alokasi.</p>
+                                <p v-if="!offerFor(item, supplier).reference_pricing?.eligible" class="mt-2 text-amber-800">{{ pricingReasonText(offerFor(item, supplier).reference_pricing?.reason) }}</p>
+                            </div>
                             <p v-if="offerFor(item, supplier)?.is_awarded" class="mt-2 text-emerald-800">
                                 ✓ Terpilih · {{ quantity(offerFor(item, supplier).awarded_quantity) }}
                                 {{ item.unit_name }}

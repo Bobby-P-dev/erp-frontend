@@ -7,6 +7,8 @@ import PRDetailSummary from './detail/PRDetailSummary.vue'
 import PRApprovalList from './detail/PRApprovalList.vue'
 import PRProcessStepper from './detail/PRProcessStepper.vue'
 import PRItemsTable from './detail/PRItemsTable.vue'
+import RfqRequisitionLifecycle from './RfqRequisitionLifecycle.vue'
+import RequisitionPurchaseOrders from './RequisitionPurchaseOrders.vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { generatePurchaseRequisitionPdf } from '../../utils/pdf/purchaseRequisitionPdfGenerator.js'
 import { formatDate } from '../../composables/useFormatter.js'
@@ -18,11 +20,14 @@ import {
     Send,
     RefreshCw,
     ChevronDown,
-    Download,
+    Eye,
+    Trash2,
     Loader2
 } from '@lucide/vue'
 
 const props = defineProps({
+    allowDelete: { type: Boolean, default: false },
+    deleting: { type: Boolean, default: false },
     modelValue: {
         type: Boolean,
         default: false
@@ -37,10 +42,11 @@ const props = defineProps({
     }
 })
 
-const emit = defineEmits(['update:modelValue', 'close', 'submitPR'])
+const emit = defineEmits(['update:modelValue', 'close', 'submitPR', 'updated', 'deletePR'])
 
 const authStore = useAuthStore()
 const isDownloadingPdf = ref(false)
+const sourceEditing = ref(false)
 
 // Accordion sections (default all 4 main sections open as per design spec)
 const sections = ref({
@@ -129,6 +135,18 @@ const handleDownloadPdf = async () => {
         </div>
 
         <template v-else-if="item">
+            <RfqRequisitionLifecycle v-if="item.source?.type === 'rfq_quotation'" :item="item" class="mb-5" @updated="emit('updated', $event)" @editing="sourceEditing = $event" />
+            <section v-if="item.procurement_route === 'direct_supplier'" class="mb-5 space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-5">
+                <div><p class="text-xs font-semibold uppercase tracking-wide text-blue-700">PR → Approval → PO</p>
+                    <h3 class="mt-1 font-semibold text-slate-900">Supplier sudah ditentukan</h3>
+                    <p class="mt-1 text-sm text-slate-600">{{ item.direct_supplier?.name }} · Harga dan jumlah mengikuti PR yang disetujui. Langsung ke PO tanpa rencana pengadaan atau RFQ.</p></div>
+                <dl class="grid gap-3 text-sm sm:grid-cols-2">
+                    <div><dt class="text-slate-500">Ketentuan pembayaran</dt><dd class="mt-1 text-slate-800">{{ item.direct_purchase_terms?.payment_terms || 'Belum diisi' }}</dd></div>
+                    <div><dt class="text-slate-500">Referensi harga</dt><dd class="mt-1 text-slate-800">{{ item.direct_purchase_terms?.reference || 'Belum diisi' }}</dd></div>
+                    <div class="sm:col-span-2"><dt class="text-slate-500">Alamat pengiriman</dt><dd class="mt-1 whitespace-pre-line text-slate-800">{{ item.direct_purchase_terms?.delivery_address || 'Belum diisi' }}</dd></div>
+                </dl>
+                <RequisitionPurchaseOrders :item="item" @updated="emit('updated', $event)" />
+            </section>
             <!-- 2. SPECIAL CRITICAL STATUS BANNERS -->
             <!-- Ready for Pickup Banner -->
             <div 
@@ -298,30 +316,32 @@ const handleDownloadPdf = async () => {
                         :disabled="isDownloadingPdf"
                         @click="handleDownloadPdf"
                         class="inline-flex items-center gap-1.5 px-3.5 py-2 text-slate-700 hover:text-[#014BAA] hover:bg-[#EAF2FF] rounded-lg text-xs font-semibold border border-slate-200 transition-colors cursor-pointer disabled:opacity-50"
-                        title="Unduh Lembar Persetujuan PR (PDF)"
+                        title="Preview Lembar Persetujuan PR (PDF)"
                     >
                         <Loader2 v-if="isDownloadingPdf" class="w-4 h-4 animate-spin text-[#014BAA]" />
-                        <Download v-else class="w-4 h-4 text-slate-600" />
-                        <span>Unduh PDF</span>
+                        <Eye v-else class="w-4 h-4 text-slate-600" />
+                        <span>Preview PDF</span>
                     </button>
 
 
                     <!-- Edit Draft / Revisi PR -->
                     <RouterLink
-                        v-if="item?.status === 'draft' || item?.status === 'revision_requested'"
+                        v-if="!item?.source && (item?.can_be_edited ?? ['draft', 'revision_requested'].includes(item?.status))"
                         :to="{ name: 'user.purchasing.requisitions.edit', params: { id: item.id } }"
                         class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#EAF2FF] hover:bg-blue-100 text-[#014BAA] border border-[#014BAA]/20 rounded-lg text-xs font-bold transition-colors"
                     >
                         <FileEdit class="w-4 h-4" />
-                        <span>{{ item?.status === 'revision_requested' ? 'Perbaiki & Edit PR' : 'Edit Draft PR' }}</span>
+                        <span>Edit PR</span>
                     </RouterLink>
+
+                    <button v-if="allowDelete && !sourceEditing && item?.can_be_deleted" type="button" :disabled="deleting" class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50" @click="emit('deletePR', item)"><Trash2 class="size-4" />Hapus PR</button>
 
                     <!-- Submit PR -->
                     <button
-                        v-if="item?.can_be_submitted || item?.status === 'draft' || item?.status === 'revision_requested'"
+                        v-if="!sourceEditing && (item?.can_be_submitted ?? ['draft', 'revision_requested'].includes(item?.status))"
                         type="button"
                         @click="emit('submitPR', item)"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
                     >
                         <Send class="w-3.5 h-3.5" />
                         <span>{{ item?.status === 'revision_requested' ? 'Ajukan Ulang Persetujuan' : 'Ajukan Persetujuan Sekarang' }}</span>

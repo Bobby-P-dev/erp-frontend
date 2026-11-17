@@ -1,5 +1,15 @@
 # Dokumentasi Pengembangan ERP Frontend
 
+- [PR supplier langsung → PO](changes/2026-11-16-direct-supplier-pr-to-po.md): pilihan supplier pada PR, approval PR lalu PO tanpa PP/RFQ; implementasi/regresi lokal selesai, UAT/deployment terbuka.
+
+- [Preview PDF, TTD biasa dan aksi PR](changes/2026-11-16-pdf-preview-signature-pr-actions.md): preview PR/BAST, hapus QR cetak, edit/hapus sebelum persetujuan pertama; tes lokal selesai, UAT/deployment terbuka.
+
+- [Case 4 — Buat draft PO dan terbitkan langsung dari tabel](changes/2026-11-16-purchasing-direct-po-actions.md): aksi tanpa preview, handler reusable dan konfirmasi singkat; build, browser kedua daftar/regresi detail serta 3 tes backend terkait lulus. UAT/deployment belum diverifikasi.
+
+- [PR RFQ langsung ke PO — petunjuk dan koreksi antrean PP](changes/2026-11-16-rfq-pr-direct-po-guidance.md). Backend menyaring item RFQ; detail PR memperjelas langkah ke PO. Regresi lokal lulus, UAT/deployment terbuka.
+
+- [Case 3 — Pilihan workflow saat mengajukan PR dari RFQ awal](changes/2026-11-16-rfq-pr-workflow-selection.md): modal pilihan/preview pada pengajuan draft, 35 tes terkait, build dan browser desktop/ponsel lulus; UAT akun nyata/deployment belum diverifikasi.
+
 Catat masalah, solusi, keputusan, rencana, dan hasil setiap perbaikan atau pengembangan fitur di folder ini.
 
 ## Struktur dan penggunaan
@@ -23,6 +33,53 @@ Status pekerjaan: **Direncanakan**, **Dikerjakan**, **Terblokir**, atau **Selesa
 Gunakan [prinsip desain aplikasi internal](guides/design-principles.md): clean, modern, elegan, hidup dan interaktif secukupnya tanpa berlebihan.
 
 ## Catatan perubahan
+
+- [RFQ — Batas langsung jumlah PR dari penawaran, 2026-11-16](changes/2026-11-16-rfq-pr-quantity-input-limit.md). Input dibatasi sisa kebutuhan/penawaran dan pembagian supplier; 8 tes unit, build dan browser desktop/ponsel lulus. UAT/deployment belum diverifikasi.
+
+- [RFQ — Reset supplier ketika barang berubah, 2026-11-16](changes/2026-11-16-rfq-supplier-reset-on-item-change.md). Pilihan/filter direset dan rekomendasi diperbarui; edit jumlah/harga tetap mempertahankan supplier. Build dan browser fixture desktop/ponsel lulus. UAT/deployment belum diverifikasi.
+
+- [RFQ — Dropdown pencarian dan perapihan form tender, 2026-11-16](changes/2026-11-16-rfq-create-search-dropdown-ux.md). Pemilih katalog/supplier reusable, informasi tambahan dapat dibuka saat diperlukan, navigasi bagian; 280 tes, build dan smoke browser desktop/ponsel lulus. UAT perusahaan/deployment belum diverifikasi.
+
+- [RFQ — Fase 6 regresi UI/API dan UAT, 2026-11-16](changes/2026-11-16-rfq-catalog-supplier-selection-phase-6.md). Selesai lokal: 280 tes/build/browser lulus; integrasi nyata katalog/custom/campuran, penawaran subset dan PP lulus. Batching 101 pilihan teruji desktop/ponsel; checklist penerimaan disimpan pada dokumentasi backend. UAT perusahaan/deployment belum dilakukan.
+
+- [RFQ — Fase 5 penawaran sebagian barang, 2026-11-16](changes/2026-11-16-rfq-catalog-supplier-selection-phase-5.md). Portal/manual dapat memilih subset; revisi mempertahankan pilihan, total/payload hanya barang aktif. 280 tes frontend, build dan browser komponen desktop/ponsel lulus; regresi backend 126 tes MySQL lulus. Fase 6, UAT dan deployment belum selesai.
+
+- [RFQ — Fase 4 kandidat dan pemilihan supplier, 2026-11-16](changes/2026-11-16-rfq-catalog-supplier-selection-phase-4.md). Rekomendasi katalog, pencarian supplier lain, pagination, pilihan bertahan dan status kecocokan terbaru; 273 tes/build dan browser fixture desktop/ponsel lulus. API MySQL 35 tes lulus; integrasi penawaran, UAT dan deployment belum selesai.
+
+- [RFQ — Fase 3 form katalog/custom, 2026-11-16](changes/2026-11-16-rfq-catalog-supplier-selection-phase-3.md). Pilihan per baris, pencarian/pagination dan nama/satuan master tanpa harga otomatis. 273 tes/build/browser fixture desktop/ponsel lulus; kandidat supplier fase 4, integrasi/UAT dan rilis belum selesai.
+
+- [Procurement — Sprint 2 fase 6: integrasi dan regresi, 2026-11-13](changes/2026-11-13-procurement-sprint-2-phase-6.md). 269 tes, build, smoke lifecycle/PO desktop/ponsel dan integrasi UI/API dua sumber lulus. UAT/deployment belum dilakukan; hasil MySQL dan temuan Auth/Core dicatat di backend.
+
+- [Procurement — Sprint 2 fase 5: PO dari PR disetujui, 2026-11-13](changes/2026-11-13-procurement-sprint-2-phase-5.md). Kartu supplier, konfirmasi Buat draft PO, refresh/tautan dan penjagaan form edit PO selesai lokal. 269 tes, build, browser desktop/ponsel dan UI/API nyata hingga issue/cancel lulus. Fase 6 konkurensi MySQL/UAT/rilis terbuka.
+
+- [Procurement — Sprint 2 fase 4: lifecycle PR dari penawaran, 2026-11-13](changes/2026-11-13-procurement-sprint-2-phase-4.md). Revisi jumlah/pilihan dan pembatalan pada detail PR, izin submit/resubmit serta pembaruan total selesai lokal; 269 tes, build dan browser lifecycle desktop/ponsel lulus. PO fase 5/UAT/rilis belum selesai.
+
+- [Procurement — Sprint 2 fase 3: PR dari penawaran, 2026-11-13](changes/2026-11-13-procurement-sprint-2-phase-3.md). Pemilihan supplier/jumlah, preview biaya, draft PR dan retry setelah koneksi terputus selesai lokal; 269 tes, build, browser fixture dan integrasi UI/API Laravel nyata lulus. Approval PR/PO fase 4–5 belum tersedia.
+
+- [Procurement — Sprint 1 fase 6: integrasi RFQ dua sumber, 2026-11-12](changes/2026-11-12-procurement-sprint-1-phase-6.md). Sprint 1 selesai implementasi/regresi lokal; 263 tes frontend, build dan browser API nyata lulus. Backend 357 lulus, 4 tes race MySQL dilewati; UAT/rilis belum selesai.
+- [Procurement — Sprint 1 fase 5: frontend RFQ dua sumber, 2026-11-12](changes/2026-11-12-procurement-sprint-1-phase-5.md). Selesai lokal: 263 tes, build dan browser fixture desktop/ponsel lulus; integrasi aktual ditutup pada fase 6 di atas.
+
+- [RFQ — harga final supplier saat jumlah berubah, 2026-11-12](changes/2026-11-12-rfq-price-reconfirmation.md). Permintaan dari evaluasi, form supplier dan revisi manual; selesai lokal, UAT/rilis belum diverifikasi.
+
+- [Portal supplier — tanda terima dan hasil evaluasi, 2026-11-12](changes/2026-11-12-supplier-rfq-receipt.md). Nama/satuan, angka ringkas, alokasi dan tindak lanjut PO; selesai lokal, UAT/rilis belum diverifikasi.
+
+- [Evaluasi RFQ — alasan alokasi terblokir oleh minimum supplier, 2026-11-12](changes/2026-11-12-rfq-award-minimum-feedback.md). Minimum dan alasan penolakan tampil dekat input serta tombol lanjut; 248 tes, build dan browser fixture desktop/ponsel lulus.
+
+- [Form isi penawaran supplier — 2026-11-12](changes/2026-11-12-supplier-quotation-form-ux.md). Penyederhanaan isian harga, disclosure, dokumen dan ringkasan di bawah form.
+
+- [RFQ — minimum pembelian default 1, 2026-11-12](changes/2026-11-12-rfq-default-minimum-quantity.md). Default proporsional lebih mudah dipahami; minimum tersimpan tetap dipertahankan.
+
+- [RFQ — jumlah dan nominal preview tanpa nol desimal berlebih, 2026-11-12](changes/2026-11-12-rfq-quantity-display.md). Jumlah lebih ringkas; total dan harga ekuivalen memakai pemisah ribuan serta pecahan seperlunya tanpa kehilangan presisi.
+
+- [Detail barang RFQ — hierarki visual dan panel rincian interaktif, 2026-11-12](changes/2026-11-12-rfq-item-detail-refinement.md). Build dan browser fixture desktop/tablet/ponsel lulus; rincian per barang atau sekaligus dengan aksen visual secukupnya.
+
+- [RFQ quantity pricing — tahap 5 aktivasi submit dan revisi, 2026-11-12](changes/2026-11-12-rfq-quantity-pricing-stage-5.md). Implementasi lokal selesai; 244 tes, build dan 4 skenario browser fixture lulus. UAT perusahaan dan deployment belum dilakukan.
+
+- [RFQ quantity pricing — tahap 4 preview alokasi dan rincian PO, 2026-11-12](changes/2026-11-12-rfq-quantity-pricing-stage-4.md). Integrasi lokal selesai; 244 tes dan build lulus. Submit v1 masih pratinjau sampai aktivasi tahap 5.
+
+- [RFQ quantity pricing — tahap 3 form dan preview portal, 2026-11-12](changes/2026-11-12-rfq-quantity-pricing-stage-3.md). Editor manual/portal selesai lokal; transaksi mode baru menunggu tahap 4.
+
+- [RFQ harga berdasarkan jumlah — tahap 1 spesifikasi UI, 2026-11-12](changes/2026-11-12-rfq-quantity-pricing-stage-1.md). Dokumentasi selesai; implementasi mengikuti backend dan integrasi award/PO.
 
 - [Penyempurnaan visual detail PO dan prinsip desain — 2026-11-11](changes/2026-11-11-po-detail-visual-refinement.md).
 

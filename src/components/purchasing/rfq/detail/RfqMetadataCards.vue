@@ -1,5 +1,6 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import { rfqSourceLabel } from '@/utils/rfqSource.js'
 import { ExternalLink } from '@lucide/vue'
 import ReviewDisclosure from '@/components/ui/ReviewDisclosure.vue'
 import { formatCurrency, formatDate } from '@/composables/useFormatter.js'
@@ -35,6 +36,7 @@ defineProps({
         <div class="mt-6 border-t border-slate-100 pt-5 metadata-disclosure">
             <ReviewDisclosure title="Informasi & ketentuan tender" description="Dokumen sumber, pembayaran, pengiriman, dan pembuat dokumen">
                 <dl class="grid gap-x-8 gap-y-6 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    <div><dt class="text-slate-500">Asal kebutuhan</dt><dd class="mt-2 text-slate-800">{{ rfqSourceLabel(rfq) }}</dd></div>
                     <div><dt class="text-slate-500">Tanggal terbit</dt><dd class="mt-2 text-slate-800">{{ rfq.issue_date ? formatDate(rfq.issue_date) : 'Belum diterbitkan' }}</dd></div>
                     <div><dt class="text-slate-500">Pembayaran yang diminta</dt><dd class="mt-2 text-slate-800">{{ rfq.payment_terms_requested || 'Belum ditentukan' }}</dd></div>
                     <div><dt class="text-slate-500">Alamat pengiriman</dt><dd class="mt-2 whitespace-pre-line break-words text-slate-800">{{ rfq.delivery_address || 'Belum ditentukan' }}</dd></div>

@@ -6,8 +6,7 @@ import {
     deleteUserSignature 
 } from '../src/services/userServices.js';
 import { 
-    urlToBase64,
-    constructVerificationUrl 
+    urlToBase64
 } from '../src/utils/pdf/purchaseRequisitionPdfGenerator.js';
 import { getPublicVerification } from '../src/services/verificationServices.js';
 
@@ -85,73 +84,9 @@ describe('PDF Download Status Guard Contract Tests', () => {
     });
 });
 
-describe('QR Code URL Verification Contract Tests', () => {
-    it('constructs correct verification QR URL linking to PR detail view', () => {
-        const constructQrUrl = (origin, prId) => {
-            return `${origin}/purchasing/purchase-requisitions/${prId}`;
-        };
-
-        const origin = 'https://erp.padmasoode.co.id';
-        const prId = 42;
-        assert.equal(constructQrUrl(origin, prId), 'https://erp.padmasoode.co.id/purchasing/purchase-requisitions/42');
-    });
-
-    it('constructs token-based public verification URL via constructVerificationUrl', () => {
-        const origin = 'https://erp.padmasoode.co.id';
-        const token = 'sig_token_a1b2c3d4e5f6';
-        assert.equal(constructVerificationUrl(origin, token), 'https://erp.padmasoode.co.id/verify/sig_token_a1b2c3d4e5f6');
-
-        // Handles trailing slashes gracefully
-        assert.equal(constructVerificationUrl('https://erp.padmasoode.co.id///', token), 'https://erp.padmasoode.co.id/verify/sig_token_a1b2c3d4e5f6');
-
-        // Handles empty token
-        assert.equal(constructVerificationUrl(origin, ''), '');
-        assert.equal(constructVerificationUrl(origin, null), '');
-    });
-
-    it('exports getPublicVerification service function', () => {
+describe('Historical signature verification compatibility', () => {
+    it('keeps verification service available for historical documents', () => {
         assert.equal(typeof getPublicVerification, 'function');
-    });
-
-    it('resolves requester digital signature to QR Code when verification_token is present', () => {
-        const stage1 = {
-            verification_token: 'req_token_112233445566',
-            short_hash: '11223344',
-            signed_at: '2026-10-16T08:00:00Z',
-            actor: { name: 'Bobby Requester', position: 'Software Engineer' }
-        };
-
-        const origin = 'https://erp.padmasoode.co.id';
-        const qrValue = constructVerificationUrl(origin, stage1.verification_token);
-        assert.equal(qrValue, 'https://erp.padmasoode.co.id/verify/req_token_112233445566');
-    });
-
-    it('resolves approver signature to QR Code when approved with verification_token', () => {
-        const level = {
-            step_order: 1,
-            step_name: 'Penyetuju Tahap 1',
-            status: 'approved',
-            actions: [
-                {
-                    action: 'approve',
-                    verification_token: 'vtok_778899aabbcc',
-                    short_hash: '778899aa',
-                    signed_at: '2026-10-16T10:00:00Z',
-                    user: { name: 'Direktur Operasional', position: 'Director' }
-                }
-            ]
-        };
-
-        const approveAction = level.actions[0];
-        const isApproved = level.status === 'approved' || approveAction.action === 'approve';
-        const verificationToken = approveAction.verification_token;
-        const origin = 'https://erp.padmasoode.co.id';
-
-        assert.equal(isApproved, true);
-        assert.equal(Boolean(verificationToken), true);
-
-        const qrValue = constructVerificationUrl(origin, verificationToken);
-        assert.equal(qrValue, 'https://erp.padmasoode.co.id/verify/vtok_778899aabbcc');
     });
 
     it('validates public verification payload contract for valid, tampered, and not-found states', () => {

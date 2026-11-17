@@ -1,5 +1,18 @@
 import api from './api.js'
 
+export const getRfqCatalogItems = async (search = '', page = 1) => {
+    const response = await api.get('/api/v1/rfqs/catalog-items', { params: { search, page, per_page: 10 } })
+    return response.data
+}
+
+export const getRfqSupplierCandidates = async ({ search = '', page = 1, mode = 'all', itemIds = [], supplierIds, perPage = 10 } = {}) => {
+    const params = new URLSearchParams({ search, page, mode, per_page: perPage })
+    itemIds.forEach(id => params.append('item_ids[]', id))
+    supplierIds?.forEach(id => params.append('supplier_ids[]', id))
+    const response = await api.get('/api/v1/rfqs/supplier-candidates', { params })
+    return response.data
+}
+
 /**
  * Mengambil daftar RFQ dengan paginasi dan filter.
  *
@@ -111,6 +124,10 @@ export const getRfqComparisonMatrix = async (id) => {
     return response.data
 }
 
+export const createRequisitionFromRfq = async (id, payload) => {
+    return (await api.post(`/api/v1/rfqs/${id}/purchase-requisitions`, payload)).data
+}
+
 /**
  * Mengeksekusi penentuan pemenang tender (Full / Split Awarding).
  *
@@ -154,6 +171,10 @@ export const submitSupplierQuotationReview = async (id, version) => {
     const response = await api.post(`/api/v1/supplier-quotations/${id}/submit-review`, { expected_review_version: version })
     return response.data
 }
+
+export const previewQuotationPricing = async payload => (await api.post('/api/v1/supplier-quotations/pricing-preview', payload)).data.data
+export const previewAwardPricing = async (id, payload) => (await api.post(`/api/v1/supplier-quotations/${id}/pricing-preview`, payload)).data.data
+export const previewPortalQuotationPricing = async (token, payload) => (await api.post(`/api/v1/public/portal/rfq/${encodeURIComponent(token)}/pricing-preview`, payload)).data.data
 
 export const getSupplierQuotationHistory = async id => (await api.get(`/api/v1/supplier-quotations/${id}/history`)).data
 export const requestSupplierQuotationRevision = async (id, payload) => (await api.post(`/api/v1/supplier-quotations/${id}/request-revision`, payload)).data

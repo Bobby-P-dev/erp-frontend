@@ -1,3 +1,4 @@
+import { quotationItems, offeredQuotationItems, hydrateQuotationSelection, hasPreviewPricing } from '@/utils/quotationPricing.js'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
@@ -82,12 +83,13 @@ export function useSupplierPortalRfqForm() {
             if (!preserveForm && portalData.value?.rfq?.items) {
                 quoteForm.value.items = portalData.value.rfq.items.map(it => ({
                     rfq_item_id: it.id,
+                    is_offered: true,
                     item_name: it.item_name,
                     item_specifications: it.item_specifications,
                     unit_name: it.unit_name || it.unit_code,
                     target_quantity: Number(it.target_quantity),
-                    offered_quantity: Number(it.target_quantity),
-                    unit_price: 0,
+                    offered_quantity: String(it.target_quantity),
+                    unit_price: '',
                     lead_time_days: 7,
                     brand: '',
                     notes: ''
@@ -102,10 +104,7 @@ export function useSupplierPortalRfqForm() {
                 for (const field of ['vendor_quotation_reference', 'quotation_date', 'valid_until', 'payment_terms', 'lead_time_days', 'tax_rate', 'shipping_cost']) {
                     quoteForm.value[field] = existing[field] ?? ''
                 }
-                quoteForm.value.items = quoteForm.value.items.map(item => {
-                    const previous = existing.items.find(line => line.rfq_item_id === item.rfq_item_id)
-                    return previous ? { ...item, ...previous } : item
-                })
+                quoteForm.value.items = hydrateQuotationSelection(quoteForm.value.items, existing)
             }
         } catch (err) {
             console.error('Portal load error:', err)
@@ -117,7 +116,7 @@ export function useSupplierPortalRfqForm() {
 
     const subtotalAmount = computed(() => {
         if (!quoteForm.value.items?.length) return 0
-        return quoteForm.value.items.reduce((sum, item) => {
+        return offeredQuotationItems(quoteForm.value.items).reduce((sum, item) => {
             const qty = Number(item.offered_quantity) || 0
             const price = Number(item.unit_price) || 0
             return sum + (qty * price)
@@ -151,6 +150,7 @@ export function useSupplierPortalRfqForm() {
     }
 
     const validateForm = () => {
+        try { quotationItems(quoteForm.value.items) } catch (err) { showError('Validasi Gagal', err.message); return false }
         if (!quoteForm.value.vendor_quotation_reference?.trim()) {
             showError('Validasi Gagal', 'Nomor surat penawaran resmi vendor wajib diisi.')
             return false
@@ -161,13 +161,13 @@ export function useSupplierPortalRfqForm() {
             return false
         }
 
-        for (const it of quoteForm.value.items) {
+        for (const it of offeredQuotationItems(quoteForm.value.items)) {
             if (!it.offered_quantity || Number(it.offered_quantity) <= 0) {
                 showError('Validasi Gagal', `Kuantitas penawaran untuk "${it.item_name}" harus lebih besar dari 0.`)
                 return false
             }
-            if (Number(it.unit_price) <= 0) {
-                showError('Validasi Gagal', `Harga satuan untuk "${it.item_name}" harus lebih besar dari Rp 0.`)
+            if (Number(it.unit_price) < 0) {
+                showError('Validasi Gagal', `Harga satuan untuk "${it.item_name}" tidak boleh negatif.`)
                 return false
             }
         }
@@ -189,7 +189,7 @@ export function useSupplierPortalRfqForm() {
 
         const confirmed = await showConfirm(
             'Kirim Penawaran Harga?',
-            `Total penawaran: ${formatCurrency(grandTotalAmount.value)}. Pastikan seluruh harga satuan dan spesifikasi yang Anda masukkan sudah akurat.`,
+            hasPreviewPricing(quoteForm.value.items) ? 'Pastikan jumlah, aturan harga, pajak, dan ongkir sudah benar. Total final dihitung server dari input asli Anda.' : `Total penawaran: ${formatCurrency(grandTotalAmount.value)}. Pastikan harga dan spesifikasi sudah akurat.`,
             'Ya, Kirim Penawaran'
         )
         if (!confirmed) return
@@ -216,14 +216,7 @@ export function useSupplierPortalRfqForm() {
             formData.append('shipping_cost', quoteForm.value.shipping_cost || 0)
             if (quoteForm.value.notes) formData.append('notes', quoteForm.value.notes)
 
-            const formattedItems = quoteForm.value.items.map(it => ({
-                rfq_item_id: it.rfq_item_id,
-                offered_quantity: Number(it.offered_quantity),
-                unit_price: Number(it.unit_price),
-                lead_time_days: it.lead_time_days ? Number(it.lead_time_days) : null,
-                brand: it.brand || null,
-                notes: it.notes || null
-            }))
+            const formattedItems = quotationItems(quoteForm.value.items)
             formData.append('items', JSON.stringify(formattedItems))
 
             if (selectedFile.value) {

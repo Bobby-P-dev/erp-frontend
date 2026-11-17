@@ -79,6 +79,10 @@ export function usePurchaseRequisitionForm() {
 
     // Main Form Model
     const form = ref({
+        procurement_route: 'standard',
+        direct_supplier_id: null,
+        direct_supplier_name: '',
+        direct_purchase_terms: { payment_terms: '', delivery_address: '', reference: '' },
         company_id: null,
         division_id: null,
         requester_id: null,
@@ -312,10 +316,16 @@ export function usePurchaseRequisitionForm() {
             const response = await showPurchaseRequisition(id)
             const pr = response.data || {}
 
-            if (pr.status !== 'draft' && pr.status !== 'revision_requested') {
+            if (pr.source?.type === 'rfq_quotation') {
+                await showError('Gunakan detail PR', 'PR dari penawaran diubah melalui tombol Ubah pengajuan di detail PR agar harga dan alokasi sumber tetap terjaga.')
+                router.push({ name: 'user.purchasing.requisitions' })
+                return
+            }
+
+            if (!(pr.can_be_edited ?? ['draft', 'revision_requested'].includes(pr.status))) {
                 await showError(
                     'Tidak Dapat Mengedit',
-                    `Purchase Requisition ${pr.pr_number || ''} saat ini berstatus "${pr.status}" dan tidak dapat diedit. Hanya PR berstatus Draft atau Perlu Revisi yang dapat diperbarui.`
+                    `PR ${pr.pr_number || ''} sudah mendapat persetujuan atau tidak dapat diubah oleh akun ini. Muat ulang daftar untuk memeriksa status terbaru.`
                 )
                 router.push({ name: 'user.purchasing.requisitions' })
                 return
@@ -335,6 +345,10 @@ export function usePurchaseRequisitionForm() {
             }
 
             form.value.company_id = pr.company_id || pr.company?.id || null
+            form.value.procurement_route = pr.procurement_route || 'standard'
+            form.value.direct_supplier_id = pr.direct_supplier_id || null
+            form.value.direct_supplier_name = pr.direct_supplier?.name || ''
+            form.value.direct_purchase_terms = { payment_terms: '', delivery_address: '', reference: '', ...(pr.direct_purchase_terms || {}) }
             form.value.requester_id = pr.requester_id || pr.requester?.id || authStore.user?.id || null
             form.value.request_date = pr.request_date ? String(pr.request_date).split('T')[0] : today
             form.value.required_date = pr.required_date ? String(pr.required_date).split('T')[0] : nextWeek
@@ -615,6 +629,9 @@ export function usePurchaseRequisitionForm() {
 
     const validateForm = (actionType = 'submit') => {
         const errs = {}
+        if (form.value.procurement_route === 'direct_supplier' && !form.value.direct_supplier_id) {
+            errs.direct_supplier_id = 'Pilih supplier tujuan terlebih dahulu.'
+        }
         
         if (!form.value.company_id) {
             form.value.company_id = authStore.profile?.company?.id || authStore.profile?.company_id || (companies.value.length > 0 ? companies.value[0].id : 6)
@@ -830,6 +847,9 @@ export function usePurchaseRequisitionForm() {
             )
 
             const payload = {
+                procurement_route: form.value.procurement_route,
+                direct_supplier_id: form.value.procurement_route === 'direct_supplier' ? form.value.direct_supplier_id : null,
+                direct_purchase_terms: form.value.procurement_route === 'direct_supplier' ? form.value.direct_purchase_terms : null,
                 company_id: form.value.company_id,
                 division_id: form.value.division_id,
                 requester_id: form.value.requester_id || authStore.user?.id,

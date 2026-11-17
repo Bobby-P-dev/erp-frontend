@@ -97,7 +97,7 @@ defineEmits([
 
                 <!-- Total Estimasi Sementara -->
                 <div class="inline-flex flex-wrap items-center gap-2.5 px-1 py-2 sm:ml-auto">
-                    <span class="text-xs sm:text-sm font-bold text-slate-700">Total Estimasi:</span>
+                    <span class="text-xs sm:text-sm font-bold text-slate-700">{{ form.procurement_route === 'direct_supplier' ? 'Total harga disepakati:' : 'Total Estimasi:' }}</span>
                     <span class="tabular-nums text-base sm:text-lg font-semibold text-slate-900">
                         {{ formatCurrency(totalEstimatedAmount, form.currency) }}
                     </span>

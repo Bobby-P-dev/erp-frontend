@@ -1,5 +1,7 @@
 <script setup>
 import SearchInput from '../../../ui/SearchInput.vue'
+import { RouterLink } from 'vue-router'
+import { isInitialNeed, rfqSourceLabel } from '@/utils/rfqSource.js'
 import TableDocumentCell from '../../../ui/TableDocumentCell.vue'
 import BaseTable from '../../../ui/BaseTable.vue'
 import Pagination from '../../../ui/Pagination.vue'
@@ -87,17 +89,16 @@ const emit = defineEmits([
                                 {{ (searchQuery || selectedStatus) ? 'Tidak ada tender RFQ yang cocok dengan pencarian' : 'Belum Ada Dokumen Tender RFQ' }}
                             </div>
                             <p class="text-xs text-slate-400">
-                                {{ (searchQuery || selectedStatus) ? 'Coba ubah kata kunci pencarian atau reset filter status Anda.' : 'Pilih Rencana Pengadaan di tab "Rencana Siap Ditenderkan" untuk membuat paket tender baru.' }}
+                                {{ (searchQuery || selectedStatus) ? 'Coba ubah kata kunci pencarian atau reset filter status Anda.' : 'Buat tender dari kebutuhan awal atau gunakan rencana pengadaan yang tersedia.' }}
                             </p>
-                            <button
+                            <RouterLink
                                 v-if="!searchQuery && !selectedStatus"
-                                type="button"
-                                @click="emit('switch-tab', 'queue')"
+                                :to="{ name: 'user.purchasing.rfq.create' }"
                                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-xs mt-1 cursor-pointer"
                             >
                                 <Plus class="w-4 h-4" />
-                                <span>Pilih Rencana untuk Ditenderkan</span>
-                            </button>
+                                <span>Buat tender RFQ</span>
+                            </RouterLink>
                         </div>
                     </td>
                 </tr>
@@ -115,7 +116,7 @@ const emit = defineEmits([
                     <td class="px-6 py-4.5 whitespace-nowrap">
                         <div class="text-xs font-mono font-bold text-slate-800 flex items-center gap-1.5">
                             <Layers class="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                            <span>{{ rfq.procurement_plan?.pp_number || `PP #${rfq.procurement_plan_id || '-'}` }}</span>
+                            <span>{{ isInitialNeed(rfq) ? rfqSourceLabel(rfq) : rfq.procurement_plan?.pp_number || `PP #${rfq.procurement_plan_id || '-'}` }}</span>
                         </div>
                         <div class="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1.5">
                             <Building2 class="w-3.5 h-3.5 text-slate-400 shrink-0" />

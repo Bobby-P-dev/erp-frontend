@@ -2,8 +2,9 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import { RefreshCw, Send, Pencil, Ban, ArrowUpRight, CalendarDays, Truck, Coins, Package, FileText, ReceiptText, Info, Wallet, MapPin, MessageSquareText, BadgeCheck } from '@lucide/vue'
-import { showPurchaseOrder, updatePurchaseOrder, issuePurchaseOrder, cancelPurchaseOrder } from '../../../services/purchaseOrderServices.js'
-import { showSuccess, showError, showConfirm, showPrompt } from '../../../utils/swal.js'
+import { showPurchaseOrder, updatePurchaseOrder, cancelPurchaseOrder } from '../../../services/purchaseOrderServices.js'
+import { usePurchaseOrderActions } from '../../../composables/purchasing/usePurchaseOrderActions.js'
+import { showSuccess, showError, showPrompt } from '../../../utils/swal.js'
 import { formatCurrency, formatDate, formatDateTime } from '../../../composables/useFormatter.js'
 import BaseButton from '../../ui/BaseButton.vue'
 import BaseTable from '../../ui/BaseTable.vue'
@@ -13,6 +14,7 @@ import PurchaseOrderItemDetails from './PurchaseOrderItemDetails.vue'
 
 const props = defineProps({ orderId: { type: [Number, String], required: true } })
 const emit = defineEmits(['changed'])
+const { issue: issueOrder } = usePurchaseOrderActions()
 const po = ref(null)
 const loading = ref(false)
 const error = ref('')
@@ -25,6 +27,7 @@ const activeTab = ref('items')
 const tabs = [{ id: 'items', label: 'Barang & biaya', icon: Package }, { id: 'delivery', label: 'Pengiriman', icon: Truck }, { id: 'documents', label: 'Dokumen & proses', icon: FileText }]
 const legacy = computed(() => ['pending_approval', 'revision_requested', 'rejected'].includes(po.value?.status))
 const canEdit = computed(() => ['draft', 'revision_requested'].includes(po.value?.status))
+const fromApprovedPr = computed(() => Boolean(po.value?.direct_requisition_id) || po.value?.items?.some(item => item.rfq_requisition_allocation_id))
 const canIssue = computed(() => ['draft', 'approved'].includes(po.value?.status))
 const canCancel = computed(() => ['draft', 'revision_requested', 'pending_approval', 'approved', 'issued'].includes(po.value?.status))
 const money = value => formatCurrency(value, po.value?.currency || 'IDR')
@@ -71,7 +74,10 @@ async function saveEdit() {
     if (busy.value) return
     busy.value = true
     try {
-        await updatePurchaseOrder(props.orderId, { ...editForm.value, po_date: editForm.value.po_date || null, expected_delivery_date: editForm.value.expected_delivery_date || null, shipping_cost: Number(editForm.value.shipping_cost || 0) })
+        const payload = fromApprovedPr.value
+            ? { po_date: editForm.value.po_date || null, notes: editForm.value.notes }
+            : { ...editForm.value, po_date: editForm.value.po_date || null, expected_delivery_date: editForm.value.expected_delivery_date || null, shipping_cost: Number(editForm.value.shipping_cost || 0) }
+        await updatePurchaseOrder(props.orderId, payload)
         busy.value = false
         await closeEdit()
         await fetchDetail()
@@ -84,11 +90,10 @@ async function issue() {
     if (busy.value || loading.value) return
     busy.value = true
     try {
-        if (!await showConfirm('Terbitkan PO ke pemasok?', `${po.value.po_number} akan tersedia di portal ${po.value.supplier?.name || 'pemasok'} untuk dikonfirmasi.`)) return
-        await issuePurchaseOrder(props.orderId)
-        await fetchDetail()
-        emit('changed')
-        await showSuccess('PO diterbitkan', 'Pemasok dapat melihat dan mengonfirmasi pesanan di portal.')
+        await issueOrder(po.value, async () => {
+            await fetchDetail()
+            emit('changed')
+        })
     } catch (err) { showError(err.response?.data?.message || 'Gagal menerbitkan PO.') }
     finally { busy.value = false }
 }
@@ -138,13 +143,14 @@ async function cancel() {
 
             <section v-if="editing" ref="editSection" class="rounded-2xl border border-blue-100 bg-blue-50/30 p-5" aria-labelledby="po-edit-title">
                 <h4 id="po-edit-title" class="text-base font-semibold text-slate-900">Ubah ketentuan pesanan</h4>
+                <p v-if="fromApprovedPr" class="mt-2 text-sm text-slate-600">Harga, jumlah, pembayaran dan pengiriman mengikuti PR disetujui. Di sini Anda dapat mengubah tanggal PO dan catatan.</p>
                 <form class="mt-5 space-y-4" @submit.prevent="saveEdit">
                     <fieldset :disabled="busy" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <label>Tanggal PO<input v-model="editForm.po_date" type="date" /></label>
-                        <label>Target pengiriman<input v-model="editForm.expected_delivery_date" type="date" /></label>
-                        <label>Syarat pembayaran<input v-model="editForm.payment_terms" maxlength="255" type="text" /></label>
-                        <label>Biaya pengiriman ({{ po.currency || 'IDR' }})<input v-model="editForm.shipping_cost" type="number" min="0" step="0.01" /></label>
-                        <label class="sm:col-span-2">Alamat pengiriman<textarea v-model="editForm.delivery_address" rows="2" maxlength="2000" /></label>
+                        <label v-if="!fromApprovedPr">Target pengiriman<input v-model="editForm.expected_delivery_date" type="date" /></label>
+                        <label v-if="!fromApprovedPr">Syarat pembayaran<input v-model="editForm.payment_terms" maxlength="255" type="text" /></label>
+                        <label v-if="!fromApprovedPr">Biaya pengiriman ({{ po.currency || 'IDR' }})<input v-model="editForm.shipping_cost" type="number" min="0" step="0.01" /></label>
+                        <label v-if="!fromApprovedPr" class="sm:col-span-2">Alamat pengiriman<textarea v-model="editForm.delivery_address" rows="2" maxlength="2000" /></label>
                         <label class="sm:col-span-2">Catatan tambahan<textarea v-model="editForm.notes" rows="2" maxlength="2000" /></label>
                     </fieldset>
                     <div class="flex flex-wrap justify-end gap-2"><button data-detail-cancel type="button" class="secondary-action" :disabled="busy" @click="closeEdit">Batal</button><BaseButton type="submit" size="sm" :disabled="busy">{{ busy ? 'Menyimpan…' : 'Simpan perubahan' }}</BaseButton></div>

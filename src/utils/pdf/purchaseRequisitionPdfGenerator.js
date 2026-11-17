@@ -4,6 +4,7 @@ import { formatCurrency } from '../stringUtils.js'
 import { showLoading, showError, closeSwal } from '../swal.js'
 import { toast } from 'vue-sonner'
 import { getPurchaseRequisitionLifecycle } from '../../services/purchaseRequisitionServices.js'
+import { previewPdf } from './previewPdf.js'
 
 // Initialize pdfMake virtual file system for fonts
 if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
@@ -35,19 +36,6 @@ export const urlToBase64 = async (url) => {
         console.warn('Could not convert signature URL to base64 for PDF:', err)
         return null
     }
-}
-
-/**
- * Construct public verification QR URL for cryptographic approval token.
- * 
- * @param {string} origin - Base URL origin (e.g. window.location.origin)
- * @param {string} token - Cryptographic verification token
- * @returns {string} Fully qualified verification URL
- */
-export const constructVerificationUrl = (origin, token) => {
-    if (!token) return ''
-    const base = origin ? origin.replace(/\/+$/, '') : ''
-    return `${base}/verify/${token}`
 }
 
 /**
@@ -90,7 +78,7 @@ const formatDateTimePdf = (dateStr) => {
 }
 
 /**
- * Generate and download Purchase Requisition Approval History PDF.
+ * Preview the Purchase Requisition Approval History PDF before download.
  * 
  * @param {Object} pr - Purchase Requisition object (must have id, pr_number, status, etc.)
  * @param {Object} options - Additional options { currentUser, lifecycleData }
@@ -105,13 +93,13 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
     const approvedStatuses = ['approved', 'in_procurement', 'ready_for_pickup', 'completed']
     if (!approvedStatuses.includes(pr.status)) {
         toast.warning('Belum Disetujui Penuh', {
-            description: 'Lembar Persetujuan PDF hanya dapat diunduh jika pengajuan telah disetujui penuh oleh seluruh peninjau.'
+            description: 'Lembar Persetujuan PDF tersedia setelah pengajuan disetujui penuh oleh seluruh peninjau.'
         })
         return false
     }
 
     // Show loading indicator during PDF generation & asset resolution
-    showLoading('Menyiapkan Lembar Persetujuan', 'Sedang memproses tanda tangan digital dan menyusun berkas PDF resmi...')
+    showLoading('Menyiapkan Preview PDF', 'Memuat tanda tangan dan menyusun lembar persetujuan...')
 
     try {
         // 2. Fetch full lifecycle data if not provided
@@ -145,9 +133,8 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             return sum + (q * p)
         }, 0)
 
-        // 3. Resolve Digital Signatures (100% Cryptographic QR Verification)
-        const reqVerificationToken = stage1.verification_token || stage1.actor?.verification_token || pr.verification_token || null
-        const reqShortHash = stage1.short_hash || stage1.actor?.short_hash || pr.short_hash || (pr.payload_hash ? pr.payload_hash.substring(0, 8) : null)
+        // 3. Resolve ordinary image/canvas signatures saved in the user profile.
+        const requesterSignature = await urlToBase64(requester.signature_url)
         const reqSignedAt = stage1.signed_at || stage1.actor?.signed_at || pr.signed_at || requestDate
 
         // Approvers list from stage 2 levels and completed actions
@@ -158,14 +145,14 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             const level = approvalLevels[i]
             // Find the approve action in this level
             const actions = level.actions || []
-            const approveAction = actions.find(a => a.action === 'approve') || actions[actions.length - 1]
+            const approveAction = actions.find(a => a.action === 'approve')
 
             const approverUser = approveAction?.user || level.assignee || {}
 
             const status = String(approveAction?.action || level.status || '').toLowerCase()
-            const isApproved = status === 'approve' || status === 'approved' || Boolean(approveAction?.verification_token || level.verification_token)
-            const verificationToken = approveAction?.verification_token || level.verification_token || null
-            const shortHash = approveAction?.short_hash || level.short_hash || null
+            const isApproved = status === 'approve' || status === 'approved'
+            // Never place a signature for a pending/rejected step.
+            const signatureImage = isApproved ? await urlToBase64(approveAction?.signature_url || approverUser.signature_url) : null
             const signedAt = approveAction?.signed_at || approveAction?.acted_at || level.completed_at || level.acted_at || null
 
             approverColumns.push({
@@ -177,8 +164,7 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 signedAt: signedAt,
                 notes: approveAction?.notes || level.notes || null,
                 isApproved,
-                verificationToken,
-                shortHash,
+                signatureImage,
             })
         }
 
@@ -203,8 +189,6 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
         })
 
         // 5. Construct Signatures Grid
-        const origin = typeof window !== 'undefined' ? (window?.location?.origin || '') : ''
-
         // Total signature slots = 1 (requester) + approvers.length
         const totalSigners = 1 + approverColumns.length
         const signCellWidths = Array(totalSigners).fill('*')
@@ -217,18 +201,16 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             { text: `Tgl: ${formatDatePdf(requestDate)}`, style: 'signDate' },
         ]
 
-        if (reqVerificationToken) {
-            const reqQrValue = constructVerificationUrl(origin, reqVerificationToken)
+        if (requesterSignature) {
             reqSignStack.push({
-                qr: reqQrValue,
-                fit: 68,
-                eccLevel: 'H',
+                image: requesterSignature,
+                fit: [90, 48],
                 alignment: 'center',
                 margin: [0, 4, 0, 4],
             })
         } else {
             reqSignStack.push({
-                text: '[Tanda Tangan Digital]',
+                text: '____________________',
                 style: 'signPlaceholder',
                 margin: [0, 18, 0, 18],
             })
@@ -237,17 +219,11 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
         reqSignStack.push({ text: `( ${requester.name} )`, style: 'signerName' })
         reqSignStack.push({ text: `${requester.position || 'Staff'}`, style: 'signerTitle' })
 
-        if (reqVerificationToken) {
+        if (requesterSignature) {
             if (reqSignedAt) {
                 reqSignStack.push({
                     text: `TTD: ${formatDateTimePdf(reqSignedAt)}`,
                     style: 'signTimestamp',
-                })
-            }
-            if (reqShortHash) {
-                reqSignStack.push({
-                    text: `Hash: ${reqShortHash}`,
-                    style: 'signHash',
                 })
             }
         }
@@ -261,18 +237,16 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 { text: `Tgl: ${formatDatePdf(app.actedAt)}`, style: 'signDate' },
             ]
 
-            if (app.isApproved && app.verificationToken) {
-                const qrValue = constructVerificationUrl(origin, app.verificationToken)
+            if (app.isApproved && app.signatureImage) {
                 appStack.push({
-                    qr: qrValue,
-                    fit: 68,
-                    eccLevel: 'H',
+                    image: app.signatureImage,
+                    fit: [90, 48],
                     alignment: 'center',
                     margin: [0, 4, 0, 4],
                 })
             } else {
                 appStack.push({
-                    text: '[Disetujui Digital]',
+                    text: '____________________',
                     style: 'signPlaceholder',
                     margin: [0, 18, 0, 18],
                 })
@@ -281,17 +255,11 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             appStack.push({ text: `( ${app.name} )`, style: 'signerName' })
             appStack.push({ text: `${app.position}`, style: 'signerTitle' })
 
-            if (app.isApproved && app.verificationToken) {
+            if (app.isApproved && app.signatureImage) {
                 if (app.signedAt) {
                     appStack.push({
                         text: `TTD: ${formatDateTimePdf(app.signedAt)}`,
                         style: 'signTimestamp',
-                    })
-                }
-                if (app.shortHash) {
-                    appStack.push({
-                        text: `Hash: ${app.shortHash}`,
-                        style: 'signHash',
                     })
                 }
             }
@@ -319,10 +287,6 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             ])
         ]
 
-        // Verification URL for QR code (points to public verification if requester token exists)
-        const verificationUrl = reqVerificationToken
-            ? constructVerificationUrl(origin, reqVerificationToken)
-            : `${origin}/purchasing/purchase-requisitions/${pr.id}`
         const printTimestamp = formatDateTimePdf(new Date())
         const currentUser = options.currentUser || 'Petugas ERP'
 
@@ -417,6 +381,20 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                     },
                     margin: [0, 0, 0, 14]
                 },
+                ...(pr.procurement_route === 'direct_supplier' ? [{
+                    table: {
+                        widths: ['25%', '*'],
+                        body: [
+                            [{ text: 'Supplier tujuan', style: 'metaLabel' }, { text: pr.direct_supplier?.name || '-', style: 'metaValueBold' }],
+                            [{ text: 'Jalur pembelian', style: 'metaLabel' }, { text: 'PR disetujui → langsung PO', style: 'metaValue' }],
+                            [{ text: 'Referensi harga', style: 'metaLabel' }, { text: pr.direct_purchase_terms?.reference || '-', style: 'metaValue' }],
+                            [{ text: 'Pembayaran', style: 'metaLabel' }, { text: pr.direct_purchase_terms?.payment_terms || '-', style: 'metaValue' }],
+                            [{ text: 'Alamat pengiriman', style: 'metaLabel' }, { text: pr.direct_purchase_terms?.delivery_address || '-', style: 'metaValue' }],
+                        ],
+                    },
+                    layout: 'lightHorizontalLines',
+                    margin: [0, 0, 0, 14],
+                }] : []),
                 // Items Table
                 {
                     text: 'RINCIAN BARANG / JASA YANG DIAJUKAN',
@@ -522,59 +500,11 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                     },
                     margin: [0, 0, 0, 14]
                 },
-                // Footer / QR Code & Legal Verification
                 {
-                    columns: [
-                        {
-                            width: 108,
-                            table: {
-                                widths: ['*'],
-                                body: [
-                                    [
-                                        {
-                                            stack: [
-                                                { qr: verificationUrl, fit: 88, eccLevel: 'H', alignment: 'center', margin: [0, 2, 0, 4] },
-                                                { text: 'PINDAI VERIFIKASI', style: 'qrCaptionBold', alignment: 'center' },
-                                                { text: 'Validasi Keaslian PR', style: 'qrCaptionSub', alignment: 'center' }
-                                            ],
-                                            fillColor: '#ffffff',
-                                            alignment: 'center'
-                                        }
-                                    ]
-                                ]
-                            },
-                            layout: {
-                                hLineWidth: () => 1,
-                                vLineWidth: () => 1,
-                                hLineColor: () => '#94a3b8',
-                                vLineColor: () => '#94a3b8',
-                                paddingLeft: () => 4,
-                                paddingRight: () => 4,
-                                paddingTop: () => 4,
-                                paddingBottom: () => 4,
-                            }
-                        },
-                        {
-                            width: '*',
-                            margin: [12, 1, 0, 0],
-                            stack: [
-                                { text: 'LEGALITAS DOKUMEN & INTEGRITAS DIGITAL', style: 'legalHeader' },
-                                { 
-                                    text: 'Dokumen ini merupakan arsip elektronik resmi yang sah dan diterbitkan melalui Sistem ERP. Seluruh persetujuan berjenjang telah dibubuhkan dengan spesimen tanda tangan digital aktif dan terverifikasi secara kriptografis dalam catatan log audit (audit trail). Keabsahan dokumen dapat divalidasi kapan saja dengan memindai kode QR di samping menggunakan kamera smartphone.',
-                                    style: 'legalBody',
-                                    margin: [0, 3, 0, 4]
-                                },
-                                {
-                                    text: `Tautan Verifikasi: ${verificationUrl}`,
-                                    style: 'legalUrl',
-                                    margin: [0, 0, 0, 3]
-                                },
-                                {
-                                    text: `ID Dokumen: ${pr.id} | No PR: ${prNumber} | Dicetak: ${printTimestamp} oleh ${currentUser}`,
-                                    style: 'legalMeta'
-                                }
-                            ]
-                        }
+                    stack: [
+                        { text: 'CATATAN DOKUMEN', style: 'legalHeader' },
+                        { text: 'Lembar persetujuan dari Sistem ERP. Nama peninjau, tanggal persetujuan, dan catatan mengikuti riwayat workflow. Kolom tanpa gambar tanda tangan dapat ditandatangani secara manual.', style: 'legalBody', margin: [0, 3, 0, 4] },
+                        { text: `ID Dokumen: ${pr.id} | No PR: ${prNumber} | Dicetak: ${printTimestamp} oleh ${currentUser}`, style: 'legalMeta' }
                     ]
                 }
             ],
@@ -604,12 +534,8 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                 signPlaceholder: { fontSize: 7, italic: true, color: '#94a3b8', alignment: 'center' },
                 signNotes: { fontSize: 6, italic: true, color: '#059669', alignment: 'center' },
                 signTimestamp: { fontSize: 5.5, color: '#64748b', alignment: 'center', margin: [0, 1, 0, 0] },
-                signHash: { fontSize: 5, color: '#94a3b8', alignment: 'center', margin: [0, 1, 0, 0] },
-                qrCaptionBold: { fontSize: 7, bold: true, color: '#0f172a', letterSpacing: 0.3 },
-                qrCaptionSub: { fontSize: 6, color: '#64748b' },
                 legalHeader: { fontSize: 7.5, bold: true, color: '#334155' },
                 legalBody: { fontSize: 6.5, color: '#64748b', leading: 1.2 },
-                legalUrl: { fontSize: 6, color: '#2563eb' },
                 legalMeta: { fontSize: 6, color: '#94a3b8' }
             },
             defaultStyle: {
@@ -618,13 +544,13 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             }
         }
 
-        // 7. Trigger PDF Download
+        // 7. Preview first; download is available inside the preview only.
         const sanitizedPrNumber = prNumber.replace(/[^a-zA-Z0-9-_]/g, '_')
         const fileName = `${sanitizedPrNumber}_Lembar_Persetujuan.pdf`
 
-        pdfMake.createPdf(docDefinition).download(fileName)
-
+        const blob = await pdfMake.createPdf(docDefinition).getBlob()
         closeSwal()
+        await previewPdf(blob, fileName)
         return true
     } catch (err) {
         console.error('PDF Generation Error:', err)

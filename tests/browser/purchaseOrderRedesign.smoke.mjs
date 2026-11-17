@@ -92,7 +92,7 @@ try {
         await page.getByRole('alertdialog').getByRole('button', { name: 'Mengerti' }).click()
         assert.equal(mutations[0].payment_terms, 'Tempo 30 hari')
         await dialog.getByRole('button', { name: 'Terbitkan PO', exact: true }).click()
-        await page.getByRole('alertdialog').getByRole('button', { name: 'Ya, Lanjutkan' }).click()
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Terbitkan PO' }).click()
         await page.getByRole('alertdialog').getByRole('button', { name: 'Mengerti' }).click()
         assert.equal(await dialog.getByRole('button', { name: 'Terbitkan PO', exact: true }).count(), 0)
         await dialog.getByRole('button', { name: 'Dokumen & proses' }).click()

@@ -728,7 +728,7 @@ const close = () => {
                         <div>
                             <h5 class="font-bold text-xs text-blue-900">Cetak Lembar BAST Fisik</h5>
                             <p class="text-[11px] text-blue-700 mt-0.5 leading-relaxed">
-                                Unduh dan cetak formulir Berita Acara ini ke printer kertas. Bawa lembar ini saat penyerahan barang untuk ditandatangani basah oleh penerima dan petugas gudang.
+                                Periksa preview, lalu unduh dan cetak formulir Berita Acara ini. Bawa lembar ini saat penyerahan barang untuk ditandatangani basah oleh penerima dan petugas gudang.
                             </p>
                         </div>
                     </div>
@@ -739,7 +739,7 @@ const close = () => {
                         class="w-full py-2 px-3 bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 font-bold rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs"
                     >
                         <Printer class="w-4 h-4" />
-                        <span>Cetak / Unduh Lembar BAST (PDF)</span>
+                        <span>Preview Lembar BAST (PDF)</span>
                     </button>
                 </div>
 

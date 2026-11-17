@@ -18,6 +18,7 @@ import PRWizardStepper from '@/components/purchasing/requisition/form/PRWizardSt
 import PRHeaderSection from '@/components/purchasing/requisition/form/PRHeaderSection.vue'
 import PRItemsTableSection from '@/components/purchasing/requisition/form/PRItemsTableSection.vue'
 import PRReviewSection from '@/components/purchasing/requisition/form/PRReviewSection.vue'
+import PRProcurementRouteSection from '@/components/purchasing/requisition/form/PRProcurementRouteSection.vue'
 
 const {
     router,
@@ -137,6 +138,7 @@ onMounted(() => {
 
         <!-- FORM UTAMA -->
         <form @submit.prevent="handleSubmit('submit')" class="space-y-6">
+            <PRProcurementRouteSection v-if="currentStep === 1 || currentStep === 3" :form="form" :errors="errors" :readonly="currentStep === 3" />
             <!-- LANGKAH 1: INFO PENGAJUAN -->
             <PRHeaderSection
                 v-show="currentStep === 1"

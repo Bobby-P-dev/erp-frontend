@@ -11,6 +11,22 @@ export const awardSubtotal = (quantity, baseUnitPrice) => {
     return qty === null || price === null ? null : qty * price
 }
 
+export const pricingModeLabel = mode => ({ flat: 'Harga proporsional', tiered: 'Harga bertingkat', fixed_quantity: 'Borongan · wajib seluruh jumlah', reconfirm: 'Konfirmasi harga jika jumlah berubah' }[mode] || 'Harga satuan')
+const pricingQuantityText = (value, unit) => `${String(value).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')} ${unit}`.trim()
+export const pricingQuantityHint = (offer, unit = '') => {
+    if (!(offer?.pricing_schema_version > 0)) return ''
+    if (offer.pricing_mode === 'reconfirm') return `Harga dikonfirmasi untuk ${pricingQuantityText(offer.offered_quantity, unit)}. Jumlah lain perlu harga final dari supplier.`
+    if (offer.pricing_mode === 'fixed_quantity') return `Wajib dibeli seluruhnya: ${pricingQuantityText(offer.offered_quantity, unit)}.`
+    const minimum = offer.pricing_rules?.minimum_quantity
+    return minimum != null ? `Minimum supplier: ${pricingQuantityText(minimum, unit)}.` : ''
+}
+export const pricingReasonText = (reason, offer, unit = '') => ({
+    requires_price_confirmation: 'Jumlah berubah. Minta konfirmasi harga final ke supplier sebelum menetapkan pemenang.',
+    requires_full_quantity: offer ? `${pricingQuantityHint(offer, unit)} Minta revisi supplier untuk membeli sebagian.` : 'Penawaran borongan harus dibeli seluruhnya. Minta revisi supplier untuk membeli sebagian.',
+    below_minimum_quantity: `Jumlah belum memenuhi minimum pembelian supplier.${offer ? ` ${pricingQuantityHint(offer, unit)}` : ''} Ubah pembagian jumlah atau pilih supplier lain.`,
+    exceeds_offered_quantity: 'Jumlah melebihi yang ditawarkan supplier.',
+}[reason] || 'Harga belum tersedia. Periksa jumlah atau muat ulang penawaran.')
+
 export const sumComparisonAmounts = amounts => {
     const numbers = amounts.map(comparisonNumber)
     return numbers.some(value => value === null) ? null : numbers.reduce((sum, value) => sum + value, 0)

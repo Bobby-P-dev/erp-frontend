@@ -1,6 +1,9 @@
 <script setup>
 import { FileText, X, UploadCloud, CheckCircle2, RefreshCw, Check } from '@lucide/vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import RfqQuotationItemEditor from '@/components/purchasing/rfq/RfqQuotationItemEditor.vue'
+import { previewQuotationPricing } from '@/services/rfqServices.js'
+import { hasPreviewPricing, offeredQuotationItems } from '@/utils/quotationPricing.js'
 import { formatCurrency } from '@/composables/useFormatter.js'
 
 defineProps({
@@ -224,72 +227,14 @@ defineEmits(['close', 'file-upload', 'submit'])
                         2. Rincian Harga Item yang Ditawarkan
                     </span>
 
-                    <div class="border border-slate-200 rounded-xl overflow-hidden">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-100 text-slate-700">
-                                <tr>
-                                    <th class="py-2.5 px-3 text-xs font-semibold">Nama Item</th>
-                                    <th class="py-2.5 px-3 text-xs font-semibold text-right w-28">Qty Ditawar</th>
-                                    <th class="py-2.5 px-3 text-xs font-semibold text-right w-36">Harga Satuan (IDR)</th>
-                                    <th class="py-2.5 px-3 text-xs font-semibold text-center w-24">Lead Time</th>
-                                    <th class="py-2.5 px-3 text-xs font-semibold w-28">Merk / Brand</th>
-                                    <th class="py-2.5 px-3 text-xs font-semibold text-right w-36">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 text-xs">
-                                <tr v-for="item in manualForm.items" :key="item.rfq_item_id" class="hover:bg-slate-50">
-                                    <td class="py-2.5 px-3">
-                                        <div class="font-semibold text-slate-900">{{ item.item_name }}</div>
-                                        <div class="text-[11px] text-slate-400">
-                                            Target: {{ item.target_quantity }} {{ item.unit_name }}
-                                        </div>
-                                    </td>
-                                    <td class="py-2.5 px-3">
-                                        <input 
-                                            type="number"
-                                            v-model.number="item.offered_quantity"
-                                            min="0.0001"
-                                            step="any"
-                                            class="w-full text-right text-xs rounded border-slate-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                                        />
-                                    </td>
-                                    <td class="py-2.5 px-3">
-                                        <input 
-                                            type="number"
-                                            v-model.number="item.unit_price"
-                                            min="0"
-                                            step="any"
-                                            class="w-full text-right text-xs rounded border-slate-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-                                        />
-                                    </td>
-                                    <td class="py-2.5 px-3">
-                                        <input 
-                                            type="number"
-                                            v-model.number="item.lead_time_days"
-                                            min="0"
-                                            placeholder="Hari"
-                                            class="w-full text-center text-xs rounded border-slate-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                    </td>
-                                    <td class="py-2.5 px-3">
-                                        <input 
-                                            type="text"
-                                            v-model="item.brand"
-                                            placeholder="Merk"
-                                            class="w-full text-xs rounded border-slate-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                    </td>
-                                    <td class="py-2.5 px-3 text-right font-semibold font-mono text-slate-900">
-                                        {{ formatCurrency((Number(item.offered_quantity) || 0) * (Number(item.unit_price) || 0)) }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <p class="text-sm text-slate-500">Aktifkan hanya barang yang ditawarkan supplier. Barang lainnya tidak disimpan sebagai penawaran dan tidak masuk total harga.</p>
+                    <p class="text-sm font-medium text-blue-800">{{ offeredQuotationItems(manualForm.items).length }} dari {{ manualForm.items.length }} barang ditawarkan</p>
+                    <RfqQuotationItemEditor v-for="item in manualForm.items" :key="item.rfq_item_id" :item="item" :preview="previewQuotationPricing" selectable />
                 </div>
 
                 <!-- Section 3: Commercial Summary -->
-                <div class="bg-blue-50/60 p-4 rounded-xl border border-blue-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <p v-if="hasPreviewPricing(manualForm.items)" class="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">Harga dihitung server dari jumlah dan ketentuan tiap barang. Pajak dan ongkir ditambahkan saat penawaran disimpan.</p>
+                <div v-else class="bg-blue-50/60 p-4 rounded-xl border border-blue-200 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div class="text-xs text-blue-800">
                         <span class="font-bold block">Kalkulasi Nilai Penawaran:</span>
                         Pastikan rincian harga dan nominal sudah sesuai dengan fisik surat penawaran vendor.

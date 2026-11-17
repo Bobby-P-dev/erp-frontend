@@ -1,4 +1,6 @@
+import { quotationItems, offeredQuotationItems, pricingMode } from '@/utils/quotationPricing.js'
 import { ref, computed } from 'vue'
+import { rfqPurchaseBlockReason } from '@/utils/rfqSource.js'
 import { useRouter, useRoute } from 'vue-router'
 import {
     showRfq,
@@ -227,7 +229,7 @@ export function useRfqDetail() {
         }
     }
 
-    const poValidityErrors = computed(() => purchaseOrderValidityErrors(
+    const poValidityErrors = computed(() => rfqPurchaseBlockReason(rfq.value) ? [rfqPurchaseBlockReason(rfq.value)] : purchaseOrderValidityErrors(
         quotationsList.value.flatMap(quotation => (quotation.items || [])
             .filter(item => item.is_awarded)
             .map(item => ({ quotation_id: quotation.id, purchase_order_id: item.purchase_order_id }))),
@@ -360,11 +362,13 @@ export function useRfqDetail() {
 
         const defaultItems = rfq.value.items.map(item => ({
             rfq_item_id: item.id,
+            is_offered: true,
             item_name: (item.item_name && item.item_name !== 'Item Tanpa Nama') ? item.item_name : (item.item?.name || 'Item Tanpa Nama'),
+            item_specifications: item.item_specifications,
             target_quantity: Number(item.target_quantity || 0),
             unit_name: item.unit?.name || 'Unit',
-            offered_quantity: Number(item.target_quantity || 0),
-            unit_price: Number(item.target_price || 0),
+            offered_quantity: String(item.target_quantity || 0),
+            unit_price: '',
             lead_time_days: null,
             brand: '',
             notes: ''
@@ -414,7 +418,7 @@ export function useRfqDetail() {
     }
 
     const modalItemsSubtotal = computed(() => {
-        return manualForm.value.items.reduce((sum, item) => {
+        return offeredQuotationItems(manualForm.value.items).reduce((sum, item) => {
             const qty = Number(item.offered_quantity) || 0
             const price = Number(item.unit_price) || 0
             return sum + (qty * price)
@@ -456,17 +460,19 @@ export function useRfqDetail() {
             return
         }
 
-        for (const item of manualForm.value.items) {
+        for (const item of offeredQuotationItems(manualForm.value.items)) {
             if (!item.offered_quantity || Number(item.offered_quantity) <= 0) {
                 showError(`Kuantitas penawaran untuk item '${item.item_name}' harus lebih dari 0!`)
                 return
             }
-            if (item.unit_price === null || item.unit_price === undefined || Number(item.unit_price) < 0) {
+            if (pricingMode(item) === 'legacy' && (item.unit_price === null || item.unit_price === undefined || Number(item.unit_price) < 0)) {
                 showError(`Harga satuan untuk item '${item.item_name}' tidak valid!`)
                 return
             }
         }
 
+        let serializedItems
+        try { serializedItems = quotationItems(manualForm.value.items) } catch (err) { showError(err.message); return }
         const payload = {
             rfq_id: Number(rfqId.value),
             supplier_id: Number(manualForm.value.supplier_id),
@@ -479,14 +485,7 @@ export function useRfqDetail() {
             shipping_cost: Number(manualForm.value.shipping_cost) || 0,
             quotation_file_id: manualForm.value.quotation_file_id,
             notes: manualForm.value.notes || null,
-            items: manualForm.value.items.map(item => ({
-                rfq_item_id: item.rfq_item_id,
-                offered_quantity: Number(item.offered_quantity),
-                unit_price: Number(item.unit_price),
-                lead_time_days: item.lead_time_days ? Number(item.lead_time_days) : null,
-                brand: item.brand || null,
-                notes: item.notes || null
-            }))
+            items: serializedItems
         }
 
         modalSubmitting.value = true

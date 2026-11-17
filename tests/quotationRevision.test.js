@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { ref, watch, reactive, nextTick } from 'vue'
 import { parse, compileScript } from '@vue/compiler-sfc'
+import * as pricing from '../src/utils/quotationPricing.js'
 
 function panel(options = {}) {
     const calls = [], events = []
@@ -13,6 +14,7 @@ function panel(options = {}) {
     }, disabled: false })
     const deps = {
         vue: { ref, watch },
+        '@/utils/quotationPricing.js': pricing,
         '@/services/rfqServices.js': {
             getSupplierQuotationHistory: async id => { calls.push(['history', id]); return { data: { versions: [{ review_version: 1 }] } } },
             requestSupplierQuotationRevision: async (...args) => { calls.push(['request', ...args]); if (options.failure) throw options.failure },
@@ -50,7 +52,7 @@ describe('Quotation controlled revision', () => {
         await state.saveRevision()
         const payload = calls[0][2]
         assert.equal(payload.expected_review_version, 3)
-        assert.equal(payload.items[0].unit_price, 85)
+        assert.equal(payload.items[0].unit_price, '85')
         assert.equal('is_awarded' in payload.items[0], false)
         assert.equal('purchase_order_id' in payload.items[0], false)
         assert.equal('review_status' in payload, false)
@@ -65,6 +67,22 @@ describe('Quotation controlled revision', () => {
             assert.ok(events.some(([event]) => event === 'changed'))
             assert.equal(state.busy.value, false)
         }
+    })
+    it('requests a new final total for the buyer quantity and preserves its mode in manual revision', async () => {
+        const { state, props, calls } = panel()
+        props.quotation.items[0] = { ...props.quotation.items[0], pricing_schema_version: 1, pricing_mode: 'reconfirm',
+            offered_quantity: '50', entered_total: '500000.00', price_input_basis: 'total', price_basis_quantity: '50' }
+        props.quotation.revision_request = { requested_quantities: [{ rfq_item_id: 5, quantity: '30.0000' }] }
+        state.startEdit()
+        assert.equal(state.draft.value.items[0].offered_quantity, '30.0000')
+        assert.equal(state.draft.value.items[0].entered_total, '')
+        assert.equal(props.quotation.items[0].entered_total, '500000.00')
+        state.draft.value.items[0].entered_total = '360000'
+        state.reason.value = 'Final supplier total'
+        await state.saveRevision()
+        assert.equal(calls[0][2].items[0].pricing_mode, 'reconfirm')
+        assert.equal(calls[0][2].items[0].entered_total, '360000')
+        assert.equal('unit_price' in calls[0][2].items[0], false)
     })
     it('loads immutable version history and resets it on quotation/version change', async () => {
         const { state, props, calls } = panel()

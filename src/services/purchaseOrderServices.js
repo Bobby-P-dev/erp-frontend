@@ -45,6 +45,11 @@ export const createPurchaseOrderFromRfq = async (rfqId, data = {}) => {
     return response.data
 }
 
+export const createPurchaseOrderFromRequisition = async (prId, quotationId) => {
+    const response = await api.post(`/api/v1/purchase-requisitions/${prId}/purchase-orders`, { supplier_quotation_id: quotationId })
+    return response.data
+}
+
 /**
  * Memperbarui data draf atau revisi Purchase Order.
  *

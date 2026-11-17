@@ -1,83 +1,61 @@
 <script setup>
-import SearchableMultiSelect from '../../../ui/SearchableMultiSelect.vue'
-import { Trash2 } from '@lucide/vue'
-
-defineProps({
-    selectedSupplierIds: { type: Array, required: true },
-    supplierOptions: { type: Array, required: true },
-    selectedSuppliers: { type: Array, required: true },
-    isLoadingSuppliers: { type: Boolean, default: false }
-})
-
-const emit = defineEmits(['update:selectedSupplierIds', 'remove-supplier'])
+import { reactive, ref } from 'vue'
+import { Users, Trash2 } from '@lucide/vue'
+import AsyncSearchPicker from '@/components/ui/AsyncSearchPicker.vue'
+const props = defineProps({ state: { type: Object, required: true } })
+const s = reactive(props.state)
+const pickerOpen = ref(false)
+const matchNames = row => s.catalogItems.filter(item => row.matched_item_ids?.map(Number).includes(item.id)).map(item => item.name)
 </script>
 
 <template>
     <section class="rfq-form-section" aria-labelledby="rfq-suppliers-heading">
         <div class="rfq-section-heading">
-            <div>
-                <h2 id="rfq-suppliers-heading">4. Supplier undangan</h2>
-                <p>Pilih supplier dan periksa emailnya. Undangan diproses setelah tender dipublikasikan.</p>
-            </div>
-            <span class="text-sm text-slate-500">{{ selectedSuppliers.length }} dipilih</span>
+            <div><h2 id="rfq-suppliers-heading">4. Supplier undangan</h2><p>Pilih supplier yang akan diminta memberikan penawaran. Menampilkan kandidat belum mengirim undangan.</p></div>
+            <span class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800"><Users class="size-4" />{{ s.selectedSuppliers.length }} dipilih</span>
         </div>
+        <p v-if="s.selectionNotice" role="status" class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-800">{{ s.selectionNotice }}</p>
+        <fieldset v-if="s.catalogItems.length">
+            <legend class="rfq-field-label">Cari supplier berdasarkan</legend>
+            <div class="flex flex-wrap gap-2">
+                <label v-for="option in [{ value: 'recommended', label: 'Sesuai barang katalog' }, { value: 'all', label: 'Cari supplier lain' }]" :key="option.value" class="flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-colors" :class="s.mode === option.value ? 'border-blue-500 bg-blue-50 font-medium text-blue-800' : 'border-slate-200 hover:bg-slate-50'">
+                    <input v-model="s.requestedMode" type="radio" name="rfq-supplier-mode" :value="option.value" class="size-4 accent-blue-700" />{{ option.label }}
+                </label>
+            </div>
+        </fieldset>
+        <p class="text-sm leading-relaxed text-slate-500">{{ !s.catalogItems.length ? 'Cari supplier aktif di perusahaan Anda. Barang custom tidak dicocokkan otomatis ke katalog.' : s.hasCustom ? 'Rekomendasi mengikuti barang katalog. Untuk barang custom, Anda juga dapat memilih Cari supplier lain.' : 'Kecocokan berdasarkan katalog supplier, bukan jaminan stok atau harga. Supplier lain tetap dapat dipilih.' }}</p>
         <div>
-            <p id="rfq-supplier-label" class="rfq-field-label">
-                Cari supplier <span class="text-rose-500">*</span>
-            </p>
-            <SearchableMultiSelect
-                :model-value="selectedSupplierIds"
-                @update:model-value="emit('update:selectedSupplierIds', $event)"
-                :options="supplierOptions"
-                placeholder="Cari nama atau kode supplier…"
-                :loading="isLoadingSuppliers"
-                aria-labelledby="rfq-supplier-label"
-            />
+            <label for="rfq-supplier-picker" class="rfq-field-label">Tambahkan supplier</label>
+            <AsyncSearchPicker id="rfq-supplier-picker" v-model:open="pickerOpen" v-model:query="s.query" multiple
+                trigger-label="Cari dan pilih supplier" search-label="Cari nama atau kode supplier" placeholder="Ketik nama atau kode supplier"
+                :rows="s.candidates" :selected-ids="s.selectedSupplierIds" :loading="s.loading" :error="s.error"
+                :page="s.page" :last-page="s.lastPage" page-label="Halaman kandidat supplier"
+                :empty-text="s.mode === 'recommended' ? 'Belum ada supplier yang cocok dengan barang katalog ini.' : 'Supplier tidak ditemukan. Coba nama atau kode lain.'"
+                @select="s.select" @page="s.load" @retry="s.load(1)">
+                <template #icon><Users class="size-4" /></template>
+                <template #option="{ row }">
+                    <span class="block break-words text-sm font-semibold text-slate-900">{{ row.name }}</span>
+                    <span class="mt-1 block text-xs text-slate-500">{{ row.supplier_code || 'SUP-' + row.id }}</span>
+                    <span v-if="matchNames(row).length" class="mt-1 block break-words text-xs text-blue-700">Sesuai: {{ matchNames(row).join(', ') }}</span>
+                </template>
+                <template #empty><button v-if="s.mode === 'recommended'" type="button" class="rfq-secondary-button" @click="s.requestedMode = 'all'; s.query = ''">Cari supplier lain</button></template>
+            </AsyncSearchPicker>
         </div>
-        <div v-if="selectedSuppliers.length" class="divide-y divide-slate-100">
-            <div
-                v-for="s in selectedSuppliers"
-                :key="s.id"
-                class="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0"
-            >
-                <div class="grid min-w-0 flex-1 gap-2 text-sm sm:grid-cols-2 sm:gap-5">
-                    <div class="min-w-0">
-                        <p class="break-words font-medium text-slate-900">{{ s.name }}</p>
-                        <p class="mt-1 text-xs text-slate-500">
-                            {{ s.supplier_code || `SUP-${s.id}`
-                            }}<template v-if="s.contact_person || s.contacts?.[0]?.name">
-                                · {{ s.contact_person || s.contacts?.[0]?.name }}</template
-                            >
-                        </p>
-                    </div>
-                    <div class="min-w-0">
-                        <p
-                            class="break-all"
-                            :class="s.email || s.contacts?.[0]?.email ? 'text-slate-700' : 'text-amber-700'"
-                        >
-                            {{
-                                s.email ||
-                                s.contacts?.[0]?.email ||
-                                'Email belum tersedia — periksa data supplier'
-                            }}
-                        </p>
-                        <p v-if="s.phone || s.contacts?.[0]?.phone" class="mt-1 text-xs text-slate-500">
-                            {{ s.phone || s.contacts?.[0]?.phone }}
-                        </p>
-                    </div>
+        <div v-if="s.selectedSuppliers.length" class="space-y-3">
+            <h3 class="text-sm font-semibold text-slate-900">Supplier yang akan diundang</h3>
+            <p v-if="s.selectionState === 'error'" role="alert" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Kecocokan pilihan belum dapat diperiksa ulang. Pilihan tetap tersimpan. <button type="button" class="ml-2 underline" @click="s.refreshSelected()">Periksa lagi</button></p>
+            <div v-for="row in s.selectedSuppliers" :key="row.id" class="flex items-start justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                <div class="min-w-0"><p class="break-words text-sm font-semibold text-slate-900">{{ row.name }}</p><p class="mt-1 text-xs text-slate-500">{{ row.supplier_code || 'SUP-' + row.id }}</p>
+                    <p v-if="s.selectionState === 'loading'" role="status" class="mt-2 text-sm text-slate-500">Memeriksa kecocokan terbaru…</p>
+                    <p v-else-if="s.selectionState === 'error'" class="mt-2 text-sm text-amber-800">Status kecocokan belum terverifikasi</p>
+                    <p v-else-if="row.availability === 'unavailable'" class="mt-2 text-sm text-rose-700">Supplier tidak tersedia atau tidak lagi aktif. Hapus dan pilih supplier lain sebelum menyimpan.</p>
+                    <p v-else-if="matchNames(row).length" class="mt-2 break-words text-sm text-blue-700">Sesuai: {{ matchNames(row).join(', ') }}</p>
+                    <p v-else class="mt-2 text-sm text-amber-800">{{ s.catalogItems.length ? 'Tidak cocok katalog saat ini. Tetap dipilih; periksa apakah supplier ini masih ingin diundang.' : 'Dipilih untuk kebutuhan ini. Konfirmasi kemampuan supplier melalui penawaran.' }}</p>
                 </div>
-                <button
-                    type="button"
-                    :aria-label="`Hapus ${s.name} dari undangan`"
-                    class="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
-                    @click="emit('remove-supplier', s.id)"
-                >
-                    <Trash2 class="size-4" />
-                </button>
+                <button type="button" class="rounded-lg p-2 text-rose-700 transition-colors hover:bg-rose-50" :aria-label="'Hapus ' + row.name + ' dari undangan'" @click="s.remove(row.id)"><Trash2 class="size-4" /></button>
             </div>
         </div>
-        <p v-else class="text-sm text-slate-400">
-            Belum ada supplier dipilih. Pilih minimal satu supplier untuk menyimpan tender.
-        </p>
+        <p v-else class="text-sm text-slate-500">Belum ada supplier dipilih. Draf dapat disimpan tanpa supplier; publikasi memerlukan minimal satu supplier.</p>
+        <p class="text-xs leading-relaxed text-slate-500">Kontak undangan diambil dari data master saat disimpan. Pilihan tetap ada saat pencarian atau halaman berubah. Mengubah daftar barang akan mengosongkan pilihan supplier.</p>
     </section>
 </template>

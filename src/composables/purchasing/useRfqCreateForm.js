@@ -1,8 +1,10 @@
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { createRfq, publishRfq } from '../../services/rfqServices.js'
 import { getProcurementPlans, showProcurementPlan } from '../../services/procurementPlanServices.js'
-import { getSuppliers } from '../../services/supplierServices.js'
+import { useRfqSupplierCandidates } from './useRfqSupplierCandidates.js'
+import { searchUnits } from '../../services/unitServices.js'
+import { buildRfqDraftPayload, validateRfqDraft, newInitialNeedItem } from '../../utils/rfqSource.js'
 import { showLoading, showSuccess, showError } from '../../utils/swal.js'
 
 export function useRfqCreateForm() {
@@ -13,14 +15,38 @@ export function useRfqCreateForm() {
     const isSubmitting = ref(false)
     const isLoadingPlans = ref(false)
     const isLoadingPlanDetail = ref(false)
-    const isLoadingSuppliers = ref(false)
 
     // Data sources
     const procurementPlans = ref([])
     const selectedPlan = ref(null)
     const additionalPlanIds = ref([])
     const additionalPlans = ref([])
-    const masterSuppliers = ref([])
+    const initialItems = ref([])
+    const unitOptions = ref([])
+    const isLoadingUnits = ref(false)
+    const unitsError = ref('')
+    const fieldErrors = ref({})
+    let rowSequence = 0
+    let planLoadVersion = 0
+    let unitLoadVersion = 0
+    const addInitialItem = () => initialItems.value.push({ ...newInitialNeedItem(), row_key: ++rowSequence })
+    const removeInitialItem = index => initialItems.value.splice(index, 1)
+    addInitialItem()
+    const fetchUnits = async (search = '') => {
+        const version = ++unitLoadVersion
+        isLoadingUnits.value = true
+        unitsError.value = ''
+        try {
+            const response = await searchUnits(search, 100)
+            if (version !== unitLoadVersion) return
+            const options = (response.data || []).map(unit => ({ value: unit.id, label: unit.code ? `${unit.name} (${unit.code})` : unit.name }))
+            unitOptions.value = [...new Map([...unitOptions.value, ...options].map(option => [option.value, option])).values()]
+        } catch {
+            if (version === unitLoadVersion) unitsError.value = 'Satuan belum dapat dimuat. Coba lagi atau ketik nama satuan.'
+        } finally {
+            if (version === unitLoadVersion) isLoadingUnits.value = false
+        }
+    }
 
     const getPlanPrSummary = (plan) => {
         if (!plan) return '-'
@@ -83,6 +109,7 @@ export function useRfqCreateForm() {
 
     // Form model
     const form = ref({
+        source_type: route.query.plan_id || route.query.plan_ids ? 'procurement_plan' : 'initial_need',
         procurement_plan_id: '',
         title: '',
         issue_date: new Date().toISOString().substring(0, 10),
@@ -94,24 +121,29 @@ export function useRfqCreateForm() {
 
     // Item lines from selected procurement plan
     const planItems = ref([])
-
-    // Selected supplier IDs
-    const selectedSupplierIds = ref([])
-
-    const supplierOptions = computed(() => {
-        return masterSuppliers.value.map(s => ({
-            value: s.id,
-            label: `${s.name} (${s.supplier_code || 'SUP-' + s.id})`
-        }))
-    })
-
-    const selectedSuppliers = computed(() => {
-        return masterSuppliers.value.filter(s => selectedSupplierIds.value.includes(s.id))
-    })
+    const isInitialSource = computed(() => form.value.source_type === 'initial_need')
+    const changeSource = source => {
+        if (isSubmitting.value || source === form.value.source_type) return
+        ++planLoadVersion
+        isLoadingPlanDetail.value = false
+        form.value.source_type = source
+        form.value.procurement_plan_id = ''
+        form.value.title = ''
+        additionalPlanIds.value = []
+        selectedPlan.value = null
+        additionalPlans.value = []
+        planItems.value = []
+        initialItems.value = []
+        fieldErrors.value = {}
+        if (source === 'initial_need') addInitialItem()
+        else if (!procurementPlans.value.length) fetchAvailablePlans()
+    }
 
     const activeItems = computed(() => {
-        return planItems.value.filter(item => item.is_selected)
+        return isInitialSource.value ? initialItems.value : planItems.value.filter(item => item.is_selected)
     })
+    const supplierCandidates = useRfqSupplierCandidates(activeItems)
+    const { selectedSupplierIds, selectedSuppliers, remove: removeSupplier } = supplierCandidates
 
     const totalEstimatedHpsAmount = computed(() => {
         return activeItems.value.reduce((sum, item) => {
@@ -129,18 +161,6 @@ export function useRfqCreateForm() {
             showError('Gagal Memuat Rencana Pengadaan', 'Tidak dapat mengambil data procurement plan bertipe RFQ.')
         } finally {
             isLoadingPlans.value = false
-        }
-    }
-
-    const fetchSuppliers = async () => {
-        try {
-            isLoadingSuppliers.value = true
-            const res = await getSuppliers('', 1, { is_active: true }, 200)
-            masterSuppliers.value = res.data || []
-        } catch (err) {
-            console.error('Failed to load suppliers:', err)
-        } finally {
-            isLoadingSuppliers.value = false
         }
     }
 
@@ -184,6 +204,8 @@ export function useRfqCreateForm() {
     }
 
     const syncCombinedPlanItems = async (preserveExisting = false) => {
+        if (isInitialSource.value) return
+        const version = ++planLoadVersion
         if (!form.value.procurement_plan_id) {
             selectedPlan.value = null
             additionalPlans.value = []
@@ -206,6 +228,7 @@ export function useRfqCreateForm() {
             ]
 
             const responses = await Promise.all(allPlanIds.map(id => showProcurementPlan(id)))
+            if (version !== planLoadVersion || isInitialSource.value) return
             const loadedPlans = responses.map(r => r.data || r)
 
             const primaryPlan = loadedPlans[0] || null
@@ -226,10 +249,11 @@ export function useRfqCreateForm() {
             }
             planItems.value = combinedRows
         } catch (err) {
+            if (version !== planLoadVersion) return
             console.error('Failed to load plan details:', err)
             showError('Gagal Memuat Detail Rencana', 'Terjadi kesalahan saat memuat rincian item rencana pengadaan.')
         } finally {
-            isLoadingPlanDetail.value = false
+            if (version === planLoadVersion) isLoadingPlanDetail.value = false
         }
     }
 
@@ -259,87 +283,33 @@ export function useRfqCreateForm() {
         }
     })
 
-    const removeSupplier = (id) => {
-        selectedSupplierIds.value = selectedSupplierIds.value.filter(sId => sId !== id)
-    }
-
-    const validateForm = () => {
-        if (!form.value.procurement_plan_id) {
-            showError('Validasi Gagal', 'Silakan pilih Dokumen Procurement Plan terlebih dahulu.')
-            return false
+    const validateForm = (publish = false) => {
+        fieldErrors.value = validateRfqDraft(form.value, activeItems.value, selectedSuppliers.value, publish)
+        if (selectedSuppliers.value.some(supplier => supplier.availability === 'unavailable')) {
+            fieldErrors.value.suppliers = ['Hapus supplier yang tidak lagi tersedia dan pilih supplier aktif sebelum menyimpan.']
         }
-        if (!form.value.title || !form.value.title.trim()) {
-            showError('Validasi Gagal', 'Judul Tender RFQ wajib diisi.')
-            return false
-        }
-        if (!form.value.deadline_date) {
-            showError('Validasi Gagal', 'Tanggal Batas Akhir Penawaran (Deadline) wajib diisi.')
-            return false
-        }
-
-        if (activeItems.value.length === 0) {
-            showError('Validasi Gagal', 'Pilih minimal satu item untuk dimasukkan ke paket tender ini.')
-            return false
-        }
-
-        for (const it of activeItems.value) {
-            if (!it.target_quantity || Number(it.target_quantity) <= 0) {
-                showError('Validasi Gagal', `Kuantitas target untuk item "${it.item_name}" harus lebih besar dari 0.`)
-                return false
-            }
-            if (Number(it.target_quantity) > Number(it.remaining_quantity)) {
-                showError('Validasi Gagal', `Kuantitas target "${it.item_name}" (${it.target_quantity}) melebihi sisa kuota yang tersedia (${it.remaining_quantity}).`)
-                return false
-            }
-        }
-
-        if (selectedSupplierIds.value.length === 0) {
-            showError('Validasi Gagal', 'Pilih minimal satu vendor / supplier yang akan diundang ke tender ini.')
-            return false
-        }
-
-        return true
+        if (Object.keys(fieldErrors.value).length) nextTick(() => document.getElementById('rfq-validation-errors')?.focus())
+        return Object.keys(fieldErrors.value).length === 0
     }
 
     const handleSubmit = async (publishImmediately = false) => {
-        if (!validateForm()) return
+        if (isSubmitting.value || !validateForm(publishImmediately)) return
 
         isSubmitting.value = true
         try {
             showLoading(publishImmediately ? 'Membuat & mempublikasikan tender RFQ...' : 'Menyimpan draf tender RFQ...')
-            const payload = {
-                procurement_plan_id: parseInt(form.value.procurement_plan_id, 10),
-                additional_procurement_plan_ids: additionalPlanIds.value.map(id => parseInt(id, 10)),
-                title: form.value.title.trim(),
-                issue_date: form.value.issue_date,
-                deadline_date: form.value.deadline_date,
-                delivery_address: form.value.delivery_address || null,
-                payment_terms_requested: form.value.payment_terms_requested || null,
-                notes: form.value.notes || null,
-                items: activeItems.value.map(it => ({
-                    procurement_plan_item_id: it.procurement_plan_item_id,
-                    item_id: it.item_id,
-                    item_name: it.item_name,
-                    item_specifications: it.item_specifications || null,
-                    unit_id: it.unit_id,
-                    target_quantity: Number(it.target_quantity),
-                    target_price: it.target_price ? Number(it.target_price) : null,
-                    required_delivery_date: it.required_delivery_date || null,
-                    notes: it.notes || null
-                })),
-                suppliers: selectedSuppliers.value.map(s => ({
-                    supplier_id: s.id,
-                    contact_person: s.contact_person || s.contacts?.[0]?.name || null,
-                    email: s.email || s.contacts?.[0]?.email || null,
-                    phone: s.phone || s.contacts?.[0]?.phone || null
-                }))
-            }
-
+            const payload = buildRfqDraftPayload(form.value, activeItems.value, selectedSuppliers.value, additionalPlanIds.value)
             const res = await createRfq(payload)
             const createdRfq = res.data || res
 
             if (publishImmediately && createdRfq?.id) {
-                await publishRfq(createdRfq.id)
+                try {
+                    await publishRfq(createdRfq.id)
+                } catch (error) {
+                    showError('Draf tersimpan, publikasi belum berhasil', error.response?.data?.message || 'Buka detail tender untuk mencoba publikasi kembali. Tidak perlu membuat draf baru.')
+                    router.push({ name: 'user.purchasing.rfq.detail', params: { id: createdRfq.id } })
+                    return
+                }
                 showSuccess('Berhasil Dipublikasikan!', `Tender RFQ ${createdRfq.rfq_number || form.value.title} berhasil dibuat dan portal penawaran vendor telah aktif.`)
             } else {
                 showSuccess('Berhasil!', `Draf tender RFQ ${createdRfq.rfq_number || form.value.title} berhasil dibuat.`)
@@ -350,8 +320,10 @@ export function useRfqCreateForm() {
                 params: { id: createdRfq.id }
             })
         } catch (err) {
+            fieldErrors.value = err.response?.data?.errors || {}
             console.error('Failed to create RFQ:', err)
-            showError('Gagal Membuat RFQ', err.response?.data?.message || 'Terjadi kesalahan saat menyimpan draf RFQ.')
+            await showError('Gagal Membuat RFQ', err.response?.data?.message || 'Terjadi kesalahan saat menyimpan draf RFQ.')
+            if (Object.keys(fieldErrors.value).length) nextTick(() => document.getElementById('rfq-validation-errors')?.focus())
         } finally {
             isSubmitting.value = false
         }
@@ -359,11 +331,11 @@ export function useRfqCreateForm() {
 
     onMounted(async () => {
         await Promise.all([
-            fetchAvailablePlans(),
-            fetchSuppliers()
+            isInitialSource.value ? Promise.resolve() : fetchAvailablePlans(),
+            fetchUnits()
         ])
 
-        if (route.query.plan_ids) {
+        if (!isInitialSource.value && route.query.plan_ids) {
             const ids = String(route.query.plan_ids)
                 .split(',')
                 .map(s => s.trim())
@@ -373,20 +345,27 @@ export function useRfqCreateForm() {
                 additionalPlanIds.value = ids.slice(1).map(id => Number(id))
                 await syncCombinedPlanItems(false)
             }
-        } else if (route.query.plan_id) {
+        } else if (!isInitialSource.value && route.query.plan_id) {
             form.value.procurement_plan_id = Number(route.query.plan_id)
             await syncCombinedPlanItems(false)
-        } else if (procurementPlans.value.length > 0) {
-            // Auto-select first ready plan if user opened /purchasing/rfqs/create directly
-            form.value.procurement_plan_id = procurementPlans.value[0].id
         }
     })
 
     return {
+        isInitialSource,
+        changeSource,
+        initialItems,
+        addInitialItem,
+        removeInitialItem,
+        unitOptions,
+        isLoadingUnits,
+        unitsError,
+        fetchUnits,
+        fieldErrors,
         isSubmitting,
         isLoadingPlans,
         isLoadingPlanDetail,
-        isLoadingSuppliers,
+        supplierCandidates,
         procurementPlans,
         selectedPlan,
         additionalPlanIds,
@@ -396,7 +375,6 @@ export function useRfqCreateForm() {
         selectedSupplierIds,
         primaryPlanOptions,
         availableAdditionalPlanOptions,
-        supplierOptions,
         selectedSuppliers,
         activeItems,
         totalEstimatedHpsAmount,

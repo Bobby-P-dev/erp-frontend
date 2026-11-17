@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from '../../../composables/useFormatter.js
 import PageHeader from '../../../components/ui/PageHeader.vue'
 import BaseButton from '../../../components/ui/BaseButton.vue'
 import StatusBadge from '../../../components/ui/StatusBadge.vue'
+import PurchaseOrderItemDetails from '../../../components/purchasing/order/PurchaseOrderItemDetails.vue'
 
 import {
     Home,
@@ -338,6 +339,7 @@ const handleAcknowledge = async () => {
                                     <div v-if="item.item_specifications" class="text-xs text-slate-600 mt-0.5">
                                         {{ item.item_specifications }}
                                     </div>
+                                    <PurchaseOrderItemDetails v-if="item.pricing_snapshot?.pricing_schema_version > 0" :item="item" />
                                 </td>
                                 <td class="py-3.5 px-4 text-center text-slate-700">{{ item.brand || '-' }}</td>
                                 <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">

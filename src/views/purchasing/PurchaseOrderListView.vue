@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { getPurchaseOrders } from '../../services/purchaseOrderServices.js'
+import { canIssuePurchaseOrder, usePurchaseOrderActions } from '../../composables/purchasing/usePurchaseOrderActions.js'
 import { formatCurrency, formatDate } from '../../composables/useFormatter.js'
 
 import SearchInput from '../../components/ui/SearchInput.vue'
@@ -17,7 +18,9 @@ import {
     ChevronRight,
     FileText,
     RefreshCw,
-    Eye
+    Eye,
+    Send,
+    Loader2
 } from '@lucide/vue'
 
 const router = useRouter()
@@ -26,6 +29,7 @@ const route = useRoute()
 const purchaseOrders = ref([])
 const isLoading = ref(false)
 const previewId = ref(null)
+const { busy: issuing, activeId: issuingPoId, issue } = usePurchaseOrderActions()
 const loadError = ref('')
 let requestVersion = 0
 const searchQuery = ref('')
@@ -59,7 +63,7 @@ const tableColumns = [
     { key: 'delivery', label: 'Target kirim', minWidth: '140px' },
     { key: 'total_amount', label: 'Total pesanan', minWidth: '160px', align: 'right' },
     { key: 'status', label: 'Status', minWidth: '170px' },
-    { key: 'actions', label: 'Detail', width: '85px', align: 'center' }
+    { key: 'actions', label: 'Aksi', minWidth: '210px', width: '210px', align: 'right' }
 ]
 
 const fetchPurchaseOrders = async (search = searchQuery.value, page = 1) => {
@@ -147,7 +151,12 @@ onMounted(() => {
                         <td class="text-slate-600 whitespace-nowrap">{{ formatDate(item.expected_delivery_date) }}</td>
                         <td class="text-right font-medium tabular-nums text-slate-900 whitespace-nowrap">{{ formatCurrency(item.total_amount, item.currency) }}</td>
                         <td><StatusBadge :status="item.status" :label="item.status_label" /></td>
-                        <td class="text-center"><button type="button" :aria-label="`Lihat detail ${item.po_number}`" class="inline-flex rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-[#014baa]" @click="previewId = item.id"><Eye class="size-4" /></button></td>
+                        <td><div class="flex items-center justify-end gap-2 whitespace-nowrap">
+                            <BaseButton v-if="canIssuePurchaseOrder(item)" size="sm" :disabled="issuing || isLoading"
+                                :aria-label="`Terbitkan PO ${item.po_number}`"
+                                @click="issue(item, () => fetchPurchaseOrders(searchQuery, pagination.current_page))"><Loader2 v-if="issuing && issuingPoId === item.id" class="size-4 animate-spin" /><Send v-else class="size-4" />{{ issuing && issuingPoId === item.id ? 'Menerbitkan…' : 'Terbitkan PO' }}</BaseButton>
+                            <button type="button" :aria-label="`Lihat detail ${item.po_number}`" class="inline-flex rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-[#014baa]" @click="previewId = item.id"><Eye class="size-4" /></button>
+                        </div></td>
                     </tr>
                 </template>
             </BaseTable>

@@ -1,5 +1,6 @@
 <script setup>
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
+import { RouterLink } from 'vue-router'
 import RfqQueueTab from '../../components/purchasing/rfq/list/RfqQueueTab.vue'
 import RfqDocumentsTab from '../../components/purchasing/rfq/list/RfqDocumentsTab.vue'
 import { useRfqList } from '../../composables/purchasing/useRfqList.js'
@@ -52,9 +53,9 @@ const {
                 <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Tender RFQ</h1>
                 <p class="mt-1.5 text-sm text-slate-500">Kelola tender dan pantau penawaran supplier untuk kebutuhan pengadaan.</p>
             </div>
-            <button v-if="activeMainTab === 'rfqs'" type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#014BAA] px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 cursor-pointer" @click="activeMainTab = 'queue'">
+            <RouterLink :to="{ name: 'user.purchasing.rfq.create' }" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#014BAA] px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 cursor-pointer">
                 <Plus class="size-4" />Buat tender RFQ
-            </button>
+            </RouterLink>
         </div>
 
         <!-- Primary High-Level View Switcher Tabs (Identical to ProcurementPlanListView) -->

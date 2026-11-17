@@ -1,5 +1,6 @@
 <script setup>
-import { Send, X, ShieldCheck } from '@lucide/vue'
+import { hasPreviewPricing, offeredQuotationItems } from '@/utils/quotationPricing.js'
+import { Send, X, ClipboardCheck } from '@lucide/vue'
 import { formatCurrency } from '@/composables/useFormatter.js'
 
 defineProps({
@@ -33,18 +34,23 @@ defineEmits(['decline'])
 </script>
 
 <template>
-    <div class="space-y-4 lg:sticky lg:top-24">
+    <div class="space-y-4">
         <div class="bg-white rounded-2xl border border-[#E5EAF1] p-5 sm:p-6 shadow-xs space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Ringkasan Biaya Penawaran
+                <h4 class="text-base font-semibold text-slate-900">
+                    Periksa & kirim penawaran
                 </h4>
-                <span class="text-[11px] font-semibold text-[#014BAA] bg-[#EAF2FF] px-2 py-0.5 rounded-md">
-                    Otomatis
+                <span class="text-xs font-semibold text-[#014BAA] bg-[#EAF2FF] px-2 py-0.5 rounded-md">
+                    Langkah terakhir
                 </span>
             </div>
 
-            <div class="space-y-3 text-xs">
+            <p class="text-sm font-medium text-slate-700">{{ offeredQuotationItems(quoteForm.items).length }} dari {{ quoteForm.items.length }} barang ditawarkan</p>
+            <div v-if="hasPreviewPricing(quoteForm.items)" class="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3 text-sm">
+                <p class="text-slate-600">Perkiraan harga ada di setiap barang. Total akhir akan dihitung sistem saat dikirim, termasuk pajak dan ongkos kirim.</p>
+                <div class="flex flex-wrap gap-x-6 gap-y-2 text-slate-700"><span>PPN <strong>{{ quoteForm.tax_rate }}%</strong></span><span>Ongkos kirim <strong>{{ formatCurrency(shippingAmount) }}</strong></span></div>
+            </div>
+            <div v-else class="space-y-3 text-sm">
                 <div class="flex items-center justify-between text-slate-600">
                     <span>Subtotal Barang:</span>
                     <span class="font-mono font-semibold text-slate-900">
@@ -77,11 +83,11 @@ defineEmits(['decline'])
                 </div>
             </div>
 
-            <div class="pt-3 space-y-2.5">
+            <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row-reverse gap-3">
                 <button 
                     type="submit"
                     :disabled="isSubmitting"
-                    class="w-full py-3.5 px-4 rounded-xl bg-[#014BAA] hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow cursor-pointer transition-all"
+                    class="w-full sm:w-auto py-3.5 px-4 rounded-xl bg-[#014BAA] hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow cursor-pointer transition-all"
                 >
                     <Send class="w-4 h-4" />
                     <span>{{ isSubmitting ? 'Mengirim Penawaran...' : 'Kirim Surat Penawaran' }}</span>
@@ -91,7 +97,7 @@ defineEmits(['decline'])
                     type="button"
                     @click="$emit('decline')"
                     :disabled="isSubmitting"
-                    class="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    class="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 >
                     <X class="w-4 h-4 text-slate-400" />
                     <span>Tolak Partisipasi Tender</span>
@@ -99,14 +105,14 @@ defineEmits(['decline'])
             </div>
         </div>
 
-        <!-- Security / SLA Note -->
-        <div class="p-4 rounded-xl bg-slate-100/70 border border-slate-200/70 text-[11px] text-slate-500 space-y-1.5">
+        <!-- Final review guidance -->
+        <div class="p-4 rounded-xl bg-slate-100/70 border border-slate-200/70 text-xs text-slate-500 space-y-1.5">
             <div class="flex items-center gap-1.5 font-semibold text-slate-700">
-                <ShieldCheck class="w-3.5 h-3.5 text-[#014BAA]" />
-                <span>Pemberitahuan Kerahasiaan</span>
+                <ClipboardCheck class="w-3.5 h-3.5 text-[#014BAA]" />
+                <span>Sebelum mengirim</span>
             </div>
             <p class="leading-relaxed">
-                Data harga yang Anda berikan dienkripsi dan hanya dapat dievaluasi oleh tim pengadaan PT Padma Soode Indonesia setelah batas waktu tender berakhir.
+                Pastikan jumlah, ketentuan harga, dan dokumen sudah sesuai. Penawaran yang dikirim akan digunakan tim pengadaan untuk membandingkan penawaran supplier.
             </p>
         </div>
     </div>

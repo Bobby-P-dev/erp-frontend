@@ -21,7 +21,7 @@ import {
     Eye,
     RefreshCw,
     ShieldAlert,
-    Download,
+    FileSearch,
     Loader2
 } from '@lucide/vue'
 import { generatePurchaseRequisitionPdf } from '../../utils/pdf/purchaseRequisitionPdfGenerator.js'
@@ -447,17 +447,17 @@ onUnmounted(() => {
                                             <span>Tinjau</span>
                                         </button>
 
-                                        <!-- Unduh Lembar Persetujuan (PDF) Langsung di Tabel -->
+                                        <!-- Preview PDF sebelum unduh -->
                                         <button
                                             v-if="canDownloadPdf(task)"
                                             type="button"
                                             :disabled="downloadingTaskId === task.id"
                                             @click="handleDownloadPdf(task)"
                                             class="p-1.5 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                                            title="Unduh Lembar Persetujuan (PDF)"
+                                            title="Preview Lembar Persetujuan (PDF)"
                                         >
                                             <Loader2 v-if="downloadingTaskId === task.id" class="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                                            <Download v-else class="w-3.5 h-3.5" />
+                                            <FileSearch v-else class="w-3.5 h-3.5" />
                                         </button>
                                     </div>
                                 </td>

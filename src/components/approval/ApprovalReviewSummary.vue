@@ -38,6 +38,15 @@ defineProps({
                 <dd v-if="document.required_date" class="summary-secondary">Target: {{ formatDate(document.required_date) }}</dd>
             </div>
         </dl>
+        <div v-if="document.procurement_route === 'direct_supplier'" class="mt-5 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+            <p class="text-sm font-semibold text-slate-900">Supplier tujuan · {{ document.direct_supplier?.name || '—' }}</p>
+            <p class="mt-1 text-xs text-slate-600">Setelah PR disetujui, pembelian langsung dilanjutkan ke PO.</p>
+            <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                <div><dt class="summary-label">Referensi harga</dt><dd class="summary-value">{{ document.direct_purchase_terms?.reference || '—' }}</dd></div>
+                <div><dt class="summary-label">Pembayaran</dt><dd class="summary-value">{{ document.direct_purchase_terms?.payment_terms || '—' }}</dd></div>
+                <div class="sm:col-span-2"><dt class="summary-label">Alamat pengiriman</dt><dd class="summary-value whitespace-pre-line">{{ document.direct_purchase_terms?.delivery_address || '—' }}</dd></div>
+            </dl>
+        </div>
         <div v-if="document.is_overdue || document.sla_hours_left != null" class="mt-4 flex items-center gap-1.5 text-xs" :class="document.is_overdue || document.sla_hours_left < 0 ? 'text-rose-700' : 'text-slate-500'">
             <ShieldAlert v-if="document.is_overdue || document.sla_hours_left < 0" class="size-3.5" aria-hidden="true" />
             <Clock v-else class="size-3.5" aria-hidden="true" />

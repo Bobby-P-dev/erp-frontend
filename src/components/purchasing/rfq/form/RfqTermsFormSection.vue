@@ -1,7 +1,8 @@
 <script setup>
 import ReviewDisclosure from '../../../ui/ReviewDisclosure.vue'
 defineProps({
-    form: { type: Object, required: true }
+    form: { type: Object, required: true },
+    errors: { type: Object, default: () => ({}) }
 })
 </script>
 
@@ -22,8 +23,11 @@ defineProps({
                     id="rfq-title"
                     v-model="form.title"
                     type="text"
+                    maxlength="255"
+                    :aria-invalid="!!errors.title"
                     placeholder="Contoh: Pengadaan material produksi November"
                 />
+                <p v-if="errors.title" class="mt-2 text-sm text-rose-700">{{ errors.title[0] }}</p>
             </div>
             <div>
                 <label for="rfq-issue-date" class="rfq-field-label">Tanggal penerbitan</label
@@ -33,10 +37,17 @@ defineProps({
                 <label for="rfq-deadline" class="rfq-field-label"
                     >Batas akhir penawaran <span class="text-rose-500">*</span></label
                 ><input class="rfq-input" id="rfq-deadline" v-model="form.deadline_date" type="date" />
+                <p v-if="errors.deadline_date" class="mt-2 text-sm text-rose-700">{{ errors.deadline_date[0] }}</p>
                 <p class="mt-1.5 text-xs text-slate-500">
                     Berlaku sampai akhir hari pada tanggal ini, dalam WIB.
                 </p>
             </div>
+        </div>
+        <ReviewDisclosure
+            title="Pengiriman, pembayaran & catatan"
+            :description="[form.delivery_address && 'Alamat diisi', form.payment_terms_requested && 'Pembayaran diisi', form.notes && 'Catatan diisi'].filter(Boolean).join(' · ') || 'Opsional · lengkapi jika ada persyaratan khusus'"
+        >
+            <div class="grid gap-5 sm:grid-cols-2">
             <div>
                 <label for="rfq-address" class="rfq-field-label">Alamat pengiriman</label
                 ><textarea
@@ -56,12 +67,7 @@ defineProps({
                     placeholder="Contoh: Tempo 60 hari"
                 />
             </div>
-        </div>
-        <ReviewDisclosure
-            title="Catatan & ketentuan tambahan"
-            :description="form.notes ? 'Catatan sudah diisi' : 'Opsional · persyaratan khusus untuk supplier'"
-            :open="Boolean(form.notes)"
-        >
+            <div class="sm:col-span-2">
             <label for="rfq-notes" class="rfq-field-label">Catatan tender</label
             ><textarea
                 id="rfq-notes"
@@ -69,6 +75,8 @@ defineProps({
                 rows="3"
                 placeholder="Contoh: Sertifikat material, garansi, atau persyaratan pengiriman"
             />
+            </div>
+            </div>
         </ReviewDisclosure>
     </section>
 </template>
