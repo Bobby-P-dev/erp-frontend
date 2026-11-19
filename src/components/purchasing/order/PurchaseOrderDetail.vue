@@ -11,6 +11,7 @@ import BaseTable from '../../ui/BaseTable.vue'
 import StatusBadge from '../../ui/StatusBadge.vue'
 import DocumentWorkflowTracker from '../../approval/DocumentWorkflowTracker.vue'
 import PurchaseOrderItemDetails from './PurchaseOrderItemDetails.vue'
+import DocumentActivityTimeline from '../DocumentActivityTimeline.vue'
 
 const props = defineProps({ orderId: { type: [Number, String], required: true } })
 const emit = defineEmits(['changed'])
@@ -185,7 +186,7 @@ async function cancel() {
                     </article>
                     <p v-if="!po.items?.length" class="py-6 text-center text-sm text-slate-500">Belum ada barang dalam pesanan ini.</p>
                 </div>
-                <div class="po-cost-card rounded-2xl border border-slate-200 p-5"><h4 class="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800"><ReceiptText class="size-4 text-blue-700" aria-hidden="true" />Ringkasan biaya</h4><dl class="cost-summary space-y-3 text-sm">
+                <div class="po-cost-card rounded-xl border border-slate-200/80 bg-slate-50/70 p-5"><h4 class="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800"><ReceiptText class="size-4 text-blue-700" aria-hidden="true" />Ringkasan biaya</h4><dl class="cost-summary space-y-3 text-sm">
                     <div><dt>Subtotal barang</dt><dd>{{ money(po.subtotal) }}</dd></div>
                     <div v-if="Number(po.discount_amount)"><dt>Diskon</dt><dd>− {{ money(po.discount_amount) }}</dd></div>
                     <div><dt>Pajak ({{ Number(po.tax_rate || 0) }}%)</dt><dd>{{ money(po.tax_amount) }}</dd></div>
@@ -196,18 +197,18 @@ async function cancel() {
 
             <section v-else-if="activeTab === 'delivery'" class="space-y-6" aria-label="Pengiriman dan ketentuan">
                 <h4 class="text-base font-semibold text-slate-900">Pengiriman & pembayaran</h4>
-                <dl class="po-info-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <dl class="po-info-grid grid grid-cols-1 gap-5 rounded-xl border border-slate-200/80 bg-white p-5 sm:grid-cols-2">
                     <div><dt><Truck class="size-4" aria-hidden="true" />Target pengiriman</dt><dd>{{ formatDate(po.expected_delivery_date) }}</dd></div>
                     <div><dt><Wallet class="size-4" aria-hidden="true" />Syarat pembayaran</dt><dd>{{ po.payment_terms || 'Belum dicantumkan' }}</dd></div>
-                    <div class="sm:col-span-2"><dt><MapPin class="size-4" aria-hidden="true" />Alamat tujuan</dt><dd class="whitespace-pre-line">{{ po.delivery_address || 'Belum dicantumkan' }}</dd></div>
-                    <div class="sm:col-span-2"><dt><MessageSquareText class="size-4" aria-hidden="true" />Catatan pesanan</dt><dd class="whitespace-pre-line">{{ po.notes || 'Tidak ada catatan tambahan.' }}</dd></div>
+                    <div class="sm:col-span-2 sm:border-t sm:border-slate-100 sm:pt-4"><dt><MapPin class="size-4" aria-hidden="true" />Alamat tujuan</dt><dd class="whitespace-pre-line">{{ po.delivery_address || 'Belum dicantumkan' }}</dd></div>
+                    <div class="sm:col-span-2 sm:border-t sm:border-slate-100 sm:pt-4"><dt><MessageSquareText class="size-4" aria-hidden="true" />Catatan pesanan</dt><dd class="whitespace-pre-line">{{ po.notes || 'Tidak ada catatan tambahan.' }}</dd></div>
                 </dl>
-                <div class="rounded-2xl bg-slate-50 p-5"><h5 class="flex items-center gap-2 font-medium text-slate-900"><BadgeCheck class="size-4 text-blue-700" aria-hidden="true" />Konfirmasi pemasok</h5><p class="mt-2 text-sm text-slate-600">{{ po.acknowledged_at ? `${po.acknowledged_by_name || 'Pemasok'} · ${formatDateTime(po.acknowledged_at)}` : 'Belum ada konfirmasi dari pemasok.' }}</p><p v-if="po.vendor_notes" class="mt-3 whitespace-pre-line text-sm text-slate-600">{{ po.vendor_notes }}</p></div>
+                <div class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-5"><h5 class="flex items-center gap-2 font-medium text-slate-900"><BadgeCheck class="size-4 text-blue-700" aria-hidden="true" />Konfirmasi pemasok</h5><p class="mt-2 text-sm text-slate-600">{{ po.acknowledged_at ? `${po.acknowledged_by_name || 'Pemasok'} · ${formatDateTime(po.acknowledged_at)}` : 'Belum ada konfirmasi dari pemasok.' }}</p><p v-if="po.vendor_notes" class="mt-3 whitespace-pre-line text-sm text-slate-600">{{ po.vendor_notes }}</p></div>
             </section>
 
             <section v-else class="space-y-6" aria-label="Dokumen dan proses pesanan">
                 <div><h4 class="text-base font-semibold text-slate-900">Dokumen sumber</h4><p class="mt-1 text-sm text-slate-500">Persetujuan pengadaan dilakukan pada PR asal.</p></div>
-                <dl class="po-info-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <dl class="po-info-grid grid grid-cols-1 gap-5 rounded-xl border border-slate-200/80 bg-white p-5 sm:grid-cols-2">
                     <div><dt>Tender RFQ</dt><dd><RouterLink v-if="po.rfq" :to="{ name: 'user.purchasing.rfq.detail', params: { id: po.rfq.id } }" class="inline-flex items-center gap-1 text-[#014baa] hover:underline">{{ po.rfq.rfq_number }}<ArrowUpRight class="size-4" /></RouterLink><span v-else>—</span></dd><p v-if="po.rfq?.title" class="mt-1 text-sm text-slate-500">{{ po.rfq.title }}</p></div>
                     <div><dt>Penawaran pemasok</dt><dd>{{ po.supplier_quotation?.quotation_number || '—' }}</dd><p v-if="po.supplier_quotation?.vendor_quotation_reference" class="mt-1 text-sm text-slate-500">Ref: {{ po.supplier_quotation.vendor_quotation_reference }}</p></div>
                     <div><dt>Rencana pengadaan</dt><dd>{{ po.procurement_plan?.pp_number || '—' }}</dd></div>
@@ -218,6 +219,13 @@ async function cancel() {
                 </div>
                 <p v-if="po.rejection_reason" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Catatan keputusan: {{ po.rejection_reason }}</p>
                 <DocumentWorkflowTracker v-if="legacy" document-type="purchase_order" :document-id="po.id" title="Riwayat approval lama" hide-if-empty />
+                <DocumentActivityTimeline
+                    v-if="po?.id"
+                    document-type="purchase_order"
+                    :document-id="po.id"
+                    :active="activeTab === 'documents'"
+                    subtitle="Perubahan data Purchase Order dan item barangnya secara kronologis."
+                />
                 <div v-if="canCancel" class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5"><p class="text-sm text-slate-500">Batalkan jika pesanan tidak dilanjutkan. Alasan wajib diisi.</p><button type="button" class="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-40" :disabled="busy || loading || editing" @click="cancel"><Ban class="size-4" />Batalkan PO</button></div>
             </section>
         </template>
@@ -227,12 +235,11 @@ async function cancel() {
 <style scoped>
 .po-detail { overflow-wrap: anywhere; }
 .po-status-note { border-left: 3px solid #93b9eb; border-radius: 0 10px 10px 0; background: #f5f8fd; padding: 10px 12px; }
-.po-highlights > div { background: linear-gradient(135deg, #fff, #f5f8fd); }
+.po-highlights > div { background: #ffffff; }
 .po-highlights > div:last-child { background: #eff6ff; border-color: #bfdbfe; }
 .po-item-row:hover { background: #f8faff; }
 .po-item-expansion > td { padding-top: 0; }
 .po-item-expansion :deep(.po-item-details) { margin-top: 0; }
-.po-cost-card { background: linear-gradient(135deg, #fff 60%, #f5f8fd); }
 dt { font-size: 0.875rem; color: #64748b; }
 dd { margin-top: 5px; font-size: 0.875rem; font-weight: 500; color: #0f172a; }
 button, summary { cursor: pointer; }
@@ -240,7 +247,7 @@ button, summary { cursor: pointer; }
 .po-highlights > div, .po-tab { transition: background-color 160ms ease, border-color 160ms ease; }
 .po-highlights > div:hover { border-color: #b5ccec; }
 .po-tab:focus-visible { outline: 2px solid #014baa; outline-offset: -2px; }
-.po-info-grid > div { min-width: 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
+.po-info-grid > div { min-width: 0; }
 .po-info-grid dt { display: flex; align-items: center; gap: 8px; }
 .po-info-grid dt svg { flex-shrink: 0; color: #014baa; }
 @media (prefers-reduced-motion: reduce) { .po-highlights > div, .po-tab { transition: none; } }

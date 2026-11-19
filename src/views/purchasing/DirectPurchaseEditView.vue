@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowLeft, Save, Send, Info } from '@lucide/vue'
+import { ArrowLeft, Save, Send, Info, TriangleAlert } from '@lucide/vue'
 
 import BaseBreadcrumb from '@/components/ui/BaseBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -20,6 +20,7 @@ const {
     dpData,
     selectedPlan,
     selectedExtraPlanItemId,
+    formErrorSummary,
     form,
     taxesList,
     currenciesList,
@@ -81,7 +82,7 @@ onMounted(() => {
                     </RouterLink>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="text-lg font-bold text-slate-900 tracking-tight">Edit Draft Direct Purchase</h2>
+                            <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Edit Draft Direct Purchase</h1>
                             <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                 Draft
                             </span>
@@ -123,9 +124,24 @@ onMounted(() => {
                 </div>
             </div>
 
+            <div
+                v-if="formErrorSummary"
+                id="dp-validation-summary"
+                role="alert"
+                class="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3 text-rose-900"
+            >
+                <span class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                    <TriangleAlert class="w-4 h-4" />
+                </span>
+                <div>
+                    <p class="text-sm font-semibold">Periksa isian transaksi</p>
+                    <p class="text-xs text-rose-700 mt-0.5">{{ formErrorSummary }}</p>
+                </div>
+            </div>
+
             <form @submit.prevent="handleUpdateSubmit(dpId, false)" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                 <!-- Left Column: Plan Readonly Summary, Channel & Items -->
-                <div class="lg:col-span-8 space-y-5">
+                <div class="lg:col-span-8 space-y-5 min-w-0">
                     <!-- Readonly Plan Context -->
                     <div class="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 space-y-3">
                         <div>
@@ -170,7 +186,7 @@ onMounted(() => {
                 </div>
 
                 <!-- Right Column: Payment Info & Cost Summary -->
-                <div class="lg:col-span-4 space-y-5 lg:sticky lg:top-6">
+                <div class="lg:col-span-4 space-y-5 lg:sticky lg:top-6 min-w-0">
                     <DPPaymentInfoSection
                         :form="form"
                         :popular-banks="popularBanks"

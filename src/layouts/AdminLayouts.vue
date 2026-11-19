@@ -42,10 +42,10 @@ onMounted(() => {
         </AppHeader>
 
         <div class="flex-1 flex min-h-0 px-4 sm:px-6 py-3 sm:py-4 gap-4 w-full">
-            <AdminSidebar class="z-20" />
+            <AdminSidebar class="z-20" :class="{ 'hidden lg:flex': $route.meta.hideMobileSidebar }" />
 
             <div class="flex-1 flex flex-col min-w-0 bg-white rounded-2xl shadow-xs border border-slate-200/70 overflow-hidden">
-                <main class="flex-1 p-6 lg:p-8 overflow-y-auto">
+                <main class="flex-1 lg:p-8 overflow-y-auto" :class="$route.meta.hideMobileSidebar ? 'p-3 sm:p-6' : 'p-6'">
                     <div class="w-full">
                         <RouterView />
                     </div>

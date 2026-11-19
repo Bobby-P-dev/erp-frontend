@@ -32,7 +32,7 @@ try {
     await server.listen()
     browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/google-chrome' })
     for (const width of [1440, 390]) {
-        const page = await browser.newPage({ viewport: { width, height: 1000 } })
+        const page = await browser.newPage({ viewport: { width, height: 440 } })
         const errors = [], posts = [], pages = []
         let failLoad = true, failSubmit = true, empty = false
         page.on('pageerror', err => errors.push(err.message))
@@ -55,8 +55,24 @@ try {
         assert.equal(await page.getByText('Workflow Produksi', { exact: true }).count(), 0)
         failLoad = false
         await page.getByRole('button', { name: 'Muat ulang workflow' }).click()
-        await page.getByText('Pilih workflow persetujuan', { exact: true }).click()
-        await page.getByText('Workflow Produksi', { exact: true }).click()
+        const picker = page.getByRole('combobox')
+        await picker.waitFor()
+        await picker.click()
+        const search = page.getByRole('searchbox', { name: 'Cari workflow persetujuan' })
+        await search.waitFor()
+        const workflow = page.getByRole('option', { name: /Workflow Produksi/ })
+        const generalWorkflow = page.getByRole('option', { name: /Workflow Umum/ })
+        await generalWorkflow.waitFor()
+        for (const option of [workflow, generalWorkflow]) {
+            assert.equal(await option.evaluate(button => {
+                const rect = button.getBoundingClientRect()
+                const el = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+                return el === button || button.contains(el)
+            }), true)
+        }
+        await search.fill('Produksi')
+        assert.equal(await generalWorkflow.count(), 0)
+        await workflow.click()
         assert.deepEqual(pages, [1, 2])
         await page.getByText('Persetujuan Kepala Divisi', { exact: true }).waitFor()
         assert.equal(await page.getByText('Perusahaan lain', { exact: true }).count(), 0)
@@ -68,8 +84,14 @@ try {
         await page.waitForFunction(() => window.submitted === 1)
         assert.deepEqual(posts, [{ approval_configuration_id: 7 }, { approval_configuration_id: 7 }])
         await page.getByRole('button', { name: 'Ouvrir' }).click()
-        await page.getByText('Pilih workflow persetujuan', { exact: true }).waitFor()
+        await picker.waitFor()
+        assert.match(await picker.textContent(), /Pilih workflow persetujuan/)
         assert.equal(await page.getByRole('button', { name: 'Ajukan PR', exact: true }).isDisabled(), true)
+        await picker.click()
+        await search.waitFor()
+        await page.keyboard.press('Escape')
+        assert.equal(await search.count(), 0)
+        assert.equal(await picker.isVisible(), true)
         await page.getByRole('button', { name: 'Batal', exact: true }).click()
         assert.equal(posts.length, 2)
         empty = true

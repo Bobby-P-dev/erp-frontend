@@ -34,6 +34,21 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
+        hasStrictPermission: (state) => {
+            return (permission) => {
+                if (!permission) return true
+
+                const roles = state.user?.roles || []
+                const isSuperAdmin = roles.some(role => {
+                    const name = typeof role === 'string' ? role : role?.name
+                    return name === 'Super Admin'
+                })
+                if (isSuperAdmin) return true
+
+                return state.user?.all_permissions?.includes(permission) ?? false
+            }
+        },
+
         hasAnyPermission: (state) => {
             return (permissions) => {
                 if (!permissions || permissions.length === 0) return true

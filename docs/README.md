@@ -1,5 +1,13 @@
 # Dokumentasi Pengembangan ERP Frontend
 
+- [Inventory - Menu Warehouses & Locations](changes/2026-11-19-inventory-sprint-1-phase-4-warehouse-admin.md). Integrasi data master dan penerimaan default. Build, 282 tes, dan uji browser lulus.
+
+- [PR - Pilihan workflow langsung terlihat di modal Ajukan PR](changes/2026-11-19-pr-submit-workflow-visibility.md). Build, 282 tes frontend, dan smoke test browser lulus.
+
+- [Employee — Kosongkan Position saat edit](changes/2026-11-19-employee-clear-position.md). Build, tes frontend, dan verifikasi payload dengan data uji di browser lulus.
+
+- [PR langsung → PO: validasi JSON dan jumlah saat scroll](changes/2026-11-17-direct-pr-json-snapshot-and-quantity-scroll.md): perbaikan penolakan snapshot MySQL serta input 30 menjadi 28; regresi lokal lulus, UAT/deployment terbuka.
+
 - [PR supplier langsung → PO](changes/2026-11-16-direct-supplier-pr-to-po.md): pilihan supplier pada PR, approval PR lalu PO tanpa PP/RFQ; implementasi/regresi lokal selesai, UAT/deployment terbuka.
 
 - [Preview PDF, TTD biasa dan aksi PR](changes/2026-11-16-pdf-preview-signature-pr-actions.md): preview PR/BAST, hapus QR cetak, edit/hapus sebelum persetujuan pertama; tes lokal selesai, UAT/deployment terbuka.

@@ -148,7 +148,7 @@ const effectiveCostBreakdown = computed(() => {
         @update:model-value="$emit('update:modelValue', $event)"
         @close="close"
         size="5xl"
-        body-class="p-6 text-xs"
+        body-class="p-5 sm:p-6 text-sm"
     >
         <template #header>
             <div class="flex items-center gap-3">
@@ -171,187 +171,190 @@ const effectiveCostBreakdown = computed(() => {
             <span class="text-xs text-slate-500">Memuat rincian lengkap dokumen pembayaran...</span>
         </div>
 
-        <div v-else-if="item" class="space-y-6">
+        <div v-else-if="item" class="space-y-5">
             <!-- Ringkasan Finansial Card -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50/80 p-4 rounded-xl border border-slate-200/80">
                 <div>
-                    <span class="text-slate-400">Total Nominal Tagihan:</span>
-                    <p class="text-lg font-bold font-mono text-slate-900 mt-0.5">
+                    <span class="text-xs font-medium text-slate-500">Total Nominal Tagihan</span>
+                    <p class="text-xl font-bold font-mono tabular-nums text-slate-900 mt-1">
                         {{ formatCurrency(item.amount, item.currency) }}
                     </p>
-                    <p v-if="item.currency && item.currency !== 'IDR' && item.exchange_rate" class="text-xs text-blue-600 font-mono mt-0.5">
+                    <p v-if="item.currency && item.currency !== 'IDR' && item.exchange_rate" class="text-xs text-blue-700 font-mono mt-0.5">
                         ≈ {{ formatCurrency((Number(item.amount) || 0) * (Number(item.exchange_rate) || 1), 'IDR') }}
                     </p>
                 </div>
-                <div>
-                    <span class="text-slate-400">Status Pembayaran:</span>
-                    <div class="mt-1">
+                <div class="sm:border-l sm:border-slate-200/80 sm:pl-4">
+                    <span class="text-xs font-medium text-slate-500">Status Pembayaran</span>
+                    <div class="mt-1.5">
                         <StatusBadge :status="item.status" size="sm" />
                     </div>
                 </div>
-                <div>
-                    <span class="text-slate-400">Jatuh Tempo:</span>
-                    <p class="font-medium text-slate-800 mt-0.5">
+                <div class="sm:border-l sm:border-slate-200/80 sm:pl-4">
+                    <span class="text-xs font-medium text-slate-500">Jatuh Tempo</span>
+                    <p class="font-semibold text-slate-900 mt-1">
                         {{ item.due_date ? formatDate(item.due_date) : 'Segera (Immediate)' }}
                     </p>
                 </div>
             </div>
 
-            <!-- Dokumen Asal Pengadaan (Direct Purchase / RFQ) -->
-            <div v-if="sourceDocInfo" class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
-                <div class="flex items-center justify-between">
-                    <h4 class="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                        <ShoppingCart class="w-4 h-4 text-blue-600" />
-                        Dokumen Asal Pengadaan
-                    </h4>
-                    <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                        {{ sourceDocInfo.type }}
-                    </span>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div>
-                        <p class="text-slate-400">Nomor Dokumen:</p>
-                        <div class="mt-0.5 flex items-center gap-1.5">
-                            <span class="font-mono font-bold text-slate-900">{{ sourceDocInfo.documentNumber }}</span>
-                            <RouterLink
-                                v-if="sourceDocInfo.route"
-                                :to="sourceDocInfo.route"
-                                target="_blank"
-                                class="text-blue-600 hover:text-blue-700 inline-flex items-center"
-                                title="Buka Dokumen Pengadaan"
-                            >
-                                <ExternalLink class="w-3.5 h-3.5" />
-                            </RouterLink>
+            <!-- Metadata Pengadaan & Rekening Penerima (Satu kartu bersih dengan pemisah garis tipis) -->
+            <div class="bg-white border border-slate-200/80 rounded-xl divide-y divide-slate-100">
+                <!-- Dokumen Asal Pengadaan -->
+                <div v-if="sourceDocInfo" class="p-4 sm:p-5 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <h4 class="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                            <ShoppingCart class="w-4 h-4 text-blue-600" />
+                            Dokumen Asal Pengadaan
+                        </h4>
+                        <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            {{ sourceDocInfo.type }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
+                        <div>
+                            <p class="text-xs text-slate-500">Nomor Dokumen</p>
+                            <div class="mt-0.5 flex items-center gap-1.5">
+                                <span class="font-mono font-bold text-slate-900">{{ sourceDocInfo.documentNumber }}</span>
+                                <RouterLink
+                                    v-if="sourceDocInfo.route"
+                                    :to="sourceDocInfo.route"
+                                    target="_blank"
+                                    class="text-blue-600 hover:text-blue-700 inline-flex items-center"
+                                    title="Buka Dokumen Pengadaan"
+                                >
+                                    <ExternalLink class="w-3.5 h-3.5" />
+                                </RouterLink>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500">Saluran Pembelian</p>
+                            <p class="font-medium text-slate-800 mt-0.5 capitalize">{{ sourceDocInfo.channel?.replace('_', ' ') || '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500">Toko / Merchant / Marketplace</p>
+                            <div class="mt-0.5 flex items-center gap-1.5">
+                                <span class="font-medium text-slate-800">{{ sourceDocInfo.merchant || sourceDocInfo.marketplace || '-' }}</span>
+                                <a
+                                    v-if="sourceDocInfo.storeUrl"
+                                    :href="sourceDocInfo.storeUrl"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-blue-600 hover:text-blue-700 inline-flex items-center"
+                                    title="Kunjungi Toko"
+                                >
+                                    <ExternalLink class="w-3.5 h-3.5" />
+                                </a>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500">Pemohon (Purchasing)</p>
+                            <p class="font-medium text-slate-800 mt-0.5">
+                                {{ item.requester?.employee?.name || item.requester?.name || '-' }}
+                            </p>
                         </div>
                     </div>
-                    <div>
-                        <p class="text-slate-400">Saluran Pembelian:</p>
-                        <p class="font-medium text-slate-800 mt-0.5 capitalize">{{ sourceDocInfo.channel?.replace('_', ' ') || '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-slate-400">Toko / Merchant / Marketplace:</p>
-                        <div class="mt-0.5 flex items-center gap-1.5">
-                            <span class="font-medium text-slate-800">{{ sourceDocInfo.merchant || sourceDocInfo.marketplace || '-' }}</span>
-                            <a
-                                v-if="sourceDocInfo.storeUrl"
-                                :href="sourceDocInfo.storeUrl"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="text-blue-600 hover:text-blue-700 inline-flex items-center"
-                                title="Kunjungi Toko"
-                            >
-                                <ExternalLink class="w-3.5 h-3.5" />
-                            </a>
-                        </div>
-                    </div>
-                    <div>
-                        <p class="text-slate-400">Pemohon (Purchasing):</p>
-                        <p class="font-medium text-slate-800 mt-0.5">
-                            {{ item.requester?.employee?.name || item.requester?.name || '-' }}
-                        </p>
-                    </div>
                 </div>
-            </div>
 
-            <!-- Informasi Rekening & Rekanan -->
-            <div class="border border-slate-200 rounded-xl p-4 space-y-3">
-                <h4 class="font-semibold text-slate-900 text-sm flex items-center gap-2">
-                    <Building2 class="w-4 h-4 text-blue-600" />
-                    Informasi Rekening Penerima Dana
-                </h4>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-slate-400">Nama Penerima / Vendor:</p>
-                        <p class="font-medium text-slate-800 mt-0.5">{{ item.recipient_name || '-' }}</p>
+                <!-- Informasi Rekening & Rekanan -->
+                <div class="p-4 sm:p-5 space-y-3">
+                    <h4 class="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                        <Building2 class="w-4 h-4 text-blue-600" />
+                        Informasi Rekening Penerima Dana
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs sm:text-sm">
+                        <div>
+                            <p class="text-xs text-slate-500">Nama Penerima / Vendor</p>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ item.recipient_name || '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500">Tipe Penerima</p>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ getRecipientLabel(item.recipient_type) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500">Bank Tujuan</p>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ item.bank_name || '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500">Nomor Rekening / VA</p>
+                            <p class="font-mono font-bold text-slate-900 mt-0.5">{{ item.bank_account_number || '-' }}</p>
+                            <p class="text-xs text-slate-500 mt-0.5">a.n. {{ item.bank_account_holder || '-' }}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-slate-400">Tipe Penerima:</p>
-                        <p class="font-medium text-slate-800 mt-0.5">{{ getRecipientLabel(item.recipient_type) }}</p>
+                    <div v-if="item.notes" class="pt-3 border-t border-slate-100 text-xs sm:text-sm">
+                        <p class="text-xs text-slate-500">Catatan Pengajuan</p>
+                        <p class="text-slate-700 mt-0.5">{{ item.notes }}</p>
                     </div>
-                    <div>
-                        <p class="text-slate-400">Bank Tujuan:</p>
-                        <p class="font-medium text-slate-800 mt-0.5">{{ item.bank_name || '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-slate-400">Nomor Rekening / VA:</p>
-                        <p class="font-mono font-bold text-slate-900 mt-0.5">{{ item.bank_account_number || '-' }}</p>
-                        <p class="text-[10px] text-slate-400">a.n. {{ item.bank_account_holder || '-' }}</p>
-                    </div>
-                </div>
-                <div v-if="item.notes" class="pt-2 border-t border-slate-100">
-                    <p class="text-slate-400">Catatan Pengajuan:</p>
-                    <p class="text-slate-700 italic mt-0.5">{{ item.notes }}</p>
                 </div>
             </div>
 
             <!-- RINCIAN BARANG / JASA (ITEMS TABLE) & KALKULASI BIAYA -->
-            <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+            <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     <h4 class="font-semibold text-slate-900 text-sm flex items-center gap-2">
                         <Package class="w-4 h-4 text-blue-600" />
                         Daftar Barang / Jasa yang Dibayarkan
                     </h4>
-                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                         {{ effectivePRQItems.length }} Item
                     </span>
                 </div>
 
                 <!-- Empty State -->
-                <div v-if="effectivePRQItems.length === 0" class="p-6 text-center bg-slate-50 rounded-lg border border-slate-200 text-slate-500">
+                <div v-if="effectivePRQItems.length === 0" class="p-6 text-center bg-slate-50 rounded-xl border border-slate-200/80 text-slate-500 text-xs sm:text-sm">
                     <Package class="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p>Dokumen ini tidak memiliki rincian item barang/jasa atau item dimuat dari sistem dokumen terkait.</p>
                 </div>
 
                 <!-- Table -->
-                <div v-else class="rounded-lg border border-slate-200 overflow-hidden">
+                <div v-else class="rounded-xl border border-slate-200/80 overflow-hidden bg-white">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
                             <thead>
-                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px] uppercase tracking-wider">
-                                    <th class="py-2.5 px-3 w-10 text-center">No</th>
-                                    <th class="py-2.5 px-3 min-w-[200px]">Item / Deskripsi</th>
-                                    <th class="py-2.5 px-3 text-right w-20">Jumlah</th>
-                                    <th class="py-2.5 px-3 text-center w-20">Satuan</th>
-                                    <th class="py-2.5 px-3 text-right w-28">Harga Satuan ({{ item.currency || 'IDR' }})</th>
-                                    <th class="py-2.5 px-3 text-right w-28">Subtotal ({{ item.currency || 'IDR' }})</th>
-                                    <th class="py-2.5 px-3 min-w-[150px]">Catatan / Tautan</th>
+                                <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold text-xs">
+                                    <th class="py-3 px-3.5 w-10 text-center">No</th>
+                                    <th class="py-3 px-3.5 min-w-[200px]">Item / Deskripsi</th>
+                                    <th class="py-3 px-3.5 text-right w-20">Jumlah</th>
+                                    <th class="py-3 px-3.5 text-center w-20">Satuan</th>
+                                    <th class="py-3 px-3.5 text-right w-32">Harga Satuan ({{ item.currency || 'IDR' }})</th>
+                                    <th class="py-3 px-3.5 text-right w-32">Subtotal ({{ item.currency || 'IDR' }})</th>
+                                    <th class="py-3 px-3.5 min-w-[150px]">Catatan / Tautan</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 bg-white">
                                 <tr v-for="(it, idx) in effectivePRQItems" :key="it.id || idx" class="hover:bg-slate-50/60 transition-colors">
-                                    <td class="py-2.5 px-3 text-center text-slate-400 font-medium">{{ idx + 1 }}</td>
-                                    <td class="py-2.5 px-3">
+                                    <td class="py-3 px-3.5 text-center text-slate-400 font-medium">{{ idx + 1 }}</td>
+                                    <td class="py-3 px-3.5">
                                         <div class="flex items-center gap-1.5 flex-wrap">
-                                            <span class="font-bold text-slate-900">{{ it.item_name }}</span>
-                                            <span v-if="it.is_non_catalog" class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                            <span class="font-semibold text-slate-900">{{ it.item_name }}</span>
+                                            <span v-if="it.is_non_catalog" class="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                                                 Non-Katalog
                                             </span>
-                                            <span v-else-if="it.item_code" class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-slate-100 text-slate-600">
+                                            <span v-else-if="it.item_code" class="px-1.5 py-0.5 rounded text-[11px] font-mono bg-slate-100 text-slate-600">
                                                 {{ it.item_code }}
                                             </span>
                                         </div>
                                     </td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-800">
+                                    <td class="py-3 px-3.5 text-right font-mono font-bold text-slate-800">
                                         {{ Number(it.quantity).toLocaleString('id-ID') }}
                                     </td>
-                                    <td class="py-2.5 px-3 text-center text-slate-600 font-medium">
+                                    <td class="py-3 px-3.5 text-center text-slate-600 font-medium">
                                         {{ it.unit_name || it.unit?.code || '-' }}
                                     </td>
-                                    <td class="py-2.5 px-3 text-right font-mono text-slate-700">
+                                    <td class="py-3 px-3.5 text-right font-mono text-slate-700">
                                         {{ formatCurrency(it.unit_price, item.currency) }}
                                     </td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                                    <td class="py-3 px-3.5 text-right font-mono font-bold text-slate-900">
                                         {{ formatCurrency(it.subtotal, item.currency) }}
                                     </td>
-                                    <td class="py-2.5 px-3">
-                                        <div class="space-y-0.5">
-                                            <p v-if="it.notes" class="text-slate-500 italic">{{ it.notes }}</p>
+                                    <td class="py-3 px-3.5">
+                                        <div class="space-y-0.5 text-xs">
+                                            <p v-if="it.notes" class="text-slate-500">{{ it.notes }}</p>
                                             <a
                                                 v-if="it.product_url"
                                                 :href="it.product_url"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                                                class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline font-medium"
                                             >
                                                 <ExternalLink class="w-3 h-3" />
                                                 <span>Link Produk</span>
@@ -365,8 +368,8 @@ const effectiveCostBreakdown = computed(() => {
                     </div>
 
                     <!-- Rincian Biaya Tambahan & Total (Cost Breakdown) -->
-                    <div v-if="effectiveCostBreakdown" class="bg-slate-50/80 p-3.5 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-                        <div class="text-[11px] text-slate-500 space-y-0.5">
+                    <div v-if="effectiveCostBreakdown" class="bg-slate-50/80 p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs">
+                        <div class="text-xs text-slate-500 space-y-0.5">
                             <p>Verifikasi item dan nominal tagihan sebelum memproses pencairan kasir.</p>
                             <p v-if="effectiveCostBreakdown.shipping_cost > 0 || effectiveCostBreakdown.platform_fee > 0" class="text-slate-400">
                                 Termasuk ongkos kirim dan biaya platform dari marketplace / vendor.
@@ -374,31 +377,31 @@ const effectiveCostBreakdown = computed(() => {
                         </div>
                         <div class="w-full sm:w-72 space-y-1.5 text-xs">
                             <div class="flex justify-between text-slate-600">
-                                <span>Subtotal Barang:</span>
+                                <span>Subtotal Barang</span>
                                 <span class="font-mono font-medium">{{ formatCurrency(effectiveCostBreakdown.subtotal, item.currency) }}</span>
                             </div>
                             <div v-if="effectiveCostBreakdown.discount_amount > 0" class="flex justify-between text-emerald-700">
-                                <span>Diskon:</span>
+                                <span>Diskon</span>
                                 <span class="font-mono font-medium">-{{ formatCurrency(effectiveCostBreakdown.discount_amount, item.currency) }}</span>
                             </div>
                             <div v-if="effectiveCostBreakdown.shipping_cost > 0" class="flex justify-between text-slate-600">
-                                <span>Ongkos Kirim:</span>
+                                <span>Ongkos Kirim</span>
                                 <span class="font-mono font-medium">+{{ formatCurrency(effectiveCostBreakdown.shipping_cost, item.currency) }}</span>
                             </div>
                             <div v-if="effectiveCostBreakdown.platform_fee > 0" class="flex justify-between text-slate-600">
-                                <span>Biaya Layanan:</span>
+                                <span>Biaya Layanan</span>
                                 <span class="font-mono font-medium">+{{ formatCurrency(effectiveCostBreakdown.platform_fee, item.currency) }}</span>
                             </div>
                             <div v-if="effectiveCostBreakdown.tax_amount > 0" class="flex justify-between text-slate-600">
-                                <span>Pajak (PPN):</span>
+                                <span>Pajak (PPN)</span>
                                 <span class="font-mono font-medium">+{{ formatCurrency(effectiveCostBreakdown.tax_amount, item.currency) }}</span>
                             </div>
-                            <div class="flex justify-between pt-1.5 border-t border-slate-200 font-bold text-slate-900 text-sm">
-                                <span>Total Tagihan:</span>
-                                <span class="font-mono text-blue-600">{{ formatCurrency(effectiveCostBreakdown.grand_total, item.currency) }}</span>
+                            <div class="flex justify-between pt-2 border-t border-slate-200 font-bold text-slate-900 text-sm">
+                                <span>Total Tagihan</span>
+                                <span class="font-mono text-blue-700">{{ formatCurrency(effectiveCostBreakdown.grand_total, item.currency) }}</span>
                             </div>
                             <div v-if="item.currency && item.currency !== 'IDR' && item.exchange_rate" class="flex justify-between pt-1 border-t border-dashed border-slate-200 text-xs text-blue-700 font-semibold">
-                                <span>Setara Pembukuan (IDR):</span>
+                                <span>Setara Pembukuan (IDR)</span>
                                 <span class="font-mono">≈ {{ formatCurrency((Number(effectiveCostBreakdown.grand_total) || 0) * (Number(item.exchange_rate) || 1), 'IDR') }}</span>
                             </div>
                         </div>
@@ -407,64 +410,64 @@ const effectiveCostBreakdown = computed(() => {
             </div>
 
             <!-- Realisasi Pembayaran Kasir & Bukti Transfer (Jika Sudah Paid) -->
-            <div v-if="item.payment" class="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 space-y-3">
+            <div v-if="item.payment" class="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 sm:p-5 space-y-3">
                 <div class="flex items-center justify-between">
-                    <h4 class="font-bold text-slate-800 flex items-center gap-1.5">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
                         <CreditCard class="w-4 h-4 text-emerald-600" />
                         Realisasi Pencairan Kasir (Disbursement)
                     </h4>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800">
                         Telah Dibayar (Paid)
                     </span>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-slate-700">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs sm:text-sm text-slate-700">
                     <div>
-                        <p class="text-slate-400">No. Bukti Kasir:</p>
+                        <p class="text-xs text-slate-500">No. Bukti Kasir</p>
                         <p class="font-mono font-bold text-slate-900 mt-0.5">{{ item.payment.payment_number }}</p>
                     </div>
                     <div>
-                        <p class="text-slate-400">Tanggal Realisasi:</p>
+                        <p class="text-xs text-slate-500">Tanggal Realisasi</p>
                         <p class="font-medium text-slate-800 mt-0.5">
                             {{ item.payment.payment_date ? formatDate(item.payment.payment_date, { month: 'long' }) : '-' }}
                         </p>
                     </div>
                     <div>
-                        <p class="text-slate-400">Akun Sumber Dana:</p>
+                        <p class="text-xs text-slate-500">Akun Sumber Dana</p>
                         <p class="font-medium text-slate-800 mt-0.5">{{ item.payment.source_account?.name || '-' }}</p>
                     </div>
                     <div>
-                        <p class="text-slate-400">Biaya Admin Bank:</p>
+                        <p class="text-xs text-slate-500">Biaya Admin Bank</p>
                         <p class="font-mono text-slate-800 mt-0.5">{{ formatCurrency(item.payment.bank_fee) }}</p>
                     </div>
                     <div>
-                        <p class="text-slate-400">No. Referensi / Mutasi:</p>
+                        <p class="text-xs text-slate-500">No. Referensi / Mutasi</p>
                         <p class="font-mono font-bold text-slate-900 mt-0.5">{{ item.payment.reference_number || '-' }}</p>
                     </div>
                 </div>
 
                 <!-- Bukti Transfer File Preview -->
-                <div v-if="item.payment.proof_file" class="pt-2 border-t border-emerald-200/80">
-                    <p class="text-slate-500 font-medium mb-1.5 flex items-center gap-1">
+                <div v-if="item.payment.proof_file" class="pt-3 border-t border-emerald-200/80">
+                    <p class="text-xs text-slate-600 font-medium mb-2 flex items-center gap-1.5">
                         <Paperclip class="w-3.5 h-3.5 text-emerald-600" />
-                        Lampiran Bukti Transfer / Slip Pembayaran:
+                        Lampiran Bukti Transfer / Slip Pembayaran
                     </p>
-                    <div class="flex items-center justify-between p-2.5 bg-white border border-emerald-200 rounded-lg">
-                        <div class="flex items-center gap-2.5 overflow-hidden">
-                            <div class="w-8 h-8 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <div class="flex items-center justify-between p-3 bg-white border border-emerald-200 rounded-xl">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                                 <FileCheck class="w-4 h-4" />
                             </div>
                             <div class="truncate">
-                                <p class="font-semibold text-slate-800 truncate text-xs">{{ item.payment.proof_file.original_name }}</p>
-                                <p class="text-[10px] text-slate-400 font-mono">{{ Math.round((item.payment.proof_file.file_size || 0) / 1024) }} KB</p>
+                                <p class="font-semibold text-slate-800 truncate text-xs sm:text-sm">{{ item.payment.proof_file.original_name }}</p>
+                                <p class="text-xs text-slate-400 font-mono">{{ Math.round((item.payment.proof_file.file_size || 0) / 1024) }} KB</p>
                             </div>
                         </div>
                         <a
                             :href="item.payment.proof_file.file_url"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="px-2.5 py-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center gap-1 shrink-0"
+                            class="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
                         >
-                            <ExternalLink class="w-3 h-3" />
+                            <ExternalLink class="w-3.5 h-3.5" />
                             Buka File
                         </a>
                     </div>
@@ -472,12 +475,12 @@ const effectiveCostBreakdown = computed(() => {
             </div>
 
             <!-- Informasi Status Tagihan -->
-            <div class="border border-blue-200 bg-blue-50/50 rounded-xl p-4 flex items-start gap-3">
+            <div class="border border-blue-200/80 bg-blue-50/40 rounded-xl p-4 flex items-start gap-3">
                 <CheckCircle2 class="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                 <div>
-                    <p class="text-xs font-bold text-slate-800">Tagihan Siap Dicairkan (Persetujuan Otomatis dari PR)</p>
-                    <p class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                        Sesuai regulasi sistem, permohonan pembayaran (Payment Request) tidak melewati jenjang approval finance terpisah. Dokumen ini disahkan secara langsung saat Purchase Requisition (PR) / Direct Purchase disetujui, dan kasir dapat langsung memproses pencairan dana.
+                    <p class="text-xs sm:text-sm font-semibold text-slate-900">Tagihan Siap Dicairkan (Disahkan dari PR / DP)</p>
+                    <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                        Permohonan pembayaran disahkan otomatis saat dokumen pengadaan disetujui, sehingga kasir dapat langsung memproses pencairan.
                     </p>
                 </div>
             </div>

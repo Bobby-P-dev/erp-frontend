@@ -14,8 +14,10 @@ import {
     getApprovalOptions
 } from '@/services/approvalServices.js'
 import { searchAccountingCategories } from '@/services/accountingCategoryServices.js'
+import { searchAccountingSubcategories } from '@/services/accountingSubcategoryServices.js'
+import { searchAccountingAccounts } from '@/services/accountingAccountServices.js'
 import { searchCurrencies } from '@/services/currencyServices.js'
-import { showLoading, showSuccess, showError, showConfirm, closeSwal } from '@/utils/swal.js'
+import { showLoading, showSuccess, showError, showConfirm, showToast, closeSwal } from '@/utils/swal.js'
 
 export function usePurchaseRequisitionForm() {
     const router = useRouter()
@@ -29,7 +31,10 @@ export function usePurchaseRequisitionForm() {
     const existingPrStatus = ref('')
     const latestRevisionAction = ref(null)
     const existingRequester = ref(null)
+    const existingCompany = ref(null)
+    const existingDivision = ref(null)
     const isLoadingPr = ref(false)
+    const stepErrorSummary = ref('')
 
     // Wizard state
     const currentStep = ref(1)
@@ -213,14 +218,16 @@ export function usePurchaseRequisitionForm() {
     const accountingSubcategoryOptions = computed(() => {
         return accountingSubcategories.value.map(s => ({
             value: s.id,
-            label: `${s.code} - ${s.name}`
+            label: `${s.code} - ${s.name}`,
+            categoryId: s.accounting_category_id || s.category?.id || null
         }))
     })
 
     const accountingAccountOptions = computed(() => {
         return accountingAccounts.value.map(a => ({
             value: a.id,
-            label: `${a.code} - ${a.name}`
+            label: `${a.code} - ${a.name}`,
+            subcategoryId: a.accounting_subcategory_id || a.subcategory?.id || null
         }))
     })
 
@@ -297,14 +304,23 @@ export function usePurchaseRequisitionForm() {
     })
 
     const employeePosition = computed(() => {
+        if (isEditMode.value && existingRequester.value) {
+            return existingRequester.value.position?.name || existingRequester.value.job_level?.name || 'Staff'
+        }
         return authStore.profile?.position?.name || authStore.profile?.job_level?.name || 'Staff'
     })
 
     const employeeCompanyName = computed(() => {
+        if (isEditMode.value && (existingCompany.value?.name || form.value.company_id)) {
+            return existingCompany.value?.name || companies.value.find(c => c.id === form.value.company_id)?.name || 'PADMA SOODE INDONESIA (PSI)'
+        }
         return authStore.profile?.company?.name || companies.value.find(c => c.id === form.value.company_id)?.name || 'PADMA SOODE INDONESIA (PSI)'
     })
 
     const employeeDivisionName = computed(() => {
+        if (isEditMode.value && (existingDivision.value?.name || form.value.division_id)) {
+            return existingDivision.value?.name || divisions.value.find(d => d.id === form.value.division_id)?.name || 'SISTEM & AUDIT (IT)'
+        }
         return authStore.profile?.division?.name || divisions.value.find(d => d.id === form.value.division_id)?.name || 'SISTEM & AUDIT (IT)'
     })
 
@@ -334,6 +350,8 @@ export function usePurchaseRequisitionForm() {
             existingPrStatus.value = pr.status || ''
             existingPrNumber.value = pr.pr_number || ''
             existingRequester.value = pr.requester || null
+            existingCompany.value = pr.company || null
+            existingDivision.value = pr.division || null
 
             if (pr.status === 'revision_requested' && pr.approval_request?.actions) {
                 const revAction = pr.approval_request.actions
@@ -424,6 +442,8 @@ export function usePurchaseRequisitionForm() {
                 fetchItemsSearch(''),
                 fetchUnitsSearch(''),
                 fetchAccountingCategoriesSearch(''),
+                fetchAccountingSubcategoriesSearch(''),
+                fetchAccountingAccountsSearch(''),
                 fetchApprovalConfigs()
             ])
 
@@ -529,12 +549,41 @@ export function usePurchaseRequisitionForm() {
         }
     }
 
+    const mergeUniqueById = (existing, incoming) => {
+        const map = new Map()
+        ;(existing || []).forEach(item => {
+            if (item && item.id !== undefined) map.set(item.id, item)
+        })
+        ;(incoming || []).forEach(item => {
+            if (item && item.id !== undefined) map.set(item.id, item)
+        })
+        return Array.from(map.values())
+    }
+
     const fetchAccountingCategoriesSearch = async (query = '') => {
         try {
             const res = await searchAccountingCategories(query)
-            accountingCategories.value = res.data || []
+            accountingCategories.value = mergeUniqueById(accountingCategories.value, res.data || [])
         } catch (err) {
             console.error('Failed to search accounting categories:', err)
+        }
+    }
+
+    const fetchAccountingSubcategoriesSearch = async (query = '', categoryId = '') => {
+        try {
+            const res = await searchAccountingSubcategories(query, categoryId || '')
+            accountingSubcategories.value = mergeUniqueById(accountingSubcategories.value, res.data || [])
+        } catch (err) {
+            console.error('Failed to search accounting subcategories:', err)
+        }
+    }
+
+    const fetchAccountingAccountsSearch = async (query = '', subcategoryId = '') => {
+        try {
+            const res = await searchAccountingAccounts(query, subcategoryId || '')
+            accountingAccounts.value = mergeUniqueById(accountingAccounts.value, res.data || [])
+        } catch (err) {
+            console.error('Failed to search accounting accounts:', err)
         }
     }
 
@@ -609,8 +658,28 @@ export function usePurchaseRequisitionForm() {
         }
     }
 
+    watch(
+        () => [form.value.procurement_route, form.value.direct_supplier_id],
+        ([route, supplierId]) => {
+            if (route === 'standard' || supplierId) {
+                delete errors.value.direct_supplier_id
+            }
+        }
+    )
+
+    watch(
+        errors,
+        (currentErrors) => {
+            if (Object.keys(currentErrors || {}).length === 0) {
+                stepErrorSummary.value = ''
+            }
+        },
+        { deep: true }
+    )
+
     const markStepTouched = (step) => {
         if (step === 1) {
+            touchedFields.value.add('direct_supplier_id')
             touchedFields.value.add('purpose')
             touchedFields.value.add('required_date')
         } else if (step === 2) {
@@ -712,6 +781,9 @@ export function usePurchaseRequisitionForm() {
     const validateStep = (step) => {
         if (step === 1) {
             const errs = {}
+            if (form.value.procurement_route === 'direct_supplier' && !form.value.direct_supplier_id) {
+                errs.direct_supplier_id = 'Pilih supplier tujuan terlebih dahulu.'
+            }
             if (!form.value.purpose || !form.value.purpose.trim()) {
                 errs.purpose = 'Tujuan pengadaan (Purpose) wajib diisi.'
             } else if (form.value.purpose.trim().length > 255) {
@@ -723,7 +795,7 @@ export function usePurchaseRequisitionForm() {
                 errs.required_date = 'Tanggal kebutuhan tidak boleh lebih awal dari tanggal permintaan.'
             }
             errors.value = { ...errors.value, ...errs }
-            for (const k of ['purpose', 'required_date']) {
+            for (const k of ['direct_supplier_id', 'purpose', 'required_date']) {
                 if (!errs[k]) delete errors.value[k]
             }
             return Object.keys(errs).length === 0
@@ -758,10 +830,28 @@ export function usePurchaseRequisitionForm() {
                     }
                 })
             }
-            errors.value = { ...errors.value, ...errs }
+            const nextErrors = { ...errors.value }
+            for (const key of Object.keys(nextErrors)) {
+                if (key === 'items' || key.startsWith('items.')) {
+                    delete nextErrors[key]
+                }
+            }
+            errors.value = { ...nextErrors, ...errs }
             return Object.keys(errs).length === 0
         }
         return true
+    }
+
+    const focusFirstInvalidField = () => {
+        setTimeout(() => {
+            const firstErrorEl = document.querySelector('[aria-invalid="true"], [role="alert"], .border-rose-300, .border-rose-400, .border-rose-500, input:invalid')
+            if (firstErrorEl) {
+                firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                if (typeof firstErrorEl.focus === 'function' && firstErrorEl.tabIndex !== -1) {
+                    firstErrorEl.focus({ preventScroll: true })
+                }
+            }
+        }, 100)
     }
 
     const goToStep = (step) => {
@@ -771,10 +861,13 @@ export function usePurchaseRequisitionForm() {
                 markStepTouched(s)
                 if (!validateStep(s)) {
                     currentStep.value = s
+                    stepErrorSummary.value = 'Lengkapi kolom wajib yang ditandai sebelum melanjutkan ke langkah berikutnya.'
+                    focusFirstInvalidField()
                     return
                 }
             }
         }
+        stepErrorSummary.value = ''
         currentStep.value = step
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -782,43 +875,34 @@ export function usePurchaseRequisitionForm() {
     const nextStep = () => {
         markStepTouched(currentStep.value)
         if (validateStep(currentStep.value)) {
+            stepErrorSummary.value = ''
             goToStep(currentStep.value + 1)
         } else {
-            showError('Langkah Belum Lengkap', 'Mohon lengkapi kolom yang wajib diisi pada langkah ini sebelum lanjut.')
-            setTimeout(() => {
-                const firstErrorEl = document.querySelector('[aria-invalid="true"], .border-rose-300, .border-rose-400, .border-rose-500, input:invalid')
-                if (firstErrorEl) firstErrorEl.focus()
-            }, 120)
+            stepErrorSummary.value = 'Mohon lengkapi kolom wajib yang ditandai merah pada langkah ini sebelum melanjutkan.'
+            focusFirstInvalidField()
         }
     }
 
     const prevStep = () => {
+        stepErrorSummary.value = ''
         goToStep(currentStep.value - 1)
     }
 
     const handleSubmit = async (actionType = 'submit') => {
         if (!validateForm(actionType)) {
-            const errorList = Object.values(errors.value)
-            const errorHtml = errorList.map(msg => `<li class="flex items-start gap-1.5"><span class="text-rose-500 font-bold">•</span><span>${msg}</span></li>`).join('')
-            
-            showError(
-                'Form Belum Lengkap',
-                `<div class="text-left text-sm mt-2 text-slate-700">
-                    <p class="font-semibold text-slate-800 mb-2">Mohon lengkapi atau periksa kolom berikut:</p>
-                    <ul class="space-y-1.5 bg-rose-50 p-3 rounded-lg border border-rose-200 text-xs text-rose-900 font-medium max-h-52 overflow-y-auto">
-                        ${errorHtml}
-                    </ul>
-                </div>`
+            const errorKeys = Object.keys(errors.value)
+            const hasStep1Error = errorKeys.some(k =>
+                ['direct_supplier_id', 'purpose', 'required_date', 'company_id', 'division_id', 'approval_configuration_id'].includes(k)
             )
-
-            setTimeout(() => {
-                const firstErr = document.querySelector('.border-rose-300, .border-rose-400, .ring-rose-400')
-                if (firstErr) {
-                    firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }
-            }, 150)
+            const targetStep = hasStep1Error ? 1 : 2
+            markStepTouched(1)
+            markStepTouched(2)
+            currentStep.value = targetStep
+            stepErrorSummary.value = `Terdapat ${errorKeys.length} kolom yang perlu diperiksa sebelum dokumen dapat diproses.`
+            focusFirstInvalidField()
             return
         }
+        stepErrorSummary.value = ''
 
         const isSubmitAction = actionType === 'submit'
 
@@ -886,21 +970,31 @@ export function usePurchaseRequisitionForm() {
             }
             const prData = response.data || {}
             const prNumber = prData.pr_number || existingPrNumber.value || ''
+            const prId = prData.id || editPrId.value
 
-            showSuccess(
-                'Berhasil!', 
-                isSubmitAction 
-                    ? (isRevision
+            if (isSubmitAction) {
+                showSuccess(
+                    'Berhasil!',
+                    isRevision
                         ? `Purchase Requisition ${prNumber} berhasil diperbaiki dan diajukan kembali ke alur persetujuan.`
                         : (isEditMode.value
                             ? `Purchase Requisition ${prNumber} berhasil diperbarui dan diajukan ke persetujuan.`
-                            : `Purchase Requisition ${prNumber} berhasil dibuat dan diajukan ke persetujuan.`))
-                    : (isRevision
-                        ? `Perbaikan Purchase Requisition ${prNumber} berhasil disimpan.`
+                            : `Purchase Requisition ${prNumber} berhasil dibuat dan diajukan ke persetujuan.`)
+                )
+            } else {
+                closeSwal()
+                showToast.success('Draft PR Tersimpan', {
+                    description: isRevision
+                        ? `Perbaikan PR ${prNumber} berhasil disimpan.`
                         : (isEditMode.value
-                            ? `Perubahan draft Purchase Requisition ${prNumber} berhasil disimpan.`
-                            : `Draft Purchase Requisition ${prNumber} berhasil disimpan.`))
-            )
+                            ? `Perubahan draft PR ${prNumber} berhasil disimpan.`
+                            : `Draft PR ${prNumber} berhasil disimpan.`),
+                    action: prId ? {
+                        label: 'Edit Lagi',
+                        onClick: () => router.push({ name: 'user.purchasing.requisitions.edit', params: { id: prId } })
+                    } : undefined
+                })
+            }
 
             router.push({ name: 'user.purchasing.requisitions' })
         } catch (err) {
@@ -953,6 +1047,7 @@ export function usePurchaseRequisitionForm() {
         accountingSubcategories,
         accountingAccounts,
         errors,
+        stepErrorSummary,
         form,
         today,
         nextWeek,
@@ -990,6 +1085,8 @@ export function usePurchaseRequisitionForm() {
         fetchItemsSearch,
         fetchUnitsSearch,
         fetchAccountingCategoriesSearch,
+        fetchAccountingSubcategoriesSearch,
+        fetchAccountingAccountsSearch,
         fetchDivisionsForCompany,
         fetchApprovalConfigs,
         formatDisplayDate,

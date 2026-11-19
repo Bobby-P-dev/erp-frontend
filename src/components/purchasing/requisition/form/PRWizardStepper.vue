@@ -29,9 +29,9 @@ defineEmits(['go-to-step'])
                         :class="[
                             'w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-bold shrink-0 transition-colors',
                             currentStep > step.no
-                                ? 'bg-[#EEF4FC] text-[#177245] border-2 border-[#177245]/30'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 : (currentStep === step.no
-                                    ? 'bg-[#014BAA] text-white'
+                                    ? 'bg-blue-600 text-white'
                                     : 'bg-slate-100 text-slate-500 border border-slate-200')
                         ]"
                     >
@@ -42,7 +42,7 @@ defineEmits(['go-to-step'])
                         <span
                             :class="[
                                 'block text-sm sm:text-base font-bold leading-tight truncate',
-                                currentStep === step.no ? 'text-[#014BAA]' : (currentStep > step.no ? 'text-slate-900' : 'text-slate-500')
+                                currentStep === step.no ? 'text-blue-700' : (currentStep > step.no ? 'text-slate-900' : 'text-slate-500')
                             ]"
                         >
                             {{ step.title }}

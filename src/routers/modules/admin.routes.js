@@ -1,3 +1,6 @@
+import { useAuthStore } from '../../stores/auth.js'
+import { warehouseMasterPermissions } from '../../services/warehouseMasterServices.js'
+
 export const adminRoutes = [
     {
         path: '/admin',
@@ -17,6 +20,18 @@ export const adminRoutes = [
                 path: 'master/company',
                 name: 'admin.master.company',
                 component: () => import('../../views/admin/master/CompanyView.vue'),
+            },
+            {
+                path: 'master/warehouses',
+                name: 'admin.master.warehouses',
+                component: () => import('../../views/admin/master/WarehouseMasterView.vue'),
+                meta: { title: 'Warehouses & Locations', hideMobileSidebar: true },
+                beforeEnter: () => {
+                    const auth = useAuthStore()
+                    if (!warehouseMasterPermissions.some((permission) => auth.hasStrictPermission(permission))) {
+                        return { name: 'admin.dashboard' }
+                    }
+                },
             },
             {
                 path: 'master/division',
@@ -168,6 +183,16 @@ export const adminRoutes = [
                 path: 'settings/approvals/:id/edit',
                 name: 'admin.settings.approval.edit',
                 component: () => import('../../views/admin/settings/approval/ApprovalConfigEditView.vue'),
+            },
+            {
+                path: 'audit-logs',
+                name: 'admin.audit-logs',
+                component: () => import('../../views/admin/audit/AuditLogListView.vue'),
+                meta: {
+                    permission: 'audit-log.read',
+                    strictPermission: true,
+                    title: 'Audit Trail',
+                },
             }
         ],
     }

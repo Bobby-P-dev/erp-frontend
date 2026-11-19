@@ -15,7 +15,7 @@ import {
 import { createPurchaseOrderFromRfq } from '@/services/purchaseOrderServices.js'
 import { searchTaxes } from '@/services/taxServices.js'
 import { uploadFile } from '@/services/fileServices.js'
-import { showLoading, showSuccess, showError, showConfirm, showPrompt } from '@/utils/swal.js'
+import { showLoading, showSuccess, showError, showConfirm, showPrompt, showToast } from '@/utils/swal.js'
 import { purchaseOrderValidityErrors, quotationDateOrderError, quotationApiError } from '@/utils/quotationValidity.js'
 import { useRfqDeadline } from '@/composables/purchasing/useRfqDeadline.js'
 
@@ -289,7 +289,13 @@ export function useRfqDetail() {
 
         if (success) {
             copiedToken.value = token
-            showSuccess('Tautan Tersalin!', 'Tautan portal vendor telah disalin ke clipboard.')
+            showToast.success('Tautan Portal Tersalin', {
+                description: 'Tautan siap dibagikan ke vendor untuk mengisi penawaran.',
+                action: {
+                    label: 'Buka Portal',
+                    onClick: () => window.open(magicUrl, '_blank', 'noopener,noreferrer')
+                }
+            })
             setTimeout(() => {
                 if (copiedToken.value === token) copiedToken.value = null
             }, 2500)

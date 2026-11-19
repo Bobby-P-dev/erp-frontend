@@ -609,41 +609,49 @@ export function useDirectPurchaseForm() {
         }
     })
 
+    watch([selectedPlanId, () => form.value], () => {
+        if (formErrorSummary.value) formErrorSummary.value = ''
+    }, { deep: true })
+
+    const failValidation = (message) => {
+        formErrorSummary.value = message
+        showToast.warning('Periksa Isian Form', message)
+        setTimeout(() => {
+            const target = document.getElementById('dp-validation-summary') || document.querySelector('[aria-invalid="true"]')
+            target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 50)
+        return false
+    }
+
     const validateForm = (shouldSubmitForPayment = false) => {
+        formErrorSummary.value = ''
         if (!isBulkMode.value && !selectedPlanId.value) {
-            showError('Validasi Gagal', 'Silakan pilih Rencana Pengadaan terlebih dahulu.')
-            return false
+            return failValidation('Silakan pilih Rencana Pengadaan terlebih dahulu.')
         }
 
         if (form.value.purchase_channel === 'marketplace') {
             if (!form.value.marketplace_name?.trim()) {
-                showError('Validasi Gagal', 'Nama Marketplace (Tokopedia, Shopee, dll) wajib diisi.')
-                return false
+                return failValidation('Nama Marketplace (Tokopedia, Shopee, dll) wajib diisi.')
             }
             if (!form.value.merchant_name?.trim()) {
-                showError('Validasi Gagal', 'Nama Toko / Official Store di marketplace wajib diisi.')
-                return false
+                return failValidation('Nama Toko / Official Store di marketplace wajib diisi.')
             }
         } else if (form.value.purchase_channel === 'direct_supplier') {
             if (!form.value.supplier_id) {
-                showError('Validasi Gagal', 'Supplier / Vendor rekanan wajib dipilih.')
-                return false
+                return failValidation('Supplier / Vendor rekanan wajib dipilih.')
             }
         } else if (form.value.purchase_channel === 'retail_store') {
             if (!form.value.merchant_name?.trim()) {
-                showError('Validasi Gagal', 'Nama Toko Retail / Supermarket wajib diisi.')
-                return false
+                return failValidation('Nama Toko Retail / Supermarket wajib diisi.')
             }
         }
 
         if (!form.value.items || form.value.items.length === 0) {
-            showError('Validasi Gagal', 'Rencana pengadaan belum memiliki item untuk dibeli.')
-            return false
+            return failValidation('Rencana pengadaan belum memiliki item untuk dibeli.')
         }
 
         if (isPlanFullyExhausted.value) {
-            showError('Validasi Gagal', 'Seluruh kuota pada Rencana Pengadaan ini sudah dialokasikan ke Direct Purchase sebelumnya. Tidak ada kuota tersisa untuk membuat pembelian baru.')
-            return false
+            return failValidation('Seluruh kuota pada Rencana Pengadaan ini sudah dialokasikan ke transaksi sebelumnya.')
         }
 
         let hasItemError = false
@@ -666,23 +674,19 @@ export function useDirectPurchaseForm() {
         })
 
         if (hasItemError) {
-            showError('Validasi Gagal', 'Mohon periksa kuantitas dan harga satuan pada daftar item barang.')
-            return false
+            return failValidation('Mohon periksa kuantitas dan harga satuan pada daftar item barang.')
         }
 
         if (shouldSubmitForPayment) {
             if (!form.value.payment_method) {
-                showError('Validasi Gagal', 'Silakan pilih metode pembayaran.')
-                return false
+                return failValidation('Silakan pilih metode pembayaran.')
             }
             if (form.value.payment_method !== 'cash') {
                 if (!form.value.bank_name?.trim()) {
-                    showError('Validasi Gagal', 'Nama Bank / Provider VA wajib diisi.')
-                    return false
+                    return failValidation('Nama Bank / Provider VA wajib diisi.')
                 }
                 if (!form.value.bank_account_number?.trim()) {
-                    showError('Validasi Gagal', 'Nomor Rekening / Virtual Account wajib diisi.')
-                    return false
+                    return failValidation('Nomor Rekening / Virtual Account wajib diisi.')
                 }
             }
         }
@@ -693,18 +697,20 @@ export function useDirectPurchaseForm() {
     const handleSubmit = async (shouldSubmitForPayment = false) => {
         if (!validateForm(shouldSubmitForPayment)) return
 
-        const channelTitle = form.value.purchase_channel === 'marketplace' 
-            ? `${form.value.marketplace_name} (${form.value.merchant_name})`
-            : (form.value.purchase_channel === 'direct_supplier' ? 'Supplier Rekanan' : form.value.merchant_name)
+        if (shouldSubmitForPayment) {
+            const channelTitle = form.value.purchase_channel === 'marketplace' 
+                ? `${form.value.marketplace_name} (${form.value.merchant_name})`
+                : (form.value.purchase_channel === 'direct_supplier' ? 'Supplier Rekanan' : form.value.merchant_name)
 
-        const confirmTitle = shouldSubmitForPayment ? 'Simpan & Ajukan Pembayaran?' : 'Simpan Draft Pembelian?'
-        const confirmText = shouldSubmitForPayment
-            ? `Direct Purchase senilai ${formatCurrency(grandTotal.value, form.value.currency)}${form.value.currency !== 'IDR' ? ` (setara ${formatCurrency(equivalentIdrGrandTotal.value, 'IDR')})` : ''} melalui ${channelTitle} akan langsung diajukan ke bagian keuangan untuk proses verifikasi pembayaran.`
-            : `Direct Purchase senilai ${formatCurrency(grandTotal.value, form.value.currency)}${form.value.currency !== 'IDR' ? ` (setara ${formatCurrency(equivalentIdrGrandTotal.value, 'IDR')})` : ''} akan disimpan sebagai draft.`
-        const confirmBtnText = shouldSubmitForPayment ? 'Ya, Ajukan Pembayaran' : 'Ya, Simpan Draft'
-
-        const confirmed = await showConfirm(confirmTitle, confirmText, confirmBtnText, 'Batal', '#4f46e5')
-        if (!confirmed) return
+            const confirmed = await showConfirm(
+                'Simpan & Ajukan Pembayaran?',
+                `Direct Purchase senilai ${formatCurrency(grandTotal.value, form.value.currency)}${form.value.currency !== 'IDR' ? ` (setara ${formatCurrency(equivalentIdrGrandTotal.value, 'IDR')})` : ''} melalui ${channelTitle} akan langsung diajukan ke bagian keuangan untuk proses verifikasi pembayaran.`,
+                'Ya, Ajukan Pembayaran',
+                'Batal',
+                '#2563eb'
+            )
+            if (!confirmed) return
+        }
 
         try {
             isSubmitting.value = true
@@ -747,6 +753,7 @@ export function useDirectPurchaseForm() {
                 }
 
                 const createRes = await createBulkDirectPurchase(payload)
+                const dpId = createRes.data?.id || createRes.id
                 const dpNumber = createRes.data?.dp_number || createRes.dp_number || ''
 
                 sessionStorage.removeItem('bulk_direct_purchase_items')
@@ -755,7 +762,14 @@ export function useDirectPurchaseForm() {
                 if (shouldSubmitForPayment) {
                     showSuccess('Berhasil!', `Bulk Direct Purchase ${dpNumber} berhasil dibuat dan diajukan untuk pembayaran Finance.`)
                 } else {
-                    showSuccess('Berhasil!', `Bulk Direct Purchase ${dpNumber} berhasil disimpan sebagai Draft.`)
+                    closeSwal()
+                    showToast.success('Draft Pembelian Tersimpan', {
+                        description: `${dpNumber || 'Draft'} disimpan. Anda dapat melanjutkannya kapan saja.`,
+                        action: dpId ? {
+                            label: 'Buka Detail',
+                            onClick: () => router.push({ name: 'user.purchasing.direct.detail', params: { id: dpId } })
+                        } : undefined
+                    })
                 }
 
                 router.push({ name: 'user.purchasing.direct' })
@@ -812,7 +826,14 @@ export function useDirectPurchaseForm() {
                 })
                 showSuccess('Berhasil!', `Direct Purchase ${dpNumber} berhasil dibuat dan diajukan untuk pembayaran.`)
             } else {
-                showSuccess('Berhasil!', `Direct Purchase ${dpNumber} berhasil disimpan sebagai Draft.`)
+                closeSwal()
+                showToast.success('Draft Pembelian Tersimpan', {
+                    description: `${dpNumber || 'Draft'} disimpan sebagai draft.`,
+                    action: dpId ? {
+                        label: 'Buka Detail',
+                        onClick: () => router.push({ name: 'user.purchasing.direct.detail', params: { id: dpId } })
+                    } : undefined
+                })
             }
 
             router.push({ name: 'user.purchasing.direct' })
@@ -840,6 +861,7 @@ export function useDirectPurchaseForm() {
         suppliers,
         selectedPlan,
         selectedPlanId,
+        formErrorSummary,
         form,
         taxesList,
         isLoadingTaxes,

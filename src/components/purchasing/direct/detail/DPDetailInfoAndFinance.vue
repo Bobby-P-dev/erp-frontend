@@ -71,95 +71,95 @@ const storeLink = computed(() => {
         </section>
 
         <!-- Finance Payment Request & Approval Section -->
-        <div v-if="section === 'payment' && dp.payment_request" class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div class="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50">
-                <div class="flex items-center gap-2">
+        <div v-if="section === 'payment' && dp.payment_request" class="bg-white rounded-xl border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
+            <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
+                <div class="flex items-center gap-2.5">
                     <CreditCard class="w-5 h-5 text-blue-600" />
                     <div>
-                        <h3 class="text-sm font-bold text-gray-900">Pembayaran</h3>
-                        <p class="text-sm text-gray-500 font-mono">{{ dp.payment_request.prq_number }}</p>
+                        <h3 class="text-sm font-bold text-slate-900">Pembayaran</h3>
+                        <p class="text-xs sm:text-sm text-slate-500 font-mono">{{ dp.payment_request.prq_number }}</p>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2">
                     <span 
-                        class="px-2.5 py-1 rounded-full text-sm font-bold border"
-                        :class="dp.payment_request.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-slate-200' : (dp.payment_request.status === 'approved' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200')"
+                        class="px-2.5 py-1 rounded-full text-xs font-bold border"
+                        :class="dp.payment_request.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (dp.payment_request.status === 'approved' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200')"
                     >
                         {{ dp.payment_request.status?.toUpperCase() }}
                     </span>
                 </div>
             </div>
 
-            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div class="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-5 text-sm">
                 <div class="space-y-1">
-                    <span class="text-gray-500 block">Metode Pembayaran:</span>
-                    <span class="font-semibold text-gray-800 block capitalize">{{ dp.payment_request.payment_method?.replace('_', ' ') }}</span>
-                    <span class="text-gray-500 block mt-2">Penerima Dana:</span>
-                    <span class="font-bold text-gray-900 block">{{ dp.payment_request.recipient_name || '-' }}</span>
+                    <span class="text-xs text-slate-500 block">Metode Pembayaran</span>
+                    <span class="font-semibold text-slate-800 block capitalize">{{ dp.payment_request.payment_method?.replace('_', ' ') }}</span>
+                    <span class="text-xs text-slate-500 block pt-2">Penerima Dana</span>
+                    <span class="font-bold text-slate-900 block">{{ dp.payment_request.recipient_name || '-' }}</span>
                 </div>
 
                 <div class="space-y-1">
-                    <span class="text-gray-500 block">Rekening Tujuan:</span>
-                    <span class="font-mono text-gray-900 block font-bold">{{ dp.payment_request.bank_name || '-' }} - {{ dp.payment_request.bank_account_number || '-' }}</span>
-                    <span class="text-gray-500 block mt-2">Atas Nama Rekening:</span>
-                    <span class="font-semibold text-gray-800 block">{{ dp.payment_request.bank_account_holder || '-' }}</span>
+                    <span class="text-xs text-slate-500 block">Rekening Tujuan</span>
+                    <span class="font-mono text-slate-900 block font-bold">{{ dp.payment_request.bank_name || '-' }} - {{ dp.payment_request.bank_account_number || '-' }}</span>
+                    <span class="text-xs text-slate-500 block pt-2">Atas Nama Rekening</span>
+                    <span class="font-semibold text-slate-800 block">{{ dp.payment_request.bank_account_holder || '-' }}</span>
                 </div>
 
                 <div class="space-y-1">
-                    <span class="text-gray-500 block">Nominal Permohonan:</span>
-                    <span class="font-mono text-base font-black text-gray-900 block">{{ formatCurrency(dp.payment_request.amount, dp.payment_request.currency || dp.currency) }}</span>
-                    <span class="text-gray-500 block mt-2">Diajukan Oleh:</span>
-                    <span class="text-gray-700 block">{{ dp.payment_request.requester?.name || 'Staff' }}</span>
+                    <span class="text-xs text-slate-500 block">Nominal Permohonan</span>
+                    <span class="font-mono text-base font-bold text-slate-900 block">{{ formatCurrency(dp.payment_request.amount, dp.payment_request.currency || dp.currency) }}</span>
+                    <span class="text-xs text-slate-500 block pt-2">Diajukan Oleh</span>
+                    <span class="text-slate-700 block">{{ dp.payment_request.requester?.name || 'Staff' }}</span>
                 </div>
             </div>
 
             <!-- Disbursement Details if already paid -->
-            <div v-if="dp.payment_request.payment" class="mx-6 mb-6 p-4 rounded-xl bg-emerald-50/60 border border-slate-200">
-                <div class="flex items-center gap-2 mb-2 text-emerald-900 font-bold text-sm">
+            <div v-if="dp.payment_request.payment" class="p-5 bg-emerald-50/50 space-y-3">
+                <div class="flex items-center gap-2 text-emerald-900 font-bold text-sm">
                     <CheckCircle2 class="w-4 h-4 text-emerald-600" />
                     <span>Rincian Pembayaran Kas / Bank (Disbursed)</span>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                        <span class="text-gray-500 block">Nomor Bukti Bayar:</span>
-                        <span class="font-mono font-bold text-gray-900">{{ dp.payment_request.payment.payment_number }}</span>
+                        <span class="text-xs text-slate-500 block">Nomor Bukti Bayar</span>
+                        <span class="font-mono font-bold text-slate-900">{{ dp.payment_request.payment.payment_number }}</span>
                     </div>
                     <div>
-                        <span class="text-gray-500 block">Akun Sumber Dana:</span>
-                        <span class="font-semibold text-gray-900">{{ dp.payment_request.payment.source_account?.name || 'Kas / Bank' }}</span>
+                        <span class="text-xs text-slate-500 block">Akun Sumber Dana</span>
+                        <span class="font-semibold text-slate-900">{{ dp.payment_request.payment.source_account?.name || 'Kas / Bank' }}</span>
                     </div>
                     <div>
-                        <span class="text-gray-500 block">No. Referensi Bank:</span>
-                        <span class="font-mono font-semibold text-gray-900">{{ dp.payment_request.payment.reference_number || '-' }}</span>
+                        <span class="text-xs text-slate-500 block">No. Referensi Bank</span>
+                        <span class="font-mono font-semibold text-slate-900">{{ dp.payment_request.payment.reference_number || '-' }}</span>
                     </div>
                     <div>
-                        <span class="text-gray-500 block">Tanggal Pencairan:</span>
-                        <span class="font-semibold text-gray-900">{{ formatDate(dp.payment_request.payment.payment_date) }}</span>
+                        <span class="text-xs text-slate-500 block">Tanggal Pencairan</span>
+                        <span class="font-semibold text-slate-900">{{ formatDate(dp.payment_request.payment.payment_date) }}</span>
                     </div>
                 </div>
             </div>
 
             <!-- Direct Disbursement Info Banner -->
-            <div class="border-t border-gray-100 p-5 bg-blue-50/40 flex items-start gap-3">
-                <CheckCircle2 class="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div class="p-4 sm:p-5 bg-blue-50/40 flex items-start gap-3">
+                <CheckCircle2 class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                 <div>
-                    <p class="text-sm font-bold text-slate-800">Pembayaran ditangani tim Finance</p>
-                    <p class="text-[11px] text-slate-600 mt-0.5">
-                        Proses pencairan dilakukan melalui modul Finance. Status dan bukti pembayaran ditampilkan di sini sebagai informasi pembelian.
+                    <p class="text-xs sm:text-sm font-semibold text-slate-800">Pembayaran ditangani tim Finance</p>
+                    <p class="text-xs text-slate-600 mt-0.5">
+                        Proses pencairan dilakukan melalui modul Finance; status dan bukti pembayaran diperbarui otomatis di sini.
                     </p>
                 </div>
             </div>
         </div>
 
         <!-- Goods Receipts (GRN) Section -->
-        <div v-if="section === 'receipts'" class="bg-white rounded-2xl border border-slate-200/80  overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div class="flex items-center gap-2">
+        <div v-if="section === 'receipts'" class="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                <div class="flex items-center gap-2.5">
                     <Truck class="w-5 h-5 text-blue-600" />
                     <div>
                         <h3 class="text-sm font-bold text-slate-900">Penerimaan barang</h3>
-                        <p class="text-sm text-slate-500">Pemeriksaan fisik dan tanda terima barang gudang</p>
+                        <p class="text-xs text-slate-500">Pemeriksaan fisik dan tanda terima barang gudang</p>
                     </div>
                 </div>
             </div>
@@ -167,46 +167,46 @@ const storeLink = computed(() => {
             <div v-if="dp.goods_receipts?.length > 0" class="divide-y divide-slate-100">
                 <div v-for="gr in dp.goods_receipts" :key="gr.id" class="p-5 space-y-3">
                     <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <div class="flex items-center gap-2 font-mono font-bold text-slate-900">
+                        <div class="flex flex-wrap items-center gap-2 font-mono font-bold text-slate-900">
                             <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">{{ gr.grn_number }}</span>
                             <span 
                                 :class="[
-                                    'px-2 py-0.5 rounded text-[11px] font-sans font-bold border',
+                                    'px-2 py-0.5 rounded text-xs font-sans font-semibold border',
                                     gr.handover_status === 'handed_over' 
-                                        ? 'bg-emerald-50 text-emerald-700 border-slate-200'
-                                        : 'bg-amber-50 text-amber-800 border-amber-300'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-amber-50 text-amber-800 border-amber-200'
                                 ]"
                             >
                                 {{ gr.handover_status_label || (gr.handover_status === 'handed_over' ? 'Sudah Diambil Pemohon' : 'Sampai di Gudang (Belum Diambil)') }}
                             </span>
-                            <span class="text-gray-500 font-sans font-normal ml-1">Surat Jalan:</span>
-                            <span class="text-gray-800">{{ gr.delivery_note_number || '-' }}</span>
+                            <span class="text-slate-500 font-sans font-normal text-xs ml-1">Surat Jalan:</span>
+                            <span class="text-slate-800 text-xs sm:text-sm">{{ gr.delivery_note_number || '-' }}</span>
                         </div>
-                        <div class="text-gray-500">
-                            Diterima tgl: <strong class="text-gray-800">{{ formatDate(gr.receipt_date) }}</strong>
-                            <span v-if="gr.shipping_carrier" class="ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-sans">Kurir: {{ gr.shipping_carrier }}</span>
+                        <div class="text-xs text-slate-500">
+                            Diterima: <strong class="text-slate-800">{{ formatDate(gr.receipt_date) }}</strong>
+                            <span v-if="gr.shipping_carrier" class="ml-2 px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-sans">Kurir: {{ gr.shipping_carrier }}</span>
                         </div>
                     </div>
 
                     <!-- GR Items List -->
-                    <div class="bg-gray-50 rounded-xl p-3 border border-gray-100 overflow-x-auto">
-                        <table class="w-full text-sm text-left">
+                    <div class="border-t border-slate-100 pt-3 overflow-x-auto">
+                        <table class="w-full text-xs sm:text-sm text-left">
                             <thead>
-                                <tr class="text-gray-500 border-b border-gray-200">
-                                    <th class="py-1.5">Deskripsi Item</th>
-                                    <th class="py-1.5 text-right">Diterima Fisik</th>
-                                    <th class="py-1.5 text-right text-emerald-700">Diterima Baik</th>
-                                    <th class="py-1.5 text-right text-rose-700">Ditolak (Cacat)</th>
-                                    <th class="py-1.5 pl-3">Alasan Penolakan</th>
+                                <tr class="text-slate-500 border-b border-slate-200">
+                                    <th class="py-2 font-medium">Deskripsi Item</th>
+                                    <th class="py-2 text-right font-medium">Diterima Fisik</th>
+                                    <th class="py-2 text-right font-medium text-emerald-700">Diterima Baik</th>
+                                    <th class="py-2 text-right font-medium text-rose-700">Ditolak (Cacat)</th>
+                                    <th class="py-2 pl-4 font-medium">Alasan Penolakan</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">
+                            <tbody class="divide-y divide-slate-100">
                                 <tr v-for="it in gr.items" :key="it.id">
-                                    <td class="py-2 font-medium text-gray-900">{{ it.item_description }}</td>
-                                    <td class="py-2 text-right font-mono">{{ Number(it.quantity_received) }}</td>
-                                    <td class="py-2 text-right font-mono font-bold text-emerald-700">{{ Number(it.quantity_accepted) }}</td>
-                                    <td class="py-2 text-right font-mono font-bold text-rose-700">{{ Number(it.quantity_rejected) }}</td>
-                                    <td class="py-2 pl-3 text-gray-500 italic">{{ it.rejection_reason || '-' }}</td>
+                                    <td class="py-2.5 font-medium text-slate-900">{{ it.item_description }}</td>
+                                    <td class="py-2.5 text-right font-mono">{{ Number(it.quantity_received) }}</td>
+                                    <td class="py-2.5 text-right font-mono font-bold text-emerald-700">{{ Number(it.quantity_accepted) }}</td>
+                                    <td class="py-2.5 text-right font-mono font-bold text-rose-700">{{ Number(it.quantity_rejected) }}</td>
+                                    <td class="py-2.5 pl-4 text-slate-500">{{ it.rejection_reason || '-' }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -214,7 +214,7 @@ const storeLink = computed(() => {
                 </div>
             </div>
 
-            <div v-else class="p-8 text-center text-sm text-gray-400">
+            <div v-else class="p-8 text-center text-sm text-slate-400">
                 Belum ada bukti fisik penerimaan barang yang dicatat untuk transaksi ini.
             </div>
         </div>
@@ -226,7 +226,7 @@ const storeLink = computed(() => {
 .flex.justify-between > :last-child { min-width: 0; overflow-wrap: anywhere; }
 h3 { font-weight: 600; }
 .seller-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; padding: .5rem .25rem 1.25rem; }
-.cost-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; border-radius: 16px; background: #f8fafc; padding: 1.5rem; }
+.cost-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; padding: 1.25rem; }
 .cost-row { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
 .cost-row dt { color: #64748b; }
 .cost-row dd { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; color: #334155; }

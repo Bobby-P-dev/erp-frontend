@@ -34,7 +34,7 @@ defineEmits(['add', 'remove', 'search-units'])
                         <input type="radio" :name="`need-mode-${item.row_key ?? index}`" :value="mode.value" :checked="initialNeedItemMode(item) === mode.value" class="size-4 accent-blue-700" @change="changeInitialNeedItemMode(item, mode.value)" />{{ mode.label }}
                     </label>
                 </div>
-                <p class="mt-2 text-xs leading-relaxed text-slate-500">{{ initialNeedItemMode(item) === 'catalog' ? 'Nama dan satuan mengikuti master. Harga penawaran tetap diisi supplier.' : 'Untuk kebutuhan di luar katalog. Barang ini tidak otomatis ditambahkan ke master.' }}</p>
+                <p class="mt-2 text-xs text-slate-500">{{ initialNeedItemMode(item) === 'catalog' ? 'Nama dan satuan mengikuti katalog master.' : 'Barang tidak ditambahkan otomatis ke master katalog.' }}</p>
             </fieldset>
             <RfqCatalogItemPicker v-if="initialNeedItemMode(item) === 'catalog'" class="mb-5" :item="item" :input-id="`need-catalog-${item.row_key ?? index}`" :error="errors[`items.${index}.item_id`]?.[0]" @select="applyRfqCatalogItem(item, $event)" />
             <div class="grid gap-5 sm:grid-cols-2">

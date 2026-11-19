@@ -1,8 +1,9 @@
 import { useAuthStore } from '../stores/auth.js'
 import { dialogState, closeGlobalDialog } from '../composables/useFeedback.js'
+import { startRouteLoading, finishRouteLoading } from '../composables/useAppLoader.js'
 
 export const registerRouterGuards = (router) => {
-    router.beforeEach((to) => {
+    router.beforeEach((to, from) => {
         const authStore = useAuthStore()
 
         if (to.meta.requiresAuth && !authStore.isAuthenticated) {
@@ -30,16 +31,34 @@ export const registerRouterGuards = (router) => {
             }
         }
 
-        if (to.meta.permission && !authStore.hasPermission(to.meta.permission)) {
-            return { name: 'user.dashboard' }
+        if (to.meta.permission) {
+            const allowed = to.meta.strictPermission
+                ? (typeof authStore.hasStrictPermission === 'function'
+                    ? authStore.hasStrictPermission(to.meta.permission)
+                    : authStore.hasPermission(to.meta.permission))
+                : authStore.hasPermission(to.meta.permission)
+            if (!allowed) {
+                return { name: 'user.dashboard' }
+            }
+        }
+
+        if (to.fullPath !== from?.fullPath) {
+            startRouteLoading(to.meta?.title || '')
         }
 
         return true
     })
 
     router.afterEach(() => {
+        finishRouteLoading()
         if (dialogState.value?.isOpen && dialogState.value?.type === 'loading') {
             closeGlobalDialog()
         }
     })
+
+    if (typeof router.onError === 'function') {
+        router.onError(() => {
+            finishRouteLoading()
+        })
+    }
 }

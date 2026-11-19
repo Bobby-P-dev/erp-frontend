@@ -15,7 +15,7 @@ const emit = defineEmits(['select-all'])
         <div class="rfq-section-heading">
             <div>
                 <h2 id="rfq-items-heading">3. Barang yang ditenderkan</h2>
-                <p>Pilih barang, sesuaikan jumlah, lalu periksa perkiraan harga satuannya.</p>
+                <p>Centang barang dan atur jumlah yang ditenderkan.</p>
             </div>
             <button
                 v-if="planItems.length"

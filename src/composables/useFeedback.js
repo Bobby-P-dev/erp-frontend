@@ -71,7 +71,7 @@ export const openConfirmDialog = ({
     isDelete = false,
     type = null
 } = {}) => {
-    const isDestructive = isDelete || /hapus|delete|batal/i.test(`${title} ${text}`)
+    const isDestructive = isDelete || /hapus|delete|batal|cancel|tolak|reject/i.test(`${title} ${text}`)
     clearAutoCloseTimer()
     return new Promise((resolve) => {
         dialogState.value = {

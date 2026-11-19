@@ -122,7 +122,7 @@ const itemColumns = computed(() => [
     { key: 'quantity', label: 'Jumlah', width: '14%', align: 'right' },
     { key: 'price', label: isQuotationReview.value ? 'Harga satuan' : 'Estimasi satuan', width: '19%', align: 'right' },
     { key: 'subtotal', label: 'Subtotal', width: '19%', align: 'right' },
-    ...(isDocPurchaseRequisition.value ? [{ key: 'decision', label: 'Keputusan item', width: '240px' }] : []),
+    ...(isDocPurchaseRequisition.value ? [{ key: 'decision', label: 'Keputusan item', width: '240px', align: 'center' }] : []),
 ])
 
 watch([effectiveItems, isDrawerVisible], ([items, visible]) => {
@@ -342,6 +342,13 @@ const formatDate = (dateStr) => {
         year: 'numeric'
     })
 }
+
+const formatQuantity = (value) => {
+    if (value == null || value === '') return '—'
+    const num = Number(value)
+    if (Number.isNaN(num)) return String(value)
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(num)
+}
 </script>
 
 <template>
@@ -358,14 +365,14 @@ const formatDate = (dateStr) => {
                 @click.stop
             >
                 <!-- MODAL HEADER -->
-                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+                <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
                     <div class="flex items-center gap-3">
-                        <div class="p-2 rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
+                        <div class="p-2 rounded-xl bg-blue-50 text-[#014BAA] border border-blue-100">
                             <FileText class="w-5 h-5" />
                         </div>
                         <div>
                             <div class="flex flex-wrap items-center gap-2.5">
-                                <h3 id="approval-review-title" class="text-base font-semibold text-slate-900 tracking-tight">
+                                <h3 id="approval-review-title" class="text-base font-bold text-slate-900 tracking-tight">
                                     {{ effectiveDoc.document_number || 'Review Dokumen' }}
                                 </h3>
                                 <ApprovalBadge :status="effectiveDoc.status || 'pending'" size="sm" appearance="subtle" />
@@ -387,7 +394,7 @@ const formatDate = (dateStr) => {
                 </div>
 
                 <!-- MODAL CONTENT (Scrollable) -->
-                <div class="review-body flex-1 min-h-0 overflow-y-auto p-5 sm:p-7 space-y-7 overscroll-contain">
+                <div class="review-body flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-5 overscroll-contain">
                     <p v-if="isQuotationReview && trackerError" role="alert" class="text-sm text-rose-800 mb-4">{{ trackerError }}</p>
                     <ApprovalReviewSummary :key="`summary-${props.task?.id}`" :document="effectiveDoc" :currency="isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR'" :format-date="formatDate" />
                     <ReviewDisclosure v-if="isQuotationReview && effectiveDoc.supplier_quotation" :key="`quotation-${props.task?.id}`" title="Ketentuan quotation" :description="`${effectiveDoc.supplier_quotation.supplier?.name || 'Supplier'} · Versi ${effectiveDoc.supplier_quotation.review_version}`">
@@ -455,8 +462,8 @@ const formatDate = (dateStr) => {
                                         </details>
                                     </td>
                                     <td class="text-right tabular-nums whitespace-nowrap">
-                                        <p :class="{ 'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected }">{{ item.quantity }}</p>
-                                        <p class="mt-1 text-xs text-slate-500">{{ item.unit?.code || item.unit?.name || item.unit_name || '—' }}</p>
+                                        <p class="font-medium text-slate-900" :class="{ 'line-through text-slate-400 font-normal': itemRejectionStates[item.id]?.isRejected }">{{ formatQuantity(item.quantity) }}</p>
+                                        <p class="mt-0.5 text-xs text-slate-500">{{ item.unit?.code || item.unit?.name || item.unit_name || '—' }}</p>
                                     </td>
                                     <td class="text-right tabular-nums whitespace-nowrap" :class="{ 'line-through text-slate-400': itemRejectionStates[item.id]?.isRejected }">{{ formatCurrency(item.estimated_price || 0, isQuotationReview ? item.currency || effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}</td>
                                     <td class="text-right tabular-nums whitespace-nowrap">
@@ -560,10 +567,12 @@ const formatDate = (dateStr) => {
                                     </td>
                                 </tr>
                                 <template #footer>
-                                    <tr class="border-t border-slate-200 bg-slate-50/70">
-                                        <td colspan="3" class="px-5 py-4 text-sm text-slate-500 text-right">{{ isQuotationReview ? 'Total quotation (termasuk pajak & ongkir)' : 'Total estimasi' }}{{ totalRejectedItemsCount > 0 ? ' disetujui' : '' }}</td>
-                                        <td class="px-5 py-4 text-sm text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">{{ formatCurrency(dynamicEffectiveTotal, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}</td>
-                                        <td v-if="isDocPurchaseRequisition"></td>
+                                    <tr class="border-t border-slate-200 bg-slate-50/90">
+                                        <td colspan="3" class="px-5 py-3.5 text-xs font-medium text-slate-500 text-right">{{ isQuotationReview ? 'Total quotation (termasuk pajak & ongkir)' : 'Total estimasi' }}{{ totalRejectedItemsCount > 0 ? ' disetujui' : '' }}</td>
+                                        <td class="px-5 py-3.5 text-sm text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">{{ formatCurrency(dynamicEffectiveTotal, isQuotationReview ? effectiveDoc.supplier_quotation?.currency || 'IDR' : 'IDR') }}</td>
+                                        <td v-if="isDocPurchaseRequisition" class="px-5 py-3.5 text-center text-xs font-medium text-slate-500 whitespace-nowrap">
+                                            {{ activeApprovedItemsCount }}/{{ effectiveItems.length }} item disetujui
+                                        </td>
                                     </tr>
                                 </template>
                             </BaseTable>
@@ -753,7 +762,7 @@ const formatDate = (dateStr) => {
                                 {{ selectedItemForRejection.detail_name }}
                             </div>
                             <div class="flex items-center justify-between text-slate-700 pt-1.5 border-t border-slate-200/70 font-mono text-[11px]">
-                                <span>Jumlah: <strong>{{ selectedItemForRejection.quantity }} {{ selectedItemForRejection.unit?.code || selectedItemForRejection.unit?.name || 'PCS' }}</strong></span>
+                                <span>Jumlah: <strong>{{ formatQuantity(selectedItemForRejection.quantity) }} {{ selectedItemForRejection.unit?.code || selectedItemForRejection.unit?.name || 'PCS' }}</strong></span>
                                 <span>Subtotal: <strong>{{ formatCurrency(selectedItemForRejection.estimated_subtotal || ((Number(selectedItemForRejection.quantity) || 0) * (Number(selectedItemForRejection.estimated_price) || 0))) }}</strong></span>
                             </div>
                         </div>

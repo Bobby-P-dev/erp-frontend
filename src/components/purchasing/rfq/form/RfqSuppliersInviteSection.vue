@@ -11,8 +11,8 @@ const matchNames = row => s.catalogItems.filter(item => row.matched_item_ids?.ma
 <template>
     <section class="rfq-form-section" aria-labelledby="rfq-suppliers-heading">
         <div class="rfq-section-heading">
-            <div><h2 id="rfq-suppliers-heading">4. Supplier undangan</h2><p>Pilih supplier yang akan diminta memberikan penawaran. Menampilkan kandidat belum mengirim undangan.</p></div>
-            <span class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800"><Users class="size-4" />{{ s.selectedSuppliers.length }} dipilih</span>
+            <div><h2 id="rfq-suppliers-heading">4. Supplier undangan</h2><p>Pilih supplier yang akan diundang (undangan baru terkirim setelah tender dipublikasikan).</p></div>
+            <span class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs sm:text-sm font-semibold text-blue-700 border border-blue-200"><Users class="size-4" />{{ s.selectedSuppliers.length }} dipilih</span>
         </div>
         <p v-if="s.selectionNotice" role="status" class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-800">{{ s.selectionNotice }}</p>
         <fieldset v-if="s.catalogItems.length">
@@ -23,7 +23,7 @@ const matchNames = row => s.catalogItems.filter(item => row.matched_item_ids?.ma
                 </label>
             </div>
         </fieldset>
-        <p class="text-sm leading-relaxed text-slate-500">{{ !s.catalogItems.length ? 'Cari supplier aktif di perusahaan Anda. Barang custom tidak dicocokkan otomatis ke katalog.' : s.hasCustom ? 'Rekomendasi mengikuti barang katalog. Untuk barang custom, Anda juga dapat memilih Cari supplier lain.' : 'Kecocokan berdasarkan katalog supplier, bukan jaminan stok atau harga. Supplier lain tetap dapat dipilih.' }}</p>
+        <p class="text-xs sm:text-sm text-slate-500">{{ !s.catalogItems.length ? 'Cari supplier aktif di perusahaan Anda.' : s.hasCustom ? 'Rekomendasi mengikuti barang katalog; gunakan Cari supplier lain untuk barang custom.' : 'Kecocokan mengacu pada katalog supplier; supplier lain tetap bisa dipilih.' }}</p>
         <div>
             <label for="rfq-supplier-picker" class="rfq-field-label">Tambahkan supplier</label>
             <AsyncSearchPicker id="rfq-supplier-picker" v-model:open="pickerOpen" v-model:query="s.query" multiple
@@ -55,7 +55,7 @@ const matchNames = row => s.catalogItems.filter(item => row.matched_item_ids?.ma
                 <button type="button" class="rounded-lg p-2 text-rose-700 transition-colors hover:bg-rose-50" :aria-label="'Hapus ' + row.name + ' dari undangan'" @click="s.remove(row.id)"><Trash2 class="size-4" /></button>
             </div>
         </div>
-        <p v-else class="text-sm text-slate-500">Belum ada supplier dipilih. Draf dapat disimpan tanpa supplier; publikasi memerlukan minimal satu supplier.</p>
-        <p class="text-xs leading-relaxed text-slate-500">Kontak undangan diambil dari data master saat disimpan. Pilihan tetap ada saat pencarian atau halaman berubah. Mengubah daftar barang akan mengosongkan pilihan supplier.</p>
+        <p v-else class="text-xs sm:text-sm text-slate-500">Belum ada supplier dipilih. Publikasi tender memerlukan minimal 1 supplier.</p>
+        <p class="text-xs text-slate-500">Kontak undangan diambil dari master data. Mengubah daftar barang akan mereset pilihan supplier.</p>
     </section>
 </template>

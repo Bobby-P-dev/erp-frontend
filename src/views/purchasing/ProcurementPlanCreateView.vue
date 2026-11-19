@@ -7,7 +7,7 @@ import {
     activateProcurementPlan
 } from '../../services/procurementPlanServices.js'
 import { showPurchaseRequisition } from '../../services/purchaseRequisitionServices.js'
-import { showLoading, showSuccess, showError, showConfirm } from '../../utils/swal.js'
+import { showLoading, showSuccess, showError, showConfirm, showToast, closeSwal } from '../../utils/swal.js'
 import { formatCurrency } from '../../utils/stringUtils.js'
 
 import BaseBreadcrumb from '../../components/ui/BaseBreadcrumb.vue'
@@ -15,7 +15,7 @@ import SearchableSelect from '../../components/ui/SearchableSelect.vue'
 import ReviewDisclosure from '../../components/ui/ReviewDisclosure.vue'
 import DocumentWorkflowTracker from '../../components/approval/DocumentWorkflowTracker.vue'
 import PlanAllocationItems from '../../components/purchasing/plan/PlanAllocationItems.vue'
-import { ArrowLeft, ShoppingCart, Scale } from '@lucide/vue'
+import { ArrowLeft, ShoppingCart, Scale, ClipboardList, Save, Send } from '@lucide/vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -29,6 +29,7 @@ const isLoadingPrDetail = ref(false)
 const showWorkflow = ref(false)
 const allocationSection = ref(null)
 const allocationError = ref('')
+const formErrorSummary = ref('')
 
 const isBulkMode = ref(false)
 const bulkCompany = ref(null)
@@ -225,6 +226,9 @@ const allocateAllFull = () => {
         item.planned_qty = item.remaining_qty
         item.error = ''
     })
+    if (planItems.value.length > 0) {
+        showToast.info('Semua Kuota Dipilih', `${planItems.value.length} item dialokasikan sesuai sisa kebutuhan.`)
+    }
 }
 
 // Validate single item row
@@ -261,19 +265,23 @@ const formatDate = (dateString) => {
 const handleSubmit = async (shouldActivate = false) => {
     if (isSubmitting.value || isLoadingQueue.value || isLoadingPrDetail.value) return
     allocationError.value = ''
+    formErrorSummary.value = ''
     if (!isBulkMode.value && !selectedPrId.value) {
-        showError('Validasi Gagal', 'Silakan pilih Purchase Requisition terlebih dahulu.')
+        formErrorSummary.value = 'Silakan pilih Purchase Requisition sumber kebutuhan terlebih dahulu.'
+        showToast.warning('PR Belum Dipilih', formErrorSummary.value)
         return
     }
 
     if (!procurementMethod.value) {
-        showError('Validasi Gagal', 'Silakan pilih metode pengadaan (Direct Purchase atau Tender RFQ).')
+        formErrorSummary.value = 'Silakan pilih metode pengadaan (Pembelian langsung atau Tender RFQ).'
+        showToast.warning('Metode Belum Dipilih', formErrorSummary.value)
         return
     }
 
     const selectedItems = planItems.value.filter(i => i.is_selected)
     if (selectedItems.length === 0) {
         allocationError.value = 'Pilih minimal satu barang untuk rencana ini.'
+        showToast.warning('Barang Belum Dipilih', allocationError.value)
         await nextTick()
         allocationSection.value?.querySelector('input[type=checkbox]')?.focus()
         return
@@ -288,20 +296,23 @@ const handleSubmit = async (shouldActivate = false) => {
 
     if (hasError) {
         allocationError.value = 'Periksa jumlah alokasi yang ditandai di bawah.'
+        showToast.warning('Jumlah Alokasi Perlu Diperiksa', allocationError.value)
         await nextTick()
         allocationSection.value?.querySelector('[aria-invalid="true"]')?.focus()
         return
     }
 
-    const methodName = procurementMethod.value === 'direct_purchase' ? 'Direct Purchase (Pembelian Langsung)' : 'Tender RFQ (Multi-Vendor)'
-    const confirmTitle = shouldActivate ? 'Simpan & Aktifkan Rencana?' : 'Simpan sebagai Draft?'
-    const confirmText = shouldActivate 
-        ? `Rencana pengadaan dengan metode "${methodName}" akan langsung diaktifkan dan status PR akan berubah menjadi In Procurement.` 
-        : `Rencana pengadaan akan disimpan sebagai Draft dan dapat diedit kembali sebelum diaktifkan.`
-    const confirmBtnText = shouldActivate ? 'Ya, Simpan & Aktifkan' : 'Ya, Simpan Draft'
-
-    const confirmed = await showConfirm(confirmTitle, confirmText, confirmBtnText, 'Batal', '#2563eb')
-    if (!confirmed) return
+    if (shouldActivate) {
+        const methodName = procurementMethod.value === 'direct_purchase' ? 'Direct Purchase (Pembelian Langsung)' : 'Tender RFQ (Multi-Vendor)'
+        const confirmed = await showConfirm(
+            'Simpan & Aktifkan Rencana?',
+            `Rencana pengadaan dengan metode "${methodName}" akan langsung diaktifkan dan status PR akan berubah menjadi In Procurement.`,
+            'Ya, Simpan & Aktifkan',
+            'Batal',
+            '#2563eb'
+        )
+        if (!confirmed) return
+    }
 
     try {
         isSubmitting.value = true
@@ -346,7 +357,14 @@ const handleSubmit = async (shouldActivate = false) => {
                 return
             }
         } else {
-            showSuccess('Berhasil!', `Rencana pengadaan ${createRes.data?.pp_number || ''} berhasil disimpan sebagai Draft.`)
+            closeSwal()
+            showToast.success('Draft Rencana Tersimpan', {
+                description: `Rencana ${createRes.data?.pp_number || ''} disimpan sebagai draft.`,
+                action: planId ? {
+                    label: 'Buka Detail',
+                    onClick: () => router.push({ name: 'user.purchasing.plans.detail', params: { id: planId } })
+                } : undefined
+            })
         }
 
         router.push({ name: 'user.purchasing.plans' })
@@ -407,14 +425,26 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="plan-create space-y-6">
-        <BaseBreadcrumb :items="[{ label: 'Purchasing', to: { name: 'user.purchasing' } }, { label: 'Rencana Pengadaan', to: { name: 'user.purchasing.plans' } }, { label: 'Buat rencana' }]" />
-        <div class="flex flex-wrap justify-between items-start gap-4">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Buat rencana pengadaan</h1>
-                <p class="mt-2 text-sm text-slate-500">Tentukan cara pengadaan dan jumlah barang yang akan diproses.</p>
+    <div class="plan-create w-full min-w-0 space-y-5 pb-12">
+        <BaseBreadcrumb :items="[{ label: 'Purchasing', to: { name: 'user.purchasing' } }, { label: 'Rencana Pengadaan', to: { name: 'user.purchasing.plans' } }, { label: 'Buat Rencana' }]" />
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-2xs">
+            <div class="flex items-center gap-3.5">
+                <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
+                    <ClipboardList class="w-5 h-5" />
+                </span>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Buat Rencana Pengadaan</h1>
+                    <p class="mt-0.5 text-xs sm:text-sm text-slate-500">Pilih metode pengadaan dan jumlah barang yang diproses.</p>
+                </div>
             </div>
-            <RouterLink :to="{ name: 'user.purchasing.plans' }" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#014baa]"><ArrowLeft class="size-4" />Kembali ke daftar</RouterLink>
+            <RouterLink :to="{ name: 'user.purchasing.plans' }" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition-colors shrink-0">
+                <ArrowLeft class="size-3.5" />
+                <span>Kembali ke Daftar</span>
+            </RouterLink>
+        </div>
+
+        <div v-if="formErrorSummary" role="alert" class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm font-medium text-rose-800">
+            {{ formErrorSummary }}
         </div>
 
         <form @submit.prevent="handleSubmit(false)" novalidate class="space-y-6" :aria-busy="isSubmitting">
@@ -474,7 +504,7 @@ onMounted(() => {
                         <h2 id="allocation-title" class="section-title"><span class="section-number">3</span>Alokasi barang</h2>
                         <button type="button" @click="allocateAllFull" :disabled="!planItems.length || isLoadingQueue || isLoadingPrDetail" class="text-xs font-medium text-[#014baa] hover:underline disabled:opacity-40">Pilih semua & isi sisa kebutuhan</button>
                     </div>
-                    <p class="px-5 sm:px-6 mt-3 mb-5 text-sm text-slate-500">Jumlah dapat dibagi ke beberapa rencana. Alokasikan sesuai kebutuhan saat ini.</p>
+                    <p class="px-5 sm:px-6 mt-2 mb-4 text-xs sm:text-sm text-slate-500">Alokasikan jumlah barang yang akan diproses pada rencana ini.</p>
                     <p v-if="allocationError" role="alert" class="px-5 sm:px-6 pb-4 text-sm text-rose-600">{{ allocationError }}</p>
                     <p v-if="isLoadingQueue || isLoadingPrDetail" role="status" class="px-6 py-8 text-sm text-slate-500">Menyiapkan barang dari PR…</p>
                     <PlanAllocationItems v-else :items="planItems" :currency="activePrInfo?.currency || 'IDR'" @validate="validateItemQty" />
@@ -489,15 +519,23 @@ onMounted(() => {
             <aside class="form-section space-y-5" aria-labelledby="summary-title">
                 <h2 id="summary-title" class="text-base font-semibold text-slate-900">Ringkasan rencana</h2>
                 <dl class="grid gap-5 sm:grid-cols-3 text-sm">
-                    <div><dt class="text-xs text-slate-400">Metode</dt><dd class="mt-1 text-slate-700">{{ procurementMethod === 'rfq' ? 'Tender RFQ' : 'Pembelian langsung' }}</dd></div>
-                    <div><dt class="text-xs text-slate-400">Barang dialokasikan</dt><dd class="mt-1 text-slate-700">{{ totalAllocatedItems }} dari {{ planItems.length }} barang</dd></div>
-                    <div><dt class="text-xs text-slate-500">Total estimasi rencana</dt><dd class="mt-2 text-xl font-semibold tracking-tight text-slate-900 break-words tabular-nums">{{ formatCurrency(totalEstimatedPlanAmount, activePrInfo?.currency || 'IDR') }}</dd><dd v-if="activePrInfo?.currency && activePrInfo.currency !== 'IDR'" class="mt-1 text-xs text-slate-400">≈ {{ formatCurrency(totalEstimatedPlanAmount * activePrInfo.exchange_rate, 'IDR') }}</dd></div>
+                    <div><dt class="text-xs text-slate-400">Metode</dt><dd class="mt-1 font-medium text-slate-800">{{ procurementMethod === 'rfq' ? 'Tender RFQ' : 'Pembelian langsung' }}</dd></div>
+                    <div><dt class="text-xs text-slate-400">Barang dialokasikan</dt><dd class="mt-1 font-medium text-slate-800">{{ totalAllocatedItems }} dari {{ planItems.length }} barang</dd></div>
+                    <div><dt class="text-xs text-slate-500">Total estimasi rencana</dt><dd class="mt-1.5 text-xl font-bold tracking-tight text-slate-900 break-words tabular-nums font-mono">{{ formatCurrency(totalEstimatedPlanAmount, activePrInfo?.currency || 'IDR') }}</dd><dd v-if="activePrInfo?.currency && activePrInfo.currency !== 'IDR'" class="mt-1 text-xs text-slate-400">≈ {{ formatCurrency(totalEstimatedPlanAmount * activePrInfo.exchange_rate, 'IDR') }}</dd></div>
                 </dl>
-                <p class="text-xs text-slate-500 leading-relaxed">Draft dapat diedit sebelum diaktifkan. Aktivasi mengunci alokasi barang untuk proses pengadaan berikutnya.</p>
-                <div class="flex flex-col sm:flex-row-reverse gap-3 border-t border-slate-100 pt-5">
-                    <button type="button" @click="handleSubmit(true)" :disabled="isSubmitting || isLoadingQueue || isLoadingPrDetail || !planItems.length" class="plan-action border border-transparent bg-[#014baa] text-white hover:bg-blue-800">{{ isSubmitting ? 'Memproses…' : 'Simpan & aktifkan' }}</button>
-                    <button type="submit" :disabled="isSubmitting || isLoadingQueue || isLoadingPrDetail || !planItems.length" class="plan-action border border-blue-200 bg-white text-[#014baa] hover:bg-blue-50">Simpan draft</button>
-                    <RouterLink :to="{ name: 'user.purchasing.plans' }" class="plan-action inline-flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200">Batal</RouterLink>
+                <p class="text-xs text-slate-500">Draft bisa diedit sebelum diaktifkan.</p>
+                <div class="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 pt-5">
+                    <RouterLink :to="{ name: 'user.purchasing.plans' }" class="plan-action inline-flex items-center justify-center border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">Batal</RouterLink>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="submit" :disabled="isSubmitting || isLoadingQueue || isLoadingPrDetail || !planItems.length" class="plan-action inline-flex items-center justify-center gap-2 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
+                            <Save class="size-4 text-slate-500" />
+                            <span>Simpan draft</span>
+                        </button>
+                        <button type="button" @click="handleSubmit(true)" :disabled="isSubmitting || isLoadingQueue || isLoadingPrDetail || !planItems.length" class="plan-action inline-flex items-center justify-center gap-2 border border-transparent bg-blue-600 text-white hover:bg-blue-700 shadow-2xs">
+                            <Send class="size-4" />
+                            <span>{{ isSubmitting ? 'Memproses…' : 'Simpan & aktifkan' }}</span>
+                        </button>
+                    </div>
                 </div>
             </aside>
         </form>
@@ -506,15 +544,15 @@ onMounted(() => {
 
 <style scoped>
 .plan-create { min-width: 0; }
-.form-section { min-width: 0; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; background: white; }
+.form-section { min-width: 0; border: 1px solid rgb(226 232 240 / 0.8); border-radius: 12px; padding: 20px 24px; background: white; box-shadow: 0 1px 2px rgb(15 23 42 / 0.03); }
 .section-title { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; color: #0f172a; }
-.section-number { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #f1f5f9; color: #64748b; font-size: 12px; font-weight: 500; flex-shrink: 0; }
-.method-option { display: flex; align-items: flex-start; gap: 10px; padding: 18px 16px; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; }
-.method-option.selected { border-color: #014baa; background: #f5f9ff; }
+.section-number { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.method-option { display: flex; align-items: flex-start; gap: 10px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+.method-option.selected { border-color: #2563eb; background: #eff6ff; }
 .method-option:focus-within { outline: 2px solid #014baa; outline-offset: 2px; }
 .form-section.allocation-section { padding: 0; overflow: hidden; }
-.plan-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; resize: vertical; }
-.plan-action { width: 100%; padding: 11px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; }
+.plan-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; resize: vertical; }
+.plan-action { width: 100%; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; transition: background-color 0.15s ease, color 0.15s ease; }
 @media (min-width: 640px) { .plan-action { width: auto; } }
 .plan-create :deep(button) { cursor: pointer; }
 .plan-create :deep(button:disabled) { opacity: .5; cursor: not-allowed; }

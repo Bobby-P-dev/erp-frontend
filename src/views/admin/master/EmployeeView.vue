@@ -377,6 +377,7 @@ const delEmployee = async (id) => {
                                     label="Position (Optional)"
                                     placeholder="Select position..."
                                     :options="positionOptions"
+                                    clearable
                                     @search="loadPositions"
                                 />
                                 <p v-if="!form.division_id" class="text-[11px] text-rose-500 mt-1 leading-tight">Please select a division first.</p>

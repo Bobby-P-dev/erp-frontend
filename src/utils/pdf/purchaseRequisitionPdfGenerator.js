@@ -39,7 +39,7 @@ export const urlToBase64 = async (url) => {
 }
 
 /**
- * Format date for PDF display.
+ * Format date for formal Indonesian letter display.
  */
 const formatDatePdf = (dateStr) => {
     if (!dateStr) return '-'
@@ -49,7 +49,7 @@ const formatDatePdf = (dateStr) => {
         if (isNaN(d.getTime())) return String(dateStr)
         return d.toLocaleDateString('id-ID', {
             day: '2-digit',
-            month: 'short',
+            month: 'long',
             year: 'numeric'
         })
     } catch {
@@ -63,7 +63,8 @@ const formatDatePdf = (dateStr) => {
 const formatDateTimePdf = (dateStr) => {
     if (!dateStr) return '-'
     try {
-        const d = new Date(dateStr)
+        const cleanStr = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
+        const d = new Date(cleanStr)
         if (isNaN(d.getTime())) return String(dateStr)
         return d.toLocaleDateString('id-ID', {
             day: '2-digit',
@@ -75,6 +76,71 @@ const formatDateTimePdf = (dateStr) => {
     } catch {
         return String(dateStr)
     }
+}
+
+/**
+ * Format quantity cleanly without redundant trailing zeros (e.g. 1.0000 -> 1, 1.50 -> 1,5).
+ */
+const formatQtyPdf = (value) => {
+    const num = Number(value)
+    if (Number.isNaN(num)) return String(value ?? '-')
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(num)
+}
+
+/**
+ * Chunk array into balanced rows (max 3 signature columns per row so slots never get cramped).
+ */
+const chunkArray = (arr, size) => {
+    const chunks = []
+    for (let i = 0; i < arr.length; i += size) {
+        chunks.push(arr.slice(i, i + size))
+    }
+    return chunks
+}
+
+/**
+ * Build a clean formal signature column block (no heavy grid boxes).
+ */
+const buildSignatureSlot = ({ roleLabel, stepLabel, dateText, signatureImage, name, position, timestamp }) => {
+    const stack = [
+        { text: roleLabel, style: 'signRoleHeader' },
+        { text: stepLabel || ' ', style: 'signStepLabel' },
+        { text: dateText ? `Tanggal: ${dateText}` : ' ', style: 'signDate' },
+    ]
+
+    if (signatureImage) {
+        stack.push({
+            image: signatureImage,
+            fit: [105, 44],
+            alignment: 'center',
+            margin: [0, 4, 0, 4],
+        })
+    } else {
+        // Reserve comfortable space for wet/manual signature
+        stack.push({
+            text: ' ',
+            margin: [0, 22, 0, 22],
+        })
+    }
+
+    stack.push({
+        canvas: [
+            { type: 'line', x1: 0, y1: 0, x2: 112, y2: 0, lineWidth: 0.75, lineColor: '#475569' }
+        ],
+        alignment: 'center',
+        margin: [0, 0, 0, 4],
+    })
+    stack.push({ text: name || 'Pejabat Berwenang', style: 'signerName' })
+    stack.push({ text: position || '-', style: 'signerTitle' })
+
+    if (signatureImage && timestamp) {
+        stack.push({
+            text: `Ditandatangani: ${timestamp}`,
+            style: 'signTimestamp',
+        })
+    }
+
+    return { stack, margin: [6, 0, 6, 0] }
 }
 
 /**
@@ -127,7 +193,9 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
         const requestDate = stage1.document?.date || pr.request_date
         const requiredDate = stage1.document?.required_date || pr.required_date
         const purpose = stage1.document?.purpose || pr.purpose || '-'
-        const totalAmount = items.reduce((sum, it) => {
+        const currency = stage1.document?.currency || pr.currency || 'IDR'
+        const activeItems = items.filter(it => String(it.approval_status || '').toLowerCase() !== 'rejected')
+        const totalAmount = activeItems.reduce((sum, it) => {
             const q = Number(it.quantity) || 0
             const p = Number(it.estimated_price) || 0
             return sum + (q * p)
@@ -143,10 +211,8 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
 
         for (let i = 0; i < approvalLevels.length; i++) {
             const level = approvalLevels[i]
-            // Find the approve action in this level
             const actions = level.actions || []
             const approveAction = actions.find(a => a.action === 'approve')
-
             const approverUser = approveAction?.user || level.assignee || {}
 
             const status = String(approveAction?.action || level.status || '').toLowerCase()
@@ -168,135 +234,132 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
             })
         }
 
-        // 4. Construct Item Table Rows
+        // 4. Construct Item Table Rows (clean typography, formatted quantity, specification subline)
         const itemsRows = items.map((item, index) => {
             const qty = Number(item.quantity) || 0
             const price = Number(item.estimated_price) || 0
             const subtotal = qty * price
+            const isRejected = String(item.approval_status || '').toLowerCase() === 'rejected'
             const itemName = item.name || item.item?.name || item.item_name || 'Barang/Jasa'
             const itemCode = item.code || item.item?.code || item.item_code || '-'
-            const unitName = item.unit_name || item.unit?.name || 'Unit'
+            const itemDetail = item.detail_name || item.specification || null
+            const unitName = item.unit_name || item.unit?.code || item.unit?.name || 'Unit'
+
+            const nameStack = [
+                {
+                    text: itemName,
+                    style: isRejected ? 'tableCellMutedStrike' : 'tableCellBold',
+                },
+            ]
+            if (itemDetail) {
+                nameStack.push({ text: itemDetail, style: 'tableCellSub', margin: [0, 2, 0, 0] })
+            }
+            if (isRejected) {
+                nameStack.push({
+                    text: item.rejection_reason ? `Ditolak: ${item.rejection_reason}` : 'Item ditolak pada tahap persetujuan',
+                    style: 'tableCellRejected',
+                    margin: [0, 2, 0, 0],
+                })
+            }
 
             return [
-                { text: String(index + 1), alignment: 'center', style: 'tableCell' },
-                { text: itemCode, style: 'tableCellBold' },
-                { text: itemName, style: 'tableCell' },
-                { text: Number.isInteger(qty) ? String(qty) : qty.toFixed(2), alignment: 'right', style: 'tableCell' },
-                { text: unitName, alignment: 'center', style: 'tableCell' },
-                { text: formatCurrency(price), alignment: 'right', style: 'tableCell' },
-                { text: formatCurrency(subtotal), alignment: 'right', style: 'tableCellBold' },
+                { text: String(index + 1), alignment: 'center', style: isRejected ? 'tableCellMuted' : 'tableCell' },
+                { text: itemCode, style: isRejected ? 'tableCellMuted' : 'tableCellCode' },
+                { stack: nameStack },
+                { text: formatQtyPdf(qty), alignment: 'right', style: isRejected ? 'tableCellMutedStrike' : 'tableCell' },
+                { text: unitName, alignment: 'center', style: isRejected ? 'tableCellMuted' : 'tableCell' },
+                { text: formatCurrency(price, currency), alignment: 'right', style: isRejected ? 'tableCellMutedStrike' : 'tableCell' },
+                { text: formatCurrency(isRejected ? 0 : subtotal, currency), alignment: 'right', style: isRejected ? 'tableCellMuted' : 'tableCellBold' },
             ]
         })
 
-        // 5. Construct Signatures Grid
-        // Total signature slots = 1 (requester) + approvers.length
-        const totalSigners = 1 + approverColumns.length
-        const signCellWidths = Array(totalSigners).fill('*')
-
-        const signatureCells = []
-
-        // Column 1: Requester
-        const reqSignStack = [
-            { text: 'DIAJUKAN OLEH', style: 'signRoleHeader' },
-            { text: `Tgl: ${formatDatePdf(requestDate)}`, style: 'signDate' },
+        // 5. Construct Formal Signature Rows (max 3 columns per row, borderless formal letter blocks)
+        const allSigners = [
+            buildSignatureSlot({
+                roleLabel: 'Diajukan oleh,',
+                stepLabel: requester.division && requester.division !== '-' ? requester.division : 'Pemohon',
+                dateText: formatDatePdf(requestDate),
+                signatureImage: requesterSignature,
+                name: requester.name,
+                position: requester.position || 'Staff',
+                timestamp: requesterSignature && reqSignedAt ? formatDateTimePdf(reqSignedAt) : null,
+            }),
+            ...approverColumns.map(app =>
+                buildSignatureSlot({
+                    roleLabel: 'Disetujui oleh,',
+                    stepLabel: app.stepName,
+                    dateText: formatDatePdf(app.actedAt),
+                    signatureImage: app.isApproved ? app.signatureImage : null,
+                    name: app.name,
+                    position: app.position,
+                    timestamp: app.isApproved && app.signatureImage && app.signedAt ? formatDateTimePdf(app.signedAt) : null,
+                })
+            ),
         ]
 
-        if (requesterSignature) {
-            reqSignStack.push({
-                image: requesterSignature,
-                fit: [90, 48],
-                alignment: 'center',
-                margin: [0, 4, 0, 4],
-            })
-        } else {
-            reqSignStack.push({
-                text: '____________________',
-                style: 'signPlaceholder',
-                margin: [0, 18, 0, 18],
-            })
-        }
+        const signatureRows = chunkArray(allSigners, 3).map((rowSlots, rowIndex) => ({
+            columns: rowSlots.map(slot => ({ ...slot, width: '*' })),
+            columnGap: 14,
+            margin: [0, rowIndex === 0 ? 0 : 18, 0, 0],
+            unbreakable: true,
+        }))
 
-        reqSignStack.push({ text: `( ${requester.name} )`, style: 'signerName' })
-        reqSignStack.push({ text: `${requester.position || 'Staff'}`, style: 'signerTitle' })
-
-        if (requesterSignature) {
-            if (reqSignedAt) {
-                reqSignStack.push({
-                    text: `TTD: ${formatDateTimePdf(reqSignedAt)}`,
-                    style: 'signTimestamp',
-                })
-            }
-        }
-
-        signatureCells.push(reqSignStack)
-
-        // Columns 2..N: Approvers
-        for (const app of approverColumns) {
-            const appStack = [
-                { text: `DISETUJUI OLEH (${app.stepName.toUpperCase()})`, style: 'signRoleHeader' },
-                { text: `Tgl: ${formatDatePdf(app.actedAt)}`, style: 'signDate' },
-            ]
-
-            if (app.isApproved && app.signatureImage) {
-                appStack.push({
-                    image: app.signatureImage,
-                    fit: [90, 48],
-                    alignment: 'center',
-                    margin: [0, 4, 0, 4],
-                })
-            } else {
-                appStack.push({
-                    text: '____________________',
-                    style: 'signPlaceholder',
-                    margin: [0, 18, 0, 18],
-                })
-            }
-
-            appStack.push({ text: `( ${app.name} )`, style: 'signerName' })
-            appStack.push({ text: `${app.position}`, style: 'signerTitle' })
-
-            if (app.isApproved && app.signatureImage) {
-                if (app.signedAt) {
-                    appStack.push({
-                        text: `TTD: ${formatDateTimePdf(app.signedAt)}`,
-                        style: 'signTimestamp',
-                    })
-                }
-            }
-
-            signatureCells.push(appStack)
-        }
-
-        // 5b. Construct Approval & Submission Comments Rows (Separated from Signature columns)
+        // 5b. Construct Notes Section only when meaningful notes exist (keeps formal letter uncluttered)
         const requesterNotes = stage1.document?.notes || stage1.notes || stage1.actions?.[0]?.notes || pr.notes || pr.remarks || null
-        const formatNoteText = (n) => (n && typeof n === 'string' && n.trim() ? `"${n.trim()}"` : (n ? `"${n}"` : '-'))
         const hasNote = (n) => Boolean(n && typeof n === 'string' ? n.trim() : n)
-
-        const commentsRows = [
-            [
-                { text: 'DIAJUKAN (PEMOHON)', style: 'tableCellBold' },
-                { text: `${requester.name}\n${requester.position || 'Staff'}`, style: 'tableCell' },
-                { text: formatDatePdf(requestDate), alignment: 'center', style: 'tableCell' },
-                { text: formatNoteText(requesterNotes), style: hasNote(requesterNotes) ? 'tableCellItalic' : 'tableCell' }
-            ],
-            ...approverColumns.map(app => [
-                { text: `DISETUJUI (${app.stepName.toUpperCase()})`, style: 'tableCellBold' },
-                { text: `${app.name}\n${app.position}`, style: 'tableCell' },
-                { text: formatDatePdf(app.actedAt), alignment: 'center', style: 'tableCell' },
-                { text: formatNoteText(app.notes), style: hasNote(app.notes) ? 'tableCellItalic' : 'tableCell' }
-            ])
+        const noteEntries = [
+            ...(hasNote(requesterNotes) ? [{
+                role: 'Pemohon',
+                actor: `${requester.name} (${requester.position || 'Staff'})`,
+                date: formatDatePdf(requestDate),
+                note: String(requesterNotes).trim(),
+            }] : []),
+            ...approverColumns
+                .filter(app => hasNote(app.notes))
+                .map(app => ({
+                    role: app.stepName,
+                    actor: `${app.name} (${app.position})`,
+                    date: formatDatePdf(app.actedAt),
+                    note: String(app.notes).trim(),
+                })),
         ]
 
         const printTimestamp = formatDateTimePdf(new Date())
         const currentUser = options.currentUser || 'Petugas ERP'
 
-        // 6. Build Document Definition
+        // 6. Build Formal Letter Document Definition (A4 Portrait, generous margins & airy hierarchy)
         const docDefinition = {
             pageSize: 'A4',
             pageOrientation: 'portrait',
-            pageMargins: [36, 36, 36, 36],
+            pageMargins: [48, 44, 48, 56],
+            footer: (currentPage, pageCount) => ({
+                margin: [48, 8, 48, 0],
+                stack: [
+                    {
+                        canvas: [
+                            { type: 'line', x1: 0, y1: 0, x2: 499, y2: 0, lineWidth: 0.5, lineColor: '#cbd5e1' }
+                        ],
+                        margin: [0, 0, 0, 6],
+                    },
+                    {
+                        columns: [
+                            {
+                                width: '*',
+                                text: `Dokumen resmi Sistem ERP · ${prNumber} (ID #${pr.id}) · Dicetak ${printTimestamp} oleh ${currentUser}`,
+                                style: 'footerText',
+                            },
+                            {
+                                width: 'auto',
+                                text: `Halaman ${currentPage} dari ${pageCount}`,
+                                style: 'footerPage',
+                                alignment: 'right',
+                            },
+                        ],
+                    },
+                ],
+            }),
             content: [
-                // KOP PERUSAHAAN
+                // KOP SURAT PERUSAHAAN
                 {
                     columns: [
                         {
@@ -304,244 +367,288 @@ export const generatePurchaseRequisitionPdf = async (pr, options = {}) => {
                             stack: [
                                 { text: (company.name || 'PT PERUSAHAAN').toUpperCase(), style: 'companyName' },
                                 { text: company.address || 'Kawasan Operasional Perusahaan', style: 'companySub' },
-                                { text: company.phone ? `Kontak: ${company.phone}` : 'Sistem Informasi Manajemen Pengadaan Terpadu', style: 'companySub' }
-                            ]
+                                { text: company.phone ? `Telp. ${company.phone}` : 'Sistem Informasi Manajemen Pengadaan Terpadu', style: 'companySub' },
+                            ],
                         },
                         {
                             width: 'auto',
                             stack: [
-                                { text: 'LEMBAR PENGESAHAN PR', style: 'docBadge', alignment: 'right' },
-                                { text: prNumber, style: 'docNumber', alignment: 'right' },
-                                { text: `Pengajuan: ${formatDatePdf(requestDate)}`, style: 'docDate', alignment: 'right' }
-                            ]
-                        }
-                    ]
+                                { text: 'FORMULIR PENGADAAN RESMI', style: 'docCategory', alignment: 'right' },
+                                { text: 'DISETUJUI PENUH', style: 'docStatusPill', alignment: 'right', margin: [0, 3, 0, 0] },
+                            ],
+                        },
+                    ],
                 },
-                // Divider line
+                // Garis Kop Surat Ganda Klasik
                 {
                     canvas: [
-                        { type: 'line', x1: 0, y1: 8, x2: 523, y2: 8, lineWidth: 1.5, lineColor: '#0f172a' },
-                        { type: 'line', x1: 0, y1: 10, x2: 523, y2: 10, lineWidth: 0.5, lineColor: '#94a3b8' }
+                        { type: 'line', x1: 0, y1: 10, x2: 499, y2: 10, lineWidth: 1.8, lineColor: '#0f172a' },
+                        { type: 'line', x1: 0, y1: 13, x2: 499, y2: 13, lineWidth: 0.6, lineColor: '#014BAA' },
                     ],
-                    margin: [0, 0, 0, 12]
+                    margin: [0, 0, 0, 18],
                 },
-                // Judul Dokumen
+
+                // JUDUL SURAT & NOMOR RESMI
                 {
-                    text: 'SURAT PERMINTAAN PENGADAAN (PURCHASE REQUISITION)',
+                    text: 'SURAT PERMINTAAN PENGADAAN BARANG / JASA',
                     style: 'docTitle',
                     alignment: 'center',
-                    margin: [0, 0, 0, 2]
                 },
                 {
-                    text: 'Lembar Riwayat Pengesahan Resmi Sistem ERP Multi-Tier Approval',
-                    style: 'docSubtitle',
+                    text: `Nomor: ${prNumber}`,
+                    style: 'docNumber',
                     alignment: 'center',
-                    margin: [0, 0, 0, 12]
+                    margin: [0, 3, 0, 18],
                 },
-                // Metadata Table
+
+                // IDENTITAS SURAT (Borderless 2-Column Formal Header Block)
                 {
                     table: {
-                        widths: ['18%', '32%', '18%', '32%'],
+                        widths: [96, '*', 96, '*'],
                         body: [
                             [
-                                { text: 'Nomor PR', style: 'metaLabel' },
-                                { text: prNumber, style: 'metaValueBold' },
-                                { text: 'Status Dokumen', style: 'metaLabel' },
-                                { text: 'DISETUJUI PENUH (APPROVED)', style: 'metaStatusApproved' }
-                            ],
-                            [
-                                { text: 'Tgl Pengajuan', style: 'metaLabel' },
-                                { text: formatDatePdf(requestDate), style: 'metaValue' },
-                                { text: 'Tgl Dibutuhkan', style: 'metaLabel' },
-                                { text: formatDatePdf(requiredDate), style: 'metaValue' }
+                                { text: 'Tanggal Pengajuan', style: 'metaLabel' },
+                                { text: `:  ${formatDatePdf(requestDate)}`, style: 'metaValue' },
+                                { text: 'Target Kebutuhan', style: 'metaLabel' },
+                                { text: `:  ${formatDatePdf(requiredDate)}`, style: 'metaValue' },
                             ],
                             [
                                 { text: 'Divisi Pemohon', style: 'metaLabel' },
-                                { text: requester.division || '-', style: 'metaValue' },
+                                { text: `:  ${requester.division || '-'}`, style: 'metaValue' },
                                 { text: 'Diajukan Oleh', style: 'metaLabel' },
-                                { text: requester.name, style: 'metaValue' }
+                                { text: `:  ${requester.name}`, style: 'metaValue' },
                             ],
                             [
-                                { text: 'Tujuan Pengadaan', style: 'metaLabel' },
-                                { text: purpose || '-', style: 'metaValue', colSpan: 3 },
+                                { text: 'Perihal / Tujuan', style: 'metaLabel' },
+                                { text: `:  ${purpose || '-'}`, style: 'metaValueBold', colSpan: 3 },
                                 {},
-                                {}
-                            ]
-                        ]
-                    },
-                    layout: {
-                        hLineWidth: () => 0.5,
-                        vLineWidth: () => 0.5,
-                        hLineColor: () => '#cbd5e1',
-                        vLineColor: () => '#cbd5e1',
-                        paddingLeft: () => 6,
-                        paddingRight: () => 6,
-                        paddingTop: () => 4,
-                        paddingBottom: () => 4,
-                    },
-                    margin: [0, 0, 0, 14]
-                },
-                ...(pr.procurement_route === 'direct_supplier' ? [{
-                    table: {
-                        widths: ['25%', '*'],
-                        body: [
-                            [{ text: 'Supplier tujuan', style: 'metaLabel' }, { text: pr.direct_supplier?.name || '-', style: 'metaValueBold' }],
-                            [{ text: 'Jalur pembelian', style: 'metaLabel' }, { text: 'PR disetujui → langsung PO', style: 'metaValue' }],
-                            [{ text: 'Referensi harga', style: 'metaLabel' }, { text: pr.direct_purchase_terms?.reference || '-', style: 'metaValue' }],
-                            [{ text: 'Pembayaran', style: 'metaLabel' }, { text: pr.direct_purchase_terms?.payment_terms || '-', style: 'metaValue' }],
-                            [{ text: 'Alamat pengiriman', style: 'metaLabel' }, { text: pr.direct_purchase_terms?.delivery_address || '-', style: 'metaValue' }],
+                                {},
+                            ],
                         ],
                     },
-                    layout: 'lightHorizontalLines',
+                    layout: {
+                        hLineWidth: (i, node) => (i === node.table.body.length ? 0.5 : 0),
+                        vLineWidth: () => 0,
+                        hLineColor: () => '#e2e8f0',
+                        paddingLeft: () => 0,
+                        paddingRight: () => 6,
+                        paddingTop: () => 3,
+                        paddingBottom: (i, node) => (i === node.table.body.length - 1 ? 10 : 3),
+                    },
+                    margin: [0, 0, 0, 14],
+                },
+
+                // BLOK JALUR PEMBELIAN LANGSUNG (Compact Formal Notice)
+                ...(pr.procurement_route === 'direct_supplier' ? [{
+                    table: {
+                        widths: ['*'],
+                        body: [[
+                            {
+                                stack: [
+                                    {
+                                        columns: [
+                                            { text: 'KETENTUAN PEMBELIAN LANGSUNG (DIRECT PO)', style: 'directHeader', width: '*' },
+                                            { text: 'PR disetujui → langsung PO', style: 'directTag', width: 'auto', alignment: 'right' },
+                                        ],
+                                        margin: [0, 0, 0, 6],
+                                    },
+                                    {
+                                        table: {
+                                            widths: [92, '*', 82, '*'],
+                                            body: [
+                                                [
+                                                    { text: 'Supplier Tujuan', style: 'metaLabel' },
+                                                    { text: `:  ${pr.direct_supplier?.name || '-'}`, style: 'metaValueBold' },
+                                                    { text: 'Pembayaran', style: 'metaLabel' },
+                                                    { text: `:  ${pr.direct_purchase_terms?.payment_terms || '-'}`, style: 'metaValue' },
+                                                ],
+                                                [
+                                                    { text: 'Referensi Harga', style: 'metaLabel' },
+                                                    { text: `:  ${pr.direct_purchase_terms?.reference || '-'}`, style: 'metaValue' },
+                                                    { text: 'Pengiriman', style: 'metaLabel' },
+                                                    { text: `:  ${pr.direct_purchase_terms?.delivery_address || '-'}`, style: 'metaValue' },
+                                                ],
+                                            ],
+                                        },
+                                        layout: 'noBorders',
+                                    },
+                                ],
+                            },
+                        ]],
+                    },
+                    layout: {
+                        fillColor: () => '#f8fafc',
+                        hLineWidth: () => 0.5,
+                        vLineWidth: (i) => (i === 0 ? 2.5 : 0.5),
+                        hLineColor: () => '#cbd5e1',
+                        vLineColor: (i) => (i === 0 ? '#014BAA' : '#cbd5e1'),
+                        paddingLeft: () => 12,
+                        paddingRight: () => 12,
+                        paddingTop: () => 9,
+                        paddingBottom: () => 9,
+                    },
                     margin: [0, 0, 0, 14],
                 }] : []),
-                // Items Table
+
+                // KALIMAT PEMBUKA SURAT FORMAL
                 {
-                    text: 'RINCIAN BARANG / JASA YANG DIAJUKAN',
-                    style: 'sectionHeading',
-                    margin: [0, 0, 0, 5]
+                    text: 'Dengan hormat, bersama surat ini kami mengajukan permohonan pengadaan barang/jasa dengan rincian sebagai berikut:',
+                    style: 'letterBody',
+                    margin: [0, 0, 0, 10],
                 },
+
+                // TABEL RINCIAN BARANG / JASA (Clean Formal Table, Horizontal Lines Only)
                 {
                     table: {
                         headerRows: 1,
-                        widths: [20, 60, '*', 38, 42, 70, 75],
+                        dontBreakRows: true,
+                        widths: [22, 62, '*', 42, 46, 76, 84],
                         body: [
                             [
-                                { text: 'NO', style: 'tableHeader', alignment: 'center' },
-                                { text: 'KODE', style: 'tableHeader' },
-                                { text: 'NAMA BARANG / DESKRIPSI', style: 'tableHeader' },
-                                { text: 'QTY', style: 'tableHeader', alignment: 'right' },
-                                { text: 'SATUAN', style: 'tableHeader', alignment: 'center' },
-                                { text: 'EST. HARGA', style: 'tableHeader', alignment: 'right' },
-                                { text: 'TOTAL ESTIMASI', style: 'tableHeader', alignment: 'right' }
+                                { text: 'No', style: 'tableHeader', alignment: 'center' },
+                                { text: 'Kode', style: 'tableHeader' },
+                                { text: 'Uraian Barang / Jasa', style: 'tableHeader' },
+                                { text: 'Jumlah', style: 'tableHeader', alignment: 'right' },
+                                { text: 'Satuan', style: 'tableHeader', alignment: 'center' },
+                                { text: 'Est. Harga', style: 'tableHeader', alignment: 'right' },
+                                { text: 'Subtotal', style: 'tableHeader', alignment: 'right' },
                             ],
                             ...itemsRows,
                             [
-                                { text: 'TOTAL ESTIMASI KESELURUHAN', colSpan: 6, style: 'tableTotalLabel', alignment: 'right' },
+                                { text: 'Total Estimasi Pengadaan', colSpan: 6, style: 'tableTotalLabel', alignment: 'right' },
                                 {}, {}, {}, {}, {},
-                                { text: formatCurrency(totalAmount), style: 'tableTotalValue', alignment: 'right' }
-                            ]
-                        ]
-                    },
-                    layout: {
-                        fillColor: (rowIndex) => {
-                            if (rowIndex === 0) return '#f1f5f9'
-                            return rowIndex % 2 === 0 ? '#f8fafc' : null
-                        },
-                        hLineWidth: () => 0.5,
-                        vLineWidth: () => 0.5,
-                        hLineColor: () => '#cbd5e1',
-                        vLineColor: () => '#cbd5e1',
-                        paddingLeft: () => 5,
-                        paddingRight: () => 5,
-                        paddingTop: () => 3.5,
-                        paddingBottom: () => 3.5,
-                    },
-                    margin: [0, 0, 0, 16]
-                },
-                // Section Matriks Pengesahan
-                {
-                    text: 'MATRIKS PENGESAHAN & TANDA TANGAN ELEKTRONIK',
-                    style: 'sectionHeading',
-                    margin: [0, 0, 0, 5]
-                },
-                {
-                    table: {
-                        widths: signCellWidths,
-                        body: [
-                            signatureCells
-                        ]
-                    },
-                    layout: {
-                        hLineWidth: () => 0.5,
-                        vLineWidth: () => 0.5,
-                        hLineColor: () => '#cbd5e1',
-                        vLineColor: () => '#cbd5e1',
-                        paddingLeft: () => 4,
-                        paddingRight: () => 4,
-                        paddingTop: () => 6,
-                        paddingBottom: () => 6,
-                    },
-                    margin: [0, 0, 0, 12]
-                },
-                // Section Catatan Pengajuan & Evaluasi Persetujuan (Dipisahkan dari kolom TTD)
-                {
-                    text: 'CATATAN PENGAJUAN & EVALUASI PERSETUJUAN',
-                    style: 'sectionHeading',
-                    margin: [0, 0, 0, 5]
-                },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: ['22%', '26%', '16%', '*'],
-                        body: [
-                            [
-                                { text: 'PERAN / TAHAP', style: 'tableHeader' },
-                                { text: 'NAMA & JABATAN', style: 'tableHeader' },
-                                { text: 'TANGGAL', style: 'tableHeader', alignment: 'center' },
-                                { text: 'CATATAN / KOMENTAR', style: 'tableHeader' }
+                                { text: formatCurrency(totalAmount, currency), style: 'tableTotalValue', alignment: 'right' },
                             ],
-                            ...commentsRows
-                        ]
+                        ],
                     },
                     layout: {
-                        fillColor: (rowIndex) => {
+                        fillColor: (rowIndex, node) => {
                             if (rowIndex === 0) return '#f1f5f9'
-                            return rowIndex % 2 === 0 ? '#f8fafc' : null
+                            if (rowIndex === node.table.body.length - 1) return '#f8fafc'
+                            return null
                         },
-                        hLineWidth: () => 0.5,
-                        vLineWidth: () => 0.5,
-                        hLineColor: () => '#cbd5e1',
-                        vLineColor: () => '#cbd5e1',
+                        hLineWidth: (i, node) => {
+                            if (i === 0 || i === 1) return 1
+                            if (i === node.table.body.length) return 1.2
+                            if (i === node.table.body.length - 1) return 0.8
+                            return 0.5
+                        },
+                        vLineWidth: () => 0,
+                        hLineColor: (i, node) => {
+                            if (i === 0 || i === 1 || i === node.table.body.length) return '#0f172a'
+                            if (i === node.table.body.length - 1) return '#64748b'
+                            return '#e2e8f0'
+                        },
                         paddingLeft: () => 6,
                         paddingRight: () => 6,
-                        paddingTop: () => 3.5,
-                        paddingBottom: () => 3.5,
+                        paddingTop: () => 6.5,
+                        paddingBottom: () => 6.5,
                     },
-                    margin: [0, 0, 0, 14]
+                    margin: [0, 0, 0, 16],
                 },
+
+                // CATATAN PENGAJUAN & PERSETUJUAN (Hanya ditampilkan bila ada catatan)
+                ...(noteEntries.length ? [
+                    {
+                        text: 'Catatan Pengajuan & Persetujuan',
+                        style: 'sectionHeading',
+                        margin: [0, 0, 0, 6],
+                    },
+                    {
+                        table: {
+                            headerRows: 1,
+                            dontBreakRows: true,
+                            widths: [110, 125, '*'],
+                            body: [
+                                [
+                                    { text: 'Tahap / Peran', style: 'tableHeader' },
+                                    { text: 'Peninjau & Tanggal', style: 'tableHeader' },
+                                    { text: 'Catatan', style: 'tableHeader' },
+                                ],
+                                ...noteEntries.map(entry => [
+                                    { text: entry.role, style: 'tableCellBold' },
+                                    {
+                                        stack: [
+                                            { text: entry.actor, style: 'tableCell' },
+                                            { text: entry.date, style: 'tableCellSub', margin: [0, 1, 0, 0] },
+                                        ],
+                                    },
+                                    { text: entry.note, style: 'tableCellItalic' },
+                                ]),
+                            ],
+                        },
+                        layout: {
+                            fillColor: (rowIndex) => (rowIndex === 0 ? '#f8fafc' : null),
+                            hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length ? 0.75 : 0.4),
+                            vLineWidth: () => 0,
+                            hLineColor: (i, node) => (i === 0 || i === node.table.body.length ? '#94a3b8' : '#e2e8f0'),
+                            paddingLeft: () => 6,
+                            paddingRight: () => 6,
+                            paddingTop: () => 5,
+                            paddingBottom: () => 5,
+                        },
+                        margin: [0, 0, 0, 16],
+                    },
+                ] : []),
+
+                // PENUTUP SURAT & BLOK PENGESAHAN FORMAL (Anti-terpotong halaman)
                 {
+                    unbreakable: true,
                     stack: [
-                        { text: 'CATATAN DOKUMEN', style: 'legalHeader' },
-                        { text: 'Lembar persetujuan dari Sistem ERP. Nama peninjau, tanggal persetujuan, dan catatan mengikuti riwayat workflow. Kolom tanpa gambar tanda tangan dapat ditandatangani secara manual.', style: 'legalBody', margin: [0, 3, 0, 4] },
-                        { text: `ID Dokumen: ${pr.id} | No PR: ${prNumber} | Dicetak: ${printTimestamp} oleh ${currentUser}`, style: 'legalMeta' }
-                    ]
-                }
+                        {
+                            text: 'Demikian surat permintaan pengadaan ini disampaikan untuk dapat diproses lebih lanjut. Atas perhatian dan persetujuannya, kami ucapkan terima kasih.',
+                            style: 'letterBody',
+                            margin: [0, 2, 0, 18],
+                        },
+                        ...signatureRows,
+                        {
+                            text: 'Keterangan: Lembar ini diterbitkan melalui Sistem ERP. Nama peninjau, tanggal, dan tanda tangan mengikuti riwayat pengesahan; kolom tanpa gambar tanda tangan dapat ditandatangani secara manual.',
+                            style: 'legalNote',
+                            margin: [0, 20, 0, 0],
+                        },
+                    ],
+                },
             ],
             styles: {
-                companyName: { fontSize: 13, bold: true, color: '#0f172a', letterSpacing: 0.5 },
-                companySub: { fontSize: 8, color: '#475569', margin: [0, 1, 0, 0] },
-                docBadge: { fontSize: 8, bold: true, color: '#0369a1' },
-                docNumber: { fontSize: 11, bold: true, color: '#0f172a' },
-                docDate: { fontSize: 8, color: '#64748b' },
-                docTitle: { fontSize: 11, bold: true, color: '#0f172a', letterSpacing: 0.3 },
-                docSubtitle: { fontSize: 8, color: '#64748b' },
-                sectionHeading: { fontSize: 8.5, bold: true, color: '#334155', letterSpacing: 0.3 },
-                metaLabel: { fontSize: 7.5, bold: true, color: '#64748b' },
-                metaValue: { fontSize: 8, color: '#1e293b' },
-                metaValueBold: { fontSize: 8, bold: true, color: '#0f172a' },
-                metaStatusApproved: { fontSize: 8, bold: true, color: '#059669' },
-                tableHeader: { fontSize: 7.5, bold: true, color: '#334155' },
-                tableCell: { fontSize: 7.5, color: '#1e293b' },
-                tableCellBold: { fontSize: 7.5, bold: true, color: '#0f172a' },
-                tableCellItalic: { fontSize: 7.5, italic: true, color: '#334155' },
-                tableTotalLabel: { fontSize: 8, bold: true, color: '#334155' },
-                tableTotalValue: { fontSize: 8.5, bold: true, color: '#0f172a' },
-                signRoleHeader: { fontSize: 7, bold: true, color: '#334155', alignment: 'center' },
-                signDate: { fontSize: 6.5, color: '#64748b', alignment: 'center', margin: [0, 1, 0, 2] },
-                signerName: { fontSize: 7.5, bold: true, color: '#0f172a', alignment: 'center', margin: [0, 2, 0, 0] },
-                signerTitle: { fontSize: 6.5, color: '#475569', alignment: 'center' },
-                signPlaceholder: { fontSize: 7, italic: true, color: '#94a3b8', alignment: 'center' },
-                signNotes: { fontSize: 6, italic: true, color: '#059669', alignment: 'center' },
-                signTimestamp: { fontSize: 5.5, color: '#64748b', alignment: 'center', margin: [0, 1, 0, 0] },
-                legalHeader: { fontSize: 7.5, bold: true, color: '#334155' },
-                legalBody: { fontSize: 6.5, color: '#64748b', leading: 1.2 },
-                legalMeta: { fontSize: 6, color: '#94a3b8' }
+                companyName: { fontSize: 13.5, bold: true, color: '#0f172a', letterSpacing: 0.4 },
+                companySub: { fontSize: 8.5, color: '#475569', margin: [0, 1.5, 0, 0] },
+                docCategory: { fontSize: 7.5, bold: true, color: '#64748b', letterSpacing: 0.6 },
+                docStatusPill: { fontSize: 8.5, bold: true, color: '#047857', letterSpacing: 0.4 },
+                docTitle: { fontSize: 12, bold: true, color: '#0f172a', letterSpacing: 0.4 },
+                docNumber: { fontSize: 9.5, bold: true, color: '#014BAA' },
+                letterBody: { fontSize: 9, color: '#334155', lineHeight: 1.45 },
+                sectionHeading: { fontSize: 9, bold: true, color: '#0f172a' },
+                directHeader: { fontSize: 8, bold: true, color: '#014BAA', letterSpacing: 0.3 },
+                directTag: { fontSize: 7.5, italic: true, color: '#475569' },
+                metaLabel: { fontSize: 8.5, color: '#64748b' },
+                metaValue: { fontSize: 8.5, color: '#1e293b' },
+                metaValueBold: { fontSize: 8.5, bold: true, color: '#0f172a' },
+                tableHeader: { fontSize: 8.5, bold: true, color: '#0f172a' },
+                tableCell: { fontSize: 8.5, color: '#1e293b', lineHeight: 1.3 },
+                tableCellCode: { fontSize: 8, bold: true, color: '#334155', lineHeight: 1.3 },
+                tableCellBold: { fontSize: 8.5, bold: true, color: '#0f172a', lineHeight: 1.3 },
+                tableCellSub: { fontSize: 7.5, color: '#64748b', lineHeight: 1.25 },
+                tableCellItalic: { fontSize: 8.5, italic: true, color: '#334155', lineHeight: 1.35 },
+                tableCellMuted: { fontSize: 8.5, color: '#94a3b8' },
+                tableCellMutedStrike: { fontSize: 8.5, color: '#94a3b8', decoration: 'lineThrough' },
+                tableCellRejected: { fontSize: 7.5, italic: true, color: '#be123c' },
+                tableTotalLabel: { fontSize: 9, bold: true, color: '#334155' },
+                tableTotalValue: { fontSize: 9.5, bold: true, color: '#0f172a' },
+                signRoleHeader: { fontSize: 8.5, color: '#475569', alignment: 'center' },
+                signStepLabel: { fontSize: 8, bold: true, color: '#0f172a', alignment: 'center', margin: [0, 1, 0, 0] },
+                signDate: { fontSize: 7.5, color: '#64748b', alignment: 'center', margin: [0, 1, 0, 2] },
+                signerName: { fontSize: 8.5, bold: true, color: '#0f172a', alignment: 'center' },
+                signerTitle: { fontSize: 7.5, color: '#475569', alignment: 'center', margin: [0, 1, 0, 0] },
+                signTimestamp: { fontSize: 6.5, color: '#64748b', alignment: 'center', margin: [0, 2, 0, 0] },
+                legalNote: { fontSize: 7.5, italic: true, color: '#64748b', lineHeight: 1.35 },
+                footerText: { fontSize: 7, color: '#64748b' },
+                footerPage: { fontSize: 7, bold: true, color: '#475569' },
             },
             defaultStyle: {
-                fontSize: 8,
+                fontSize: 9,
                 color: '#1e293b',
-            }
+                lineHeight: 1.3,
+            },
         }
 
         // 7. Preview first; download is available inside the preview only.

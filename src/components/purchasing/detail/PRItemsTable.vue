@@ -57,7 +57,9 @@ const isValidUrl = (url) => {
                         <th class="py-3 px-4 min-w-[200px]">Item / Barang</th>
                         <th class="py-3 px-4 text-right w-20">Qty</th>
                         <th class="py-3 px-4 w-20">Satuan</th>
-                        <th class="py-3 px-4 text-right min-w-[120px]">Est. Harga Satuan</th>
+                        <th class="py-3 px-4 text-right min-w-[120px]">
+                            {{ item.procurement_route === 'direct_supplier' ? 'Harga Satuan' : 'Est. Harga Satuan' }}
+                        </th>
                         <th class="py-3 px-4 text-right min-w-[130px]">Subtotal</th>
                         <th class="py-3 px-4 min-w-[160px]">Catatan / Referensi</th>
                         <th class="py-3 px-4 text-center min-w-[130px]">Status Item</th>

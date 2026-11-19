@@ -10,34 +10,39 @@ import {
 
 export { toast }
 
+const normalizeToastOptions = (descriptionOrOptions, defaults = {}) => {
+    const base = typeof descriptionOrOptions === 'string'
+        ? { description: descriptionOrOptions }
+        : (descriptionOrOptions || {})
+    return { ...defaults, ...base }
+}
+
 /**
- * Fast, non-blocking toast notifications (Sonner).
- * Best used for non-critical feedback: save success, network status, quick updates.
+ * Fast, non-blocking, interactive toast notifications (Sonner).
+ * Supports description, action: { label, onClick }, cancel: { label, onClick }, and duration.
  */
 export const showToast = {
     success: (title, descriptionOrOptions = {}) => {
-        const options = typeof descriptionOrOptions === 'string'
-            ? { description: descriptionOrOptions }
-            : (descriptionOrOptions || {})
-        return toast.success(title, options)
+        return toast.success(title, normalizeToastOptions(descriptionOrOptions, { duration: 4500 }))
     },
     error: (title, descriptionOrOptions = {}) => {
-        const options = typeof descriptionOrOptions === 'string'
-            ? { description: descriptionOrOptions }
-            : (descriptionOrOptions || {})
-        return toast.error(title, options)
+        return toast.error(title, normalizeToastOptions(descriptionOrOptions, { duration: 6000 }))
     },
     warning: (title, descriptionOrOptions = {}) => {
-        const options = typeof descriptionOrOptions === 'string'
-            ? { description: descriptionOrOptions }
-            : (descriptionOrOptions || {})
-        return toast.warning(title, options)
+        return toast.warning(title, normalizeToastOptions(descriptionOrOptions, { duration: 5000 }))
     },
     info: (title, descriptionOrOptions = {}) => {
-        const options = typeof descriptionOrOptions === 'string'
-            ? { description: descriptionOrOptions }
-            : (descriptionOrOptions || {})
-        return toast.info(title, options)
+        return toast.info(title, normalizeToastOptions(descriptionOrOptions, { duration: 4000 }))
+    },
+    action: (title, description, actionLabel, onAction, type = 'success') => {
+        const fn = toast[type] || toast.success
+        return fn(title, {
+            description,
+            duration: 5500,
+            action: actionLabel && typeof onAction === 'function'
+                ? { label: actionLabel, onClick: onAction }
+                : undefined
+        })
     },
     promise: (promise, options = {}) => {
         return toast.promise(promise, options)

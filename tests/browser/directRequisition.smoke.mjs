@@ -35,7 +35,7 @@ try {
             const req = route.request()
             if (req.url().includes('/suppliers')) {
                 searches.push(new URL(req.url()))
-                return route.fulfill({ json: { data: [{ id: 7, company_id: 1, name: 'Repeat Supplier', is_active: true }], meta: { current_page: 1, last_page: 1 } } })
+                return route.fulfill({ json: { data: [{ id: 7, company_id: 1, name: 'Repeat Supplier', is_active: true }, { id: 8, company_id: 1, name: 'Alternate Supplier', is_active: true }], meta: { current_page: 1, last_page: 1 } } })
             }
             if (req.method() === 'POST') {
                 mutations.push(req.postDataJSON())
@@ -50,6 +50,13 @@ try {
         assert.equal(await page.evaluate(() => window.form.value.direct_supplier_id), 7)
         await page.getByLabel('Referensi harga / PO sebelumnya').fill('PO lama')
         await page.getByLabel('Ketentuan pembayaran').fill('Net 30')
+        await page.getByLabel('Alamat pengiriman').fill('Gudang Bekasi')
+        await page.getByRole('combobox', { name: 'Pilih supplier tujuan' }).click()
+        await page.getByRole('button', { name: 'Alternate Supplier', exact: true }).click()
+        assert.equal(await page.evaluate(() => window.form.value.direct_supplier_id), 8)
+        assert.equal(await page.evaluate(() => window.form.value.direct_purchase_terms.reference), 'PO lama')
+        assert.equal(await page.evaluate(() => window.form.value.direct_purchase_terms.payment_terms), 'Net 30')
+        assert.equal(await page.evaluate(() => window.form.value.direct_purchase_terms.delivery_address), 'Gudang Bekasi')
         assert.equal(searches[0].searchParams.get('company_id'), '1')
         assert.equal(searches[0].searchParams.get('is_active'), 'true')
         await page.getByRole('button', { name: 'Buat draft PO', exact: true }).click()

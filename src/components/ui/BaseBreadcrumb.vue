@@ -308,6 +308,9 @@ const ROUTE_BREADCRUMBS = {
         { label: 'Pengaturan' },
         { label: 'Alur Persetujuan', to: { name: 'admin.settings.approval' } },
         { label: 'Edit Alur Persetujuan' }
+    ],
+    'admin.audit-logs': [
+        { label: 'Audit Trail & Activity Logs' }
     ]
 }
 

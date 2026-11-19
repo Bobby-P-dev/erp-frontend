@@ -60,37 +60,38 @@ defineEmits(['mark-touched'])
 <template>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6 sm:p-8 space-y-6 shadow-xs">
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 space-y-6 shadow-2xs">
                 <div>
-                    <h2 class="text-lg sm:text-xl font-bold text-[#111827]">Informasi Pengadaan</h2>
+                    <h2 class="text-lg font-bold text-slate-900">Informasi Pengadaan</h2>
                     <p class="text-sm text-slate-500 mt-1">Lengkapi tujuan pengadaan dan target tanggal kebutuhan barang</p>
                 </div>
 
-                <p v-if="errors.company_id || errors.division_id" class="text-sm font-medium text-[#C62828] bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
+                <p v-if="errors.company_id || errors.division_id" class="text-sm font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
                     {{ errors.company_id || errors.division_id }} Hubungi admin jika profil Anda belum terhubung ke perusahaan atau divisi yang valid.
                 </p>
 
                 <!-- Tujuan Pengadaan -->
                 <div>
-                    <label for="input-purpose" class="block text-sm sm:text-base font-bold text-slate-800 mb-2">
-                        Tujuan Pengadaan <span class="text-[#C62828] font-bold">*</span>
+                    <label for="input-purpose" class="block text-sm sm:text-base font-semibold text-slate-800 mb-2">
+                        Tujuan Pengadaan <span class="text-rose-600 font-bold">*</span>
                     </label>
                     <input
                         id="input-purpose"
                         v-model="form.purpose"
                         type="text"
                         required
+                        :aria-invalid="Boolean(getFieldError('purpose'))"
                         @blur="$emit('mark-touched', 'purpose')"
                         @input="$emit('mark-touched', 'purpose')"
                         placeholder="Contoh: Pengadaan suku cadang mesin line 2"
-                        class="w-full h-13 px-4 bg-white border rounded-xl text-base font-medium text-[#111827] placeholder:text-slate-400 focus:outline-none transition-colors"
+                        class="w-full h-12 px-4 bg-white border rounded-xl text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none transition-colors"
                         :class="[
                             getFieldError('purpose')
-                                ? 'border-[#C62828] ring-2 ring-[#C62828]/20 focus:border-[#C62828]'
-                                : 'border-slate-300 focus:border-[#014BAA] focus:ring-2 focus:ring-[#014BAA]/15'
+                                ? 'border-rose-400 ring-2 ring-rose-500/20 focus:border-rose-600'
+                                : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15'
                         ]"
                     />
-                    <p v-if="getFieldError('purpose')" class="text-sm text-[#C62828] mt-1.5 font-medium">
+                    <p v-if="getFieldError('purpose')" class="text-sm text-rose-600 mt-1.5 font-medium">
                         {{ getFieldError('purpose') }}
                     </p>
                 </div>
@@ -99,19 +100,19 @@ defineEmits(['mark-touched'])
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <!-- Tanggal Permintaan (Read-only Calm Box) -->
                     <div>
-                        <span class="block text-sm sm:text-base font-bold text-slate-800 mb-2">
+                        <span class="block text-sm sm:text-base font-semibold text-slate-800 mb-2">
                             Tanggal Permintaan (Sistem)
                         </span>
-                        <div class="min-h-11 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-700">
+                        <div class="min-h-12 px-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-700">
                             <span class="font-bold text-slate-900">{{ formatDisplayDate(form.request_date) }}</span>
-                            <span class="text-xs sm:text-sm text-slate-500 font-medium">Otomatis hari ini</span>
+                            <span class="text-xs text-slate-500 font-medium">Otomatis hari ini</span>
                         </div>
                     </div>
 
                     <!-- Tanggal Kebutuhan -->
                     <div>
-                        <label for="input-required-date" class="block text-sm sm:text-base font-bold text-slate-800 mb-2">
-                            Tanggal Kebutuhan <span class="text-[#C62828] font-bold">*</span>
+                        <label for="input-required-date" class="block text-sm sm:text-base font-semibold text-slate-800 mb-2">
+                            Tanggal Kebutuhan <span class="text-rose-600 font-bold">*</span>
                         </label>
                         <input
                             id="input-required-date"
@@ -119,41 +120,56 @@ defineEmits(['mark-touched'])
                             type="date"
                             :min="form.request_date || today"
                             required
+                            :aria-invalid="Boolean(getFieldError('required_date'))"
                             @blur="$emit('mark-touched', 'required_date')"
                             @change="$emit('mark-touched', 'required_date')"
-                            class="w-full h-13 px-4 bg-white border rounded-xl text-base font-medium text-[#111827] focus:outline-none transition-colors"
+                            class="w-full h-12 px-4 bg-white border rounded-xl text-sm sm:text-base font-medium text-slate-900 focus:outline-none transition-colors"
                             :class="[
                                 getFieldError('required_date')
-                                    ? 'border-[#C62828] ring-2 ring-[#C62828]/20 focus:border-[#C62828]'
-                                    : 'border-slate-300 focus:border-[#014BAA] focus:ring-2 focus:ring-[#014BAA]/15'
+                                    ? 'border-rose-400 ring-2 ring-rose-500/20 focus:border-rose-600'
+                                    : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15'
                             ]"
                         />
-                        <p v-if="getFieldError('required_date')" class="text-sm text-[#C62828] mt-1.5 font-medium">
+                        <p v-if="getFieldError('required_date')" class="text-sm text-rose-600 mt-1.5 font-medium">
                             {{ getFieldError('required_date') }}
                         </p>
                         <p v-else-if="daysUntilRequired !== null" class="text-xs sm:text-sm text-slate-600 mt-2 flex items-center gap-1.5 font-medium">
-                            <Clock class="w-4 h-4 text-[#014BAA]" />
+                            <Clock class="w-4 h-4 text-blue-600" />
                             Target pemenuhan dalam <span class="font-bold text-slate-900">{{ daysUntilRequired }} hari</span> lagi
                         </p>
                     </div>
                 </div>
 
                 <!-- Catatan Tambahan -->
-                <details :open="Boolean(form.notes)" class="space-y-3">
-                    <summary>Catatan tambahan <span class="ml-1 text-xs font-normal text-slate-500">Opsional</span></summary>
-                    <label for="input-notes" class="sr-only">Catatan tambahan</label>
+                <div class="border-t border-slate-100 pt-5">
+                    <label for="input-notes" class="block text-sm sm:text-base font-semibold text-slate-800 mb-2">
+                        Catatan Tambahan <span class="text-xs font-normal text-slate-500 ml-1">(Opsional)</span>
+                    </label>
                     <textarea
                         id="input-notes"
                         v-model="form.notes"
-                        rows="3"
+                        rows="2"
                         placeholder="Instruksi pengiriman, lokasi penyerahan barang, atau rincian operasional..."
-                        class="w-full p-4 bg-white border border-slate-300 rounded-xl text-base text-[#111827] placeholder:text-slate-400 focus:outline-none focus:border-[#014BAA] focus:ring-2 focus:ring-[#014BAA]/15 transition-colors resize-y font-medium"
+                        class="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 transition-colors resize-y font-medium"
                     ></textarea>
-                </details>
+                </div>
 
                 <!-- Alur Persetujuan Dokumen -->
-                <details :open="Boolean(form.approval_configuration_id || errors.approval_configuration_id)" class="border-t border-slate-100 pt-5 space-y-4">
-                    <summary>Alur persetujuan <span class="ml-1 text-xs font-normal text-slate-500">Otomatis sesuai divisi; buka untuk meninjau</span></summary>
+                <div class="border-t border-slate-100 pt-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
+                                <GitBranch class="w-4 h-4 text-blue-600" />
+                                Alur Persetujuan Dokumen
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                Dipilih otomatis sesuai divisi Anda. Anda dapat meninjau urutan persetujuan di bawah ini.
+                            </p>
+                        </div>
+                        <span v-if="selectedWorkflowLevels.length > 0" class="text-xs text-blue-700 font-bold bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                            {{ selectedWorkflowLevels.length }} Level Persetujuan
+                        </span>
+                    </div>
 
                     <BaseSelect
                         v-model="form.approval_configuration_id"
@@ -163,16 +179,7 @@ defineEmits(['mark-touched'])
                     />
 
                     <!-- Pratinjau Alur Persetujuan -->
-                    <div class="pt-2">
-                        <div class="mb-3.5 flex items-center justify-between">
-                            <span class="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                                <GitBranch class="w-4 h-4 text-[#014BAA]" />
-                                Urutan Verifikasi & Persetujuan:
-                            </span>
-                            <span v-if="selectedWorkflowLevels.length > 0" class="text-xs text-[#014BAA] font-bold bg-[#EEF4FC] border border-[#014BAA]/20 px-2.5 py-0.5 rounded-md">
-                                {{ selectedWorkflowLevels.length }} Level Persetujuan
-                            </span>
-                        </div>
+                    <div class="bg-slate-50/70 border border-slate-200/80 rounded-xl p-4">
                         <div v-if="selectedWorkflowLevels.length > 0">
                             <ApprovalStepper
                                 :levels="selectedWorkflowLevels"
@@ -181,19 +188,19 @@ defineEmits(['mark-touched'])
                                 orientation="horizontal"
                             />
                         </div>
-                        <div v-else class="py-3 text-center text-xs sm:text-sm text-slate-500">
+                        <div v-else class="py-2 text-center text-xs sm:text-sm text-slate-500">
                             PR akan diproses melalui alur persetujuan default sistem.
                         </div>
                     </div>
-                </details>
+                </div>
             </div>
         </div>
 
         <aside class="space-y-5 lg:sticky lg:top-4">
             <!-- Profil Pemohon -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
                 <div class="flex items-center gap-3.5">
-                    <span class="w-12 h-12 rounded-xl bg-[#EEF4FC] text-[#014BAA] border border-[#014BAA]/20 flex items-center justify-center text-base font-bold shrink-0">
+                    <span class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center text-base font-bold shrink-0">
                         {{ (employeeName || 'K').charAt(0).toUpperCase() }}
                     </span>
                     <div class="min-w-0">
@@ -214,16 +221,16 @@ defineEmits(['mark-touched'])
             </div>
 
             <!-- Panduan Tahapan Pengajuan PR -->
-            <details class="border-t border-slate-200 pt-5 space-y-4">
-                <summary>
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
+                <h3 class="text-sm font-bold text-slate-900">
                     Petunjuk Pengajuan PR
-                </summary>
+                </h3>
                 <ol class="space-y-3.5 text-xs sm:text-sm text-slate-600">
                     <li class="flex items-start gap-3">
-                        <span class="w-6 h-6 rounded-full bg-[#EEF4FC] text-[#014BAA] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
+                        <span class="w-6 h-6 rounded-full bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
                         <div>
                             <span class="font-bold text-slate-900">Langkah 1 (Saat Ini):</span>
-                            <p class="text-slate-500 mt-0.5">Tentukan tujuan pengadaan serta tanggal batas kebutuhan barang.</p>
+                            <p class="text-slate-500 mt-0.5">Tentukan jalur pengadaan, tujuan pengadaan, serta tanggal batas kebutuhan barang.</p>
                         </div>
                     </li>
                     <li class="flex items-start gap-3">
@@ -244,7 +251,7 @@ defineEmits(['mark-touched'])
                 <div class="pt-3.5 border-t border-slate-100 text-xs sm:text-sm text-slate-500 leading-relaxed">
                     Total estimasi biaya akan otomatis dihitung saat Anda memasukkan item di Langkah 2.
                 </div>
-            </details>
+            </div>
         </aside>
     </div>
 </template>

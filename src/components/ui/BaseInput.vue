@@ -54,6 +54,7 @@ defineEmits(['update:modelValue'])
             <input 
                 :value="modelValue"
                 @input="$emit('update:modelValue', $event.target.value)"
+                @wheel="type === 'number' && $event.target.blur()"
                 :type="type" 
                 :placeholder="placeholder"
                 :disabled="disabled"

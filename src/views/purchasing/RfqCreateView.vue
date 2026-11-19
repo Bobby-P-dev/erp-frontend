@@ -9,7 +9,7 @@ import RfqSuppliersInviteSection from '../../components/purchasing/rfq/form/RfqS
 import RfqInitialNeedItemsSection from '../../components/purchasing/rfq/form/RfqInitialNeedItemsSection.vue'
 import RfqSourceNotice from '../../components/purchasing/rfq/detail/RfqSourceNotice.vue'
 import { useRfqCreateForm } from '../../composables/purchasing/useRfqCreateForm.js'
-import { Save, Send } from '@lucide/vue'
+import { Save, Send, Scale, ArrowLeft } from '@lucide/vue'
 
 const {
     isInitialSource, changeSource, initialItems, addInitialItem, removeInitialItem,
@@ -37,7 +37,7 @@ const {
 </script>
 
 <template>
-    <div class="rfq-create space-y-6 w-full min-w-0">
+    <div class="rfq-create space-y-5 w-full min-w-0 pb-12">
         <BaseBreadcrumb
             :items="[
                 { label: 'Purchasing', to: { name: 'user.purchasing' } },
@@ -45,16 +45,26 @@ const {
                 { label: 'Buat tender' }
             ]"
         />
-        <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Buat paket tender</h1>
-            <p class="mt-1.5 text-sm text-slate-500">
-                Siapkan barang dan undang supplier untuk mengajukan penawaran. Kolom bertanda
-                <span class="text-rose-500">*</span> wajib diisi.
-            </p>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200/80 shadow-2xs">
+            <div class="flex items-center gap-3.5">
+                <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
+                    <Scale class="w-5 h-5" />
+                </span>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Buat paket tender</h1>
+                    <p class="mt-0.5 text-xs sm:text-sm text-slate-500">
+                        Siapkan barang dan undang supplier. Kolom bertanda <span class="text-rose-500">*</span> wajib diisi.
+                    </p>
+                </div>
+            </div>
+            <RouterLink :to="{ name: 'user.purchasing.rfq' }" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition-colors shrink-0">
+                <ArrowLeft class="size-3.5" />
+                <span>Kembali ke Daftar</span>
+            </RouterLink>
         </div>
 
-        <nav aria-label="Bagian form tender" class="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3">
-            <a v-for="(step, index) in [{ id: 'rfq-source', label: 'Asal kebutuhan', done: true }, { id: 'rfq-terms-heading', label: 'Informasi tender', done: Boolean(form.title && form.deadline_date) }, { id: isInitialSource ? 'rfq-initial-items-heading' : 'rfq-items-heading', label: 'Barang', done: activeItems.length > 0 }, { id: 'rfq-suppliers-heading', label: 'Supplier', done: selectedSuppliers.length > 0 }]" :key="step.id" :href="`#${step.id}`" class="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-blue-600">
+        <nav aria-label="Bagian form tender" class="flex flex-wrap gap-2 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs">
+            <a v-for="(step, index) in [{ id: 'rfq-source', label: 'Asal kebutuhan', done: true }, { id: 'rfq-terms-heading', label: 'Informasi tender', done: Boolean(form.title && form.deadline_date) }, { id: isInitialSource ? 'rfq-initial-items-heading' : 'rfq-items-heading', label: 'Barang', done: activeItems.length > 0 }, { id: 'rfq-suppliers-heading', label: 'Supplier', done: selectedSuppliers.length > 0 }]" :key="step.id" :href="`#${step.id}`" class="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600">
                 <span class="flex size-6 items-center justify-center rounded-full text-xs font-semibold" :class="step.done ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'">{{ index + 1 }}</span>{{ step.label }}
             </a>
         </nav>
@@ -63,7 +73,7 @@ const {
         <form @submit.prevent class="space-y-5" :aria-busy="isSubmitting || isLoadingPlanDetail">
             <fieldset :disabled="isSubmitting" class="min-w-0 space-y-5">
             <section id="rfq-source" class="rfq-form-section scroll-mt-6" aria-labelledby="rfq-source-heading">
-                <div class="rfq-section-heading"><div><h2 id="rfq-source-heading">1. Asal kebutuhan</h2><p>Mulai dari kebutuhan awal atau PP. Mengganti sumber akan mengosongkan judul, pilihan rencana dan daftar barang.</p></div></div>
+                <div class="rfq-section-heading"><div><h2 id="rfq-source-heading">1. Asal kebutuhan</h2><p>Pilih sumber kebutuhan. Mengganti sumber akan mereset isian rencana dan barang.</p></div></div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label v-for="source in [{ id: 'initial_need', title: 'Kebutuhan awal', description: 'Minta harga supplier terlebih dahulu, sebelum membuat PR.' }, { id: 'procurement_plan', title: 'Dari rencana pengadaan', description: 'Gunakan barang dan kuota dari PP yang sudah tersedia.' }]" :key="source.id" class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors" :class="form.source_type === source.id ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:bg-slate-50'">
                         <input type="radio" name="rfq-source" :value="source.id" :checked="form.source_type === source.id" :disabled="isSubmitting" class="mt-1 size-4 accent-blue-700" @change="changeSource(source.id)" />
@@ -129,9 +139,8 @@ const {
                         </p>
                     </div>
                 </div>
-                <p class="text-xs text-slate-500 leading-relaxed">
-                    Simpan draf untuk diperiksa kembali, atau publikasikan untuk membuka penawaran dan
-                    memproses undangan supplier.
+                <p class="text-xs text-slate-500">
+                    Simpan sebagai draf, atau langsung publikasikan untuk mengundang supplier.
                 </p>
                 <div
                     class="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-100 pt-5"
@@ -155,11 +164,11 @@ const {
                             "
                             @click="handleSubmit(false)"
                         >
-                            <Save class="size-4" />Simpan draf
+                            <Save class="size-4 text-slate-500" />Simpan draf
                         </button>
                         <button
                             type="button"
-                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#014BAA] px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                             :disabled="
                                 isSubmitting ||
                                 (!isInitialSource && isLoadingPlans) ||
@@ -181,11 +190,11 @@ const {
 <style scoped>
 .rfq-create :deep(.rfq-form-section) {
     min-width: 0;
-    padding: 24px;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    padding: 20px 24px;
+    border: 1px solid rgb(226 232 240 / 0.8);
+    border-radius: 12px;
     background: white;
-    box-shadow: 0 2px 8px rgb(15 23 42 / 0.025);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.03);
 }
 .rfq-create :deep(h2[id]) { scroll-margin-top: 28px; }
 .rfq-create :deep(.rfq-form-section > * + *) {

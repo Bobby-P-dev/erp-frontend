@@ -85,7 +85,9 @@ export const getPendingApprovalCount = async (params = {}) => {
             }
         }
         const qs = queryParams.toString() ? `?${queryParams.toString()}` : ''
-        const response = await api.get(`/api/v1/approvals/count${qs}`)
+        const response = await api.get(`/api/v1/approvals/count${qs}`, {
+            skipGlobalLoader: true,
+        })
         return response.data
     } catch (error) {
         if (error?.response?.status === 404 || error?.response?.status === 401) {

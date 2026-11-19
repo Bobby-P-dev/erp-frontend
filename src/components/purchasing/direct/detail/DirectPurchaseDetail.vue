@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import DocumentWorkflowTracker from '../../../../components/approval/DocumentWorkflowTracker.vue'
+import DocumentActivityTimeline from '../../../../components/purchasing/DocumentActivityTimeline.vue'
 import DPDetailHeaderAndStepper from './DPDetailHeaderAndStepper.vue'
 import DPDetailInfoAndFinance from './DPDetailInfoAndFinance.vue'
 import DPDetailItemsTable from './DPDetailItemsTable.vue'
@@ -14,7 +15,7 @@ const focusTab = (index) => {
     activeTab.value = tabs[(index + tabs.length) % tabs.length].key
     requestAnimationFrame(() => document.getElementById('dp-tab-' + activeTab.value)?.focus())
 }
-const tabs = [{ key: 'summary', label: 'Ringkasan' }, { key: 'payment', label: 'Pembayaran' }, { key: 'receipts', label: 'Penerimaan' }, { key: 'history', label: 'Persetujuan PR' }]
+const tabs = [{ key: 'summary', label: 'Ringkasan' }, { key: 'payment', label: 'Pembayaran' }, { key: 'receipts', label: 'Penerimaan' }, { key: 'history', label: 'Riwayat & Persetujuan' }]
 const {
     dp,
     isLoading,
@@ -63,8 +64,14 @@ const {
                 <DPDetailItemsTable v-if="activeTab === 'summary'" :dp="dp" />
                 <DPDetailInfoAndFinance v-if="activeTab === 'summary'" section="costs" :dp="dp" :format-date="formatDate" />
                 <p v-if="activeTab === 'payment' && !dp.payment_request" class="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">Belum ada permohonan pembayaran untuk pembelian ini.</p>
+                <DocumentActivityTimeline
+                    v-if="activeTab === 'history' && dp?.id"
+                    document-type="direct_purchase"
+                    :document-id="dp.id"
+                    :active="activeTab === 'history'"
+                    subtitle="Perubahan data Direct Purchase beserta rincian itemnya."
+                />
                 <DocumentWorkflowTracker v-if="activeTab === 'history' && dp.procurement_plan?.purchase_requisition_id" documentType="purchase_requisition" :documentId="dp.procurement_plan.purchase_requisition_id" title="Persetujuan PR terkait" auditTrailTitle="Riwayat persetujuan" />
-                <p v-else-if="activeTab === 'history'" class="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">Tidak ada referensi persetujuan PR pada dokumen ini.</p>
             </section>
 
             <DPDetailModals

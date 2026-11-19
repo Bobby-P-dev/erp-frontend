@@ -51,22 +51,47 @@ defineEmits(['go-to-step'])
     <div class="pr-review grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div class="lg:col-span-2 space-y-6">
             <!-- Card 1: Ringkasan Pengajuan -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 space-y-5 shadow-xs">
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 space-y-5 shadow-2xs">
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100">
                     <div>
-                        <h2 class="text-lg sm:text-xl font-bold text-slate-900">Ringkasan Pengajuan</h2>
-                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Periksa kembali kelengkapan informasi sebelum dikirim</p>
+                        <h2 class="text-lg font-bold text-slate-900">Ringkasan Pengajuan</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Periksa kembali jalur pengadaan dan informasi sebelum dikirim</p>
                     </div>
                     <button
                         type="button"
                         @click="$emit('go-to-step', 1)"
-                        class="text-xs sm:text-sm font-bold text-[#014BAA] hover:underline cursor-pointer"
+                        class="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                     >
                         Ubah Data
                     </button>
                 </div>
 
                 <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-xs sm:text-sm">
+                    <div class="flex justify-between gap-3 py-2 border-b border-slate-100 sm:col-span-2">
+                        <dt class="text-slate-500">Jalur Pengadaan</dt>
+                        <dd class="font-bold text-slate-900 text-right">
+                            <template v-if="form.procurement_route === 'direct_supplier'">
+                                <span class="text-blue-700">Supplier Langsung / Repeat Order</span> — {{ form.direct_supplier_name || 'Supplier terpilih' }}
+                            </template>
+                            <template v-else>
+                                Jalur Standar (Melalui Rencana Pengadaan)
+                            </template>
+                        </dd>
+                    </div>
+                    <template v-if="form.procurement_route === 'direct_supplier'">
+                        <div class="flex justify-between gap-3 py-2 border-b border-slate-100">
+                            <dt class="text-slate-500">Referensi Harga / PO</dt>
+                            <dd class="font-semibold text-slate-900 text-right">{{ form.direct_purchase_terms?.reference || '-' }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-3 py-2 border-b border-slate-100">
+                            <dt class="text-slate-500">Ketentuan Pembayaran</dt>
+                            <dd class="font-semibold text-slate-900 text-right">{{ form.direct_purchase_terms?.payment_terms || '-' }}</dd>
+                        </div>
+                        <div v-if="form.direct_purchase_terms?.delivery_address" class="flex justify-between gap-3 py-2 border-b border-slate-100 sm:col-span-2">
+                            <dt class="text-slate-500">Alamat Pengiriman</dt>
+                            <dd class="font-semibold text-slate-900 text-right whitespace-pre-line">{{ form.direct_purchase_terms.delivery_address }}</dd>
+                        </div>
+                    </template>
                     <div class="flex justify-between gap-3 py-2 border-b border-slate-100">
                         <dt class="text-slate-500">Tujuan Pengadaan</dt>
                         <dd class="font-bold text-slate-900 text-right">{{ form.purpose || '-' }}</dd>
@@ -94,13 +119,13 @@ defineEmits(['go-to-step'])
             </div>
 
             <!-- Card 2: Rincian Item yang Diajukan -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 space-y-4 shadow-xs">
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 space-y-4 shadow-2xs">
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-                    <h2 class="text-lg sm:text-xl font-bold text-slate-900">{{ form.items.length }} Item Diajukan</h2>
+                    <h2 class="text-lg font-bold text-slate-900">{{ form.items.length }} Item Diajukan</h2>
                     <button
                         type="button"
                         @click="$emit('go-to-step', 2)"
-                        class="text-xs sm:text-sm font-bold text-[#014BAA] hover:underline cursor-pointer"
+                        class="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                     >
                         Ubah Item
                     </button>
@@ -125,7 +150,7 @@ defineEmits(['go-to-step'])
                                 Catatan: {{ row.notes }}
                             </p>
                         </div>
-                        <span class="font-mono text-sm sm:text-base font-bold text-slate-900 shrink-0">
+                        <span class="font-mono tabular-nums text-sm sm:text-base font-bold text-slate-900 shrink-0">
                             {{ formatCurrency((Number(row.quantity) || 0) * (Number(row.estimated_price) || 0), form.currency) }}
                         </span>
                     </div>
@@ -135,12 +160,12 @@ defineEmits(['go-to-step'])
 
         <!-- Sidebar Kanan Step 3 -->
         <aside class="space-y-5 lg:sticky lg:top-4">
-            <!-- Total Estimasi -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+            <!-- Total Estimasi / Nilai Disepakati -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
                 <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Total Estimasi Anggaran
+                    {{ form.procurement_route === 'direct_supplier' ? 'Total Harga Disepakati' : 'Total Estimasi Anggaran' }}
                 </p>
-                <p class="tabular-nums text-2xl font-semibold tracking-tight text-slate-900 mt-2 break-all">
+                <p class="font-mono tabular-nums text-2xl font-bold tracking-tight text-slate-900 mt-2 break-all">
                     {{ formatCurrency(totalEstimatedAmount, form.currency) }}
                 </p>
                 <p v-if="form.currency !== 'IDR'" class="text-xs sm:text-sm text-slate-500 font-mono mt-1 pt-2 border-t border-slate-100">
@@ -152,7 +177,7 @@ defineEmits(['go-to-step'])
             </div>
 
             <!-- Panduan Prosedur -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 text-xs sm:text-sm text-slate-600 space-y-2 shadow-xs">
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-6 text-xs sm:text-sm text-slate-600 space-y-2 shadow-2xs">
                 <p class="font-bold text-slate-900 text-sm sm:text-base">Prosedur Pengajuan</p>
                 <p class="leading-relaxed text-slate-500">
                     Dokumen PR akan langsung masuk ke antrean verifikasi pemberi persetujuan sesuai hierarki yang telah dikonfigurasi. Anda dapat melacak status persetujuan secara berkala di dashboard pengadaan.

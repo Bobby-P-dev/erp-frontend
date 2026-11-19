@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { 
     LayoutDashboard, 
@@ -9,10 +9,15 @@ import {
     ChevronRight,
     ChevronDown,
     Database,
-    Search
+    Search,
+    FileClock,
+    Warehouse
 } from '@lucide/vue'
+import { useAuthStore } from '../../stores/auth.js'
+import { warehouseMasterPermissions } from '../../services/warehouseMasterServices.js'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const isCollapsed = ref(false)
 const expandedMenus = ref({})
 
@@ -20,7 +25,7 @@ const toggleMenu = (name) => {
     expandedMenus.value[name] = !expandedMenus.value[name]
 }
 
-const navigation = [
+const rawNavigation = [
     { name: 'Dashboard', to: 'admin.dashboard', icon: LayoutDashboard },
     { 
         name: 'Master Data', 
@@ -54,7 +59,9 @@ const navigation = [
             }
         ]
     },
+    { name: 'Warehouses & Locations', to: 'admin.master.warehouses', icon: Warehouse, permissions: warehouseMasterPermissions },
     { name: 'Users', to: 'admin.master.user', icon: Users },
+    { name: 'Audit Trail', to: 'admin.audit-logs', icon: FileClock, permission: 'audit-log.read', strictPermission: true },
     { 
         name: 'Settings', 
         icon: Settings,
@@ -63,6 +70,16 @@ const navigation = [
         ]
     },
 ]
+
+const navigation = computed(() =>
+    rawNavigation.filter((item) => {
+        if (item.permissions) return item.permissions.some((permission) => authStore.hasStrictPermission(permission))
+        if (!item.permission) return true
+        return item.strictPermission
+            ? authStore.hasStrictPermission(item.permission)
+            : authStore.hasPermission(item.permission)
+    })
+)
 
 const isActive = (routeName) => {
     if (routeName === '#') return false
@@ -78,7 +95,7 @@ const isChildActive = (item) => {
     })
 }
 
-navigation.forEach(item => {
+navigation.value.forEach(item => {
     if (item.children && isChildActive(item)) {
         expandedMenus.value[item.name] = true
         item.children.forEach(child => {

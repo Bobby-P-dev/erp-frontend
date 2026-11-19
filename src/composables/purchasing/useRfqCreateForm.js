@@ -5,7 +5,7 @@ import { getProcurementPlans, showProcurementPlan } from '../../services/procure
 import { useRfqSupplierCandidates } from './useRfqSupplierCandidates.js'
 import { searchUnits } from '../../services/unitServices.js'
 import { buildRfqDraftPayload, validateRfqDraft, newInitialNeedItem } from '../../utils/rfqSource.js'
-import { showLoading, showSuccess, showError } from '../../utils/swal.js'
+import { showLoading, showSuccess, showError, showToast, closeSwal } from '../../utils/swal.js'
 
 export function useRfqCreateForm() {
     const router = useRouter()
@@ -263,12 +263,17 @@ export function useRfqCreateForm() {
     }
 
     const selectAllItems = () => {
+        let count = 0
         planItems.value.forEach(it => {
             if (it.remaining_quantity > 0) {
                 it.is_selected = true
                 it.target_quantity = it.remaining_quantity
+                count++
             }
         })
+        if (count > 0) {
+            showToast.info('Barang Dipilih', `${count} barang diisi sesuai sisa kuota rencana.`)
+        }
     }
 
     watch(() => form.value.procurement_plan_id, async (newId, oldId) => {
@@ -312,7 +317,14 @@ export function useRfqCreateForm() {
                 }
                 showSuccess('Berhasil Dipublikasikan!', `Tender RFQ ${createdRfq.rfq_number || form.value.title} berhasil dibuat dan portal penawaran vendor telah aktif.`)
             } else {
-                showSuccess('Berhasil!', `Draf tender RFQ ${createdRfq.rfq_number || form.value.title} berhasil dibuat.`)
+                closeSwal()
+                showToast.success('Draf Tender Tersimpan', {
+                    description: `Draf ${createdRfq.rfq_number || form.value.title} siap dilanjutkan.`,
+                    action: {
+                        label: 'Ke Daftar RFQ',
+                        onClick: () => router.push({ name: 'user.purchasing.rfq' })
+                    }
+                })
             }
 
             router.push({

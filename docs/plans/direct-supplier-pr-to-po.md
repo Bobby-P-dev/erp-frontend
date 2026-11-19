@@ -10,3 +10,5 @@ Status: implementasi/regresi lokal selesai 2026-11-16; UAT dan deployment belum 
 6. Terbuka: UAT akun nyata, deployment, serta kesepakatan harga 1–6 bulan sebagai pengembangan terpisah.
 
 Lihat [hasil dan checklist UAT](../changes/2026-11-16-direct-supplier-pr-to-po.md).
+
+Pembaruan 2026-11-17: [perbaikan UAT snapshot JSON dan scroll jumlah](../changes/2026-11-17-direct-pr-json-snapshot-and-quantity-scroll.md). Browser komponen PR desktop/ponsel, tes dan build lulus; draft yang terlanjur bernilai 28 harus diedit pengguna bila kebutuhan sebenarnya 30. UAT/deployment masih terbuka.

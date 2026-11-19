@@ -307,12 +307,24 @@ const badgeConfig = computed(() => {
                 icon: Pause
             }
         case 'cancelled':
+        case 'canceled':
         case 'dibatalkan':
             return {
                 label: 'Dibatalkan',
-                bg: 'bg-[#F1F5F9] text-[#475569] border-[#475569]/15',
-                iconBg: 'bg-[#475569]',
+                bg: 'bg-[#FDE8E8] text-[#991B1B] border-[#991B1B]/15',
+                iconBg: 'bg-[#991B1B]',
                 icon: Ban
+            }
+        case 'void':
+        case 'deleted':
+        case 'dihapus':
+        case 'failed':
+        case 'gagal':
+            return {
+                label: props.label || (st === 'deleted' || st === 'dihapus' ? 'Dihapus' : st === 'void' ? 'Void' : 'Gagal'),
+                bg: 'bg-[#FDE8E8] text-[#991B1B] border-[#991B1B]/15',
+                iconBg: 'bg-[#991B1B]',
+                icon: X
             }
         case 'archived':
             return {

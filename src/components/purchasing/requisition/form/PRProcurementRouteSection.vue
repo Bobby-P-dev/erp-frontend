@@ -30,8 +30,8 @@ watch(() => props.form.procurement_route, value => {
     if (value === 'standard') { props.form.direct_supplier_id = null; props.form.direct_supplier_name = ''; props.form.direct_purchase_terms = { payment_terms: '', delivery_address: '', reference: '' } }
 })
 function select(row) {
-    if (Number(props.form.direct_supplier_id) !== Number(row.id)) props.form.direct_purchase_terms = { payment_terms: '', delivery_address: '', reference: '' }
-    props.form.direct_supplier_id = row.id; props.form.direct_supplier_name = row.name
+    props.form.direct_supplier_id = row.id
+    props.form.direct_supplier_name = row.name
 }
 onBeforeUnmount(() => { clearTimeout(timer); request++ })
 </script>

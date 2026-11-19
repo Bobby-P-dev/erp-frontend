@@ -30,7 +30,6 @@ import {
     Trash2,
     Loader2
 } from '@lucide/vue'
-import { generatePurchaseRequisitionPdf } from '../../utils/pdf/purchaseRequisitionPdfGenerator.js'
 import { useAuthStore } from '../../stores/auth.js'
 import { canCreateRequisitionPo, usePurchaseOrderActions } from '../../composables/purchasing/usePurchaseOrderActions.js'
 
@@ -99,6 +98,7 @@ const handleDownloadPdf = async (pr) => {
     if (!pr || downloadingPrId.value === pr.id) return
     downloadingPrId.value = pr.id
     try {
+        const { generatePurchaseRequisitionPdf } = await import('../../utils/pdf/purchaseRequisitionPdfGenerator.js')
         await generatePurchaseRequisitionPdf(pr, {
             currentUser: authStore.user?.name || 'Petugas ERP'
         })
@@ -286,14 +286,35 @@ const getActiveStepName = (pr) => {
             <p id="pr-table-hint" class="px-5 pt-3 text-xs text-slate-500 xl:hidden">Geser tabel untuk melihat seluruh kolom dan aksi.</p>
             <div class="pr-table min-w-0">
             <BaseTable :columns="tableColumns" min-width="1180px" layout="fixed" label="Daftar pengajuan pembelian" :busy="isLoading" aria-describedby="pr-table-hint">
-                <tr v-if="isLoading">
-                    <td colspan="6" class="px-6 py-14 text-center text-sm text-slate-500">
-                        <div class="inline-flex items-center gap-2 font-medium">
-                            <RefreshCw class="w-4 h-4 animate-spin text-slate-700" />
-                            Memuat daftar Purchase Requisition...
-                        </div>
-                    </td>
-                </tr>
+                <template v-if="isLoading">
+                    <tr v-for="n in 5" :key="`pr-skeleton-${n}`" class="border-b border-slate-100 last:border-b-0">
+                        <td class="px-4 py-3.5">
+                            <div class="erp-skeleton h-4 w-32 rounded" />
+                            <div class="erp-skeleton mt-2 h-3 w-20 rounded" />
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <div class="erp-skeleton h-4 w-28 rounded" />
+                            <div class="erp-skeleton mt-2 h-3 w-24 rounded" />
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <div class="erp-skeleton h-4 w-36 rounded" />
+                            <div class="erp-skeleton mt-2 h-3 w-24 rounded" />
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <div class="erp-skeleton ml-auto h-4 w-24 rounded" />
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <div class="erp-skeleton mx-auto h-6 w-24 rounded-full" />
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <div class="ml-auto flex justify-end gap-1.5">
+                                <div class="erp-skeleton h-7 w-7 rounded-md" />
+                                <div class="erp-skeleton h-7 w-7 rounded-md" />
+                                <div class="erp-skeleton h-7 w-7 rounded-md" />
+                            </div>
+                        </td>
+                    </tr>
+                </template>
 
                 <tr v-else-if="requisitions.length === 0">
                     <td colspan="6" class="px-6 py-14 text-center">

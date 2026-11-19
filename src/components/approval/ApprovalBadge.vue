@@ -85,11 +85,12 @@ const badgeConfig = computed(() => {
                 iconBg: 'bg-[#475569]'
             }
         case 'cancelled':
+        case 'canceled':
             return {
                 label: 'Dibatalkan',
                 icon: Ban,
-                classes: 'bg-[#F1F5F9] text-[#475569] border border-[#475569]/15',
-                iconBg: 'bg-[#475569]'
+                classes: 'bg-[#FDE8E8] text-[#991B1B] border border-[#991B1B]/15',
+                iconBg: 'bg-[#991B1B]'
             }
         default:
             return {

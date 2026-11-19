@@ -6,7 +6,8 @@ import {
     TriangleAlert, 
     Save, 
     ChevronRight, 
-    Send 
+    Send,
+    Loader2
 } from '@lucide/vue'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -26,6 +27,8 @@ const {
     existingPrNumber,
     existingPrStatus,
     latestRevisionAction,
+    isLoadingMeta,
+    isLoadingPr,
     isSubmitting,
     currentStep,
     stepMeta,
@@ -33,6 +36,7 @@ const {
     itemsCatalog,
     unitsList,
     errors,
+    stepErrorSummary,
     form,
     today,
 
@@ -65,6 +69,8 @@ const {
     fetchItemsSearch,
     fetchUnitsSearch,
     fetchAccountingCategoriesSearch,
+    fetchAccountingSubcategoriesSearch,
+    fetchAccountingAccountsSearch,
     formatDisplayDate,
     markTouched,
     getFieldError,
@@ -83,7 +89,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="pr-create w-full min-w-0 max-w-[1440px] mx-auto flex flex-col gap-6 pb-12">
+    <div class="pr-create w-full min-w-0 flex flex-col gap-6 pb-12">
         <PageHeader
             :title="isEditMode ? (existingPrStatus === 'revision_requested' ? `Perbaiki PR ${existingPrNumber || ''}` : `Edit Draft PR ${existingPrNumber || ''}`) : 'Buat Pengajuan Pembelian'"
             :description="`Diajukan oleh ${employeeName} (${employeeCompanyName} / ${employeeDivisionName})`"
@@ -94,7 +100,7 @@ onMounted(() => {
             ]"
         >
             <template #icon>
-                <FileText class="w-6 h-6 text-[#014BAA]" />
+                <FileText class="w-6 h-6 text-blue-600" />
             </template>
             <template #actions>
                 <BaseButton
@@ -136,9 +142,47 @@ onMounted(() => {
             </div>
         </div>
 
+        <!-- RINGKASAN VALIDASI INLINE -->
+        <div
+            v-if="stepErrorSummary"
+            role="alert"
+            class="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3 text-rose-900"
+        >
+            <span class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <TriangleAlert class="w-4 h-4" />
+            </span>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold">{{ stepErrorSummary }}</p>
+                <p class="text-xs text-rose-700 mt-0.5">Periksa kolom yang ditandai merah di bawah ini.</p>
+            </div>
+        </div>
+
+        <!-- FORM UTAMA / SKELETON INITIAL LOAD -->
+        <div
+            v-if="isLoadingPr || (isLoadingMeta && !itemOptions.length)"
+            class="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 space-y-5"
+            aria-busy="true"
+            aria-label="Memuat data formulir pengajuan pembelian"
+        >
+            <div class="flex items-center gap-2.5 text-sm font-medium text-slate-600">
+                <Loader2 class="w-4 h-4 animate-spin text-[#014BAA]" />
+                <span>{{ isLoadingPr ? 'Memuat data Purchase Requisition…' : 'Menyiapkan referensi master & alur persetujuan…' }}</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div v-for="n in 4" :key="`pr-form-skel-${n}`" class="space-y-2">
+                    <div class="erp-skeleton h-3.5 w-28 rounded" />
+                    <div class="erp-skeleton h-10 w-full rounded-lg" />
+                </div>
+            </div>
+            <div class="space-y-2 pt-2">
+                <div class="erp-skeleton h-3.5 w-36 rounded" />
+                <div class="erp-skeleton h-20 w-full rounded-lg" />
+            </div>
+        </div>
+
         <!-- FORM UTAMA -->
-        <form @submit.prevent="handleSubmit('submit')" class="space-y-6">
-            <PRProcurementRouteSection v-if="currentStep === 1 || currentStep === 3" :form="form" :errors="errors" :readonly="currentStep === 3" />
+        <form v-else @submit.prevent="handleSubmit('submit')" class="space-y-6">
+            <PRProcurementRouteSection v-if="currentStep === 1" :form="form" :errors="errors" />
             <!-- LANGKAH 1: INFO PENGAJUAN -->
             <PRHeaderSection
                 v-show="currentStep === 1"
@@ -162,6 +206,7 @@ onMounted(() => {
                 v-show="currentStep === 2"
                 :form="form"
                 :errors="errors"
+                :procurement-route="form.procurement_route"
                 :currencies-list="currenciesList"
                 :total-estimated-amount="totalEstimatedAmount"
                 :item-options="itemOptions"
@@ -175,6 +220,8 @@ onMounted(() => {
                 @search-items="fetchItemsSearch"
                 @search-units="fetchUnitsSearch"
                 @search-accounting-categories="fetchAccountingCategoriesSearch"
+                @search-accounting-subcategories="fetchAccountingSubcategoriesSearch"
+                @search-accounting-accounts="fetchAccountingAccountsSearch"
                 @item-change="handleItemChange"
                 @mark-item-touched="markItemTouched"
             />
@@ -197,10 +244,10 @@ onMounted(() => {
         </form>
 
         <!-- BILAH AKSI (STICKY ACTION BAR) -->
-        <div class="pr-actions sticky bottom-4 z-20 bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="pr-actions sticky bottom-4 z-20 bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-900/5 px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p class="text-xs sm:text-sm font-medium text-slate-600">
                 <span v-if="currentStep === 1">Langkah 1 dari 3: Informasi Pengadaan</span>
-                <span v-else-if="currentStep === 2">Langkah 2 dari 3: Total <span class="font-bold text-slate-900">{{ form.items.length }}</span> item (<span class="font-mono font-bold text-[#014BAA]">{{ formatCurrency(totalEstimatedAmount, form.currency) }}</span>)</span>
+                <span v-else-if="currentStep === 2">Langkah 2 dari 3: Total <span class="font-bold text-slate-900">{{ form.items.length }}</span> item (<span class="font-mono tabular-nums font-bold text-blue-700">{{ formatCurrency(totalEstimatedAmount, form.currency) }}</span>)</span>
                 <span v-else>Langkah 3 dari 3: Siap diajukan ke tahap otorisasi</span>
             </p>
             <div class="flex flex-wrap items-center gap-3">
@@ -257,17 +304,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.pr-create :deep(h1) { font-weight: 600; }
-.pr-create :deep(h2) { font-size: 18px; font-weight: 600; }
-.pr-create :deep(h3), .pr-create :deep(h4), .pr-create :deep(label) { font-weight: 500; }
-.pr-create :deep(label) { font-size: 14px; }
-.pr-create :deep(.shadow-xs), .pr-create :deep(.shadow-2xs) { box-shadow: none; }
-.pr-create :deep(input), .pr-create :deep(textarea) { font-size: 14px; font-weight: 400; background-color: white; }
-.pr-create :deep(input:not([type=checkbox])) { min-height: 44px; }
-.pr-create :deep(summary) { cursor: pointer; color: #475569; font-size: 14px; font-weight: 500; }
-.pr-create :deep(summary:hover) { color: #014baa; }
+.pr-create :deep(input:not([type=checkbox]):not([type=radio])) { min-height: 44px; }
 .pr-create :deep(button:focus-visible), .pr-create :deep(summary:focus-visible), .pr-create :deep(a:focus-visible) { outline: 2px solid #014baa; outline-offset: 3px; }
-.pr-create :deep(.font-mono) { font-family: inherit; font-variant-numeric: tabular-nums; }
 @media (max-width: 639px) {
     .pr-actions { position: static; }
     .pr-actions > div { width: 100%; }

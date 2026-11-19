@@ -8,6 +8,7 @@ import BaseTable from '../../ui/BaseTable.vue'
 import StatusBadge from '../../ui/StatusBadge.vue'
 import ReviewDisclosure from '../../ui/ReviewDisclosure.vue'
 import DocumentWorkflowTracker from '../../approval/DocumentWorkflowTracker.vue'
+import DocumentActivityTimeline from '../DocumentActivityTimeline.vue'
 import { ArrowRight, Play, Ban, ExternalLink, RefreshCw } from '@lucide/vue'
 
 const props = defineProps({ planId: { type: [Number, String], required: true } })
@@ -17,6 +18,7 @@ const isLoading = ref(true)
 const loadError = ref('')
 const isActing = ref(false)
 const approvalOpened = ref(false)
+const activityOpened = ref(false)
 let requestVersion = 0
 const fetchPlan = async () => {
     const version = ++requestVersion
@@ -193,6 +195,14 @@ const handleCancel = async () => {
                     <div><dt>Diaktifkan</dt><dd>{{ formatDate(plan.activated_at, true) }}<span v-if="plan.activated_by_user?.name"> · {{ plan.activated_by_user.name }}</span></dd></div>
                     <div v-if="plan.completed_at"><dt>Selesai</dt><dd>{{ formatDate(plan.completed_at, true) }}</dd></div>
                 </dl>
+            </ReviewDisclosure>
+            <ReviewDisclosure title="Riwayat perubahan data" description="Jejak pembuatan, aktivasi, edit, dan pembatalan rencana pengadaan" @toggle="activityOpened ||= $event.target.open">
+                <DocumentActivityTimeline
+                    v-if="plan?.id && activityOpened"
+                    document-type="procurement_plan"
+                    :document-id="plan.id"
+                    :active="activityOpened"
+                />
             </ReviewDisclosure>
         </template>
     </div>

@@ -125,5 +125,5 @@ const methods = [
 </template>
 
 <style scoped>
-.payment-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+.payment-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); gap: 10px; }
 </style>

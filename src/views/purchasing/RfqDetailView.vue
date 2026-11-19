@@ -1,7 +1,7 @@
 <script setup>
 import RfqSourceNotice from '@/components/purchasing/rfq/detail/RfqSourceNotice.vue'
 import { rfqPurchaseBlockReason, rfqSourceLabel } from '@/utils/rfqSource.js'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRfqDetail } from '@/composables/purchasing/useRfqDetail.js'
 import { formatRfqTimestamp } from '@/utils/rfqTimestamp.js'
 
@@ -14,6 +14,7 @@ import RfqMetadataCards from '@/components/purchasing/rfq/detail/RfqMetadataCard
 import RfqItemsSuppliersTabs from '@/components/purchasing/rfq/detail/RfqItemsSuppliersTabs.vue'
 import RfqManualQuotationModal from '@/components/purchasing/rfq/detail/RfqManualQuotationModal.vue'
 import QuotationReviewSection from '@/components/purchasing/rfq/detail/QuotationReviewSection.vue'
+import DocumentActivityTimeline from '@/components/purchasing/DocumentActivityTimeline.vue'
 
 import {
     ArrowLeft,
@@ -70,6 +71,8 @@ const {
     sendingInvitation,
     handleSendInvitation,
 } = useRfqDetail()
+
+const activityOpened = ref(false)
 
 onMounted(() => {
     fetchRfqDetail()
@@ -174,6 +177,14 @@ onMounted(() => {
             </ReviewDisclosure>
             <ReviewDisclosure v-if="deadlineExtensions.length" title="Riwayat perpanjangan" :description="`${deadlineExtensions.length} perubahan batas penawaran`">
                 <ol class="space-y-4 text-sm text-slate-600"><li v-for="entry in deadlineExtensions" :key="entry.id" class="border-t border-slate-100 pt-4"><p class="font-medium text-slate-800">{{ entry.previous_deadline_date || 'Belum ditentukan' }} → {{ entry.deadline_date }} (WIB)</p><p class="mt-2 whitespace-pre-line">{{ entry.reason }}</p><p class="mt-2 text-slate-500">User #{{ entry.changed_by }} · {{ formatRfqTimestamp(entry.created_at) }}</p></li></ol>
+            </ReviewDisclosure>
+            <ReviewDisclosure title="Riwayat perubahan data" description="Histori pembuatan, edit tender, perubahan batas waktu, dan item RFQ" @toggle="activityOpened ||= $event.target.open">
+                <DocumentActivityTimeline
+                    v-if="rfq?.id && activityOpened"
+                    document-type="rfq"
+                    :document-id="rfq.id"
+                    :active="activityOpened"
+                />
             </ReviewDisclosure>
         </template>
 
